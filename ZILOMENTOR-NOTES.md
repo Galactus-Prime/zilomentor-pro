@@ -139,6 +139,30 @@ The isolated HTTP QA command intentionally exits nonzero while this
 synthetic cart-page rendering check remains unresolved. Do not mistake
 passing session/API tests for full storefront or payment validation.
 
+## ACF dynamic widget and cart shortcode findings (18 November 2026)
+
+Using source-code copies of ACF Pro 6.8.11, Elementor 4.4.1 and Fiore
+in private, disposable WordPress/PHP 8.4 staging:
+
+- Elementor's acf-text dynamic tag registered and returned the synthetic
+  ACF field value from the current WordPress page.
+- A real Elementor Heading widget configured with that dynamic tag
+  rendered the synthetic ACF value in the HTTP page output.
+- With one synthetic item in WooCommerce's session, an HTTP request
+  executed the Cart page's woocommerce_cart shortcode and produced
+  4,879 bytes of HTML including the product and a cart form.
+  The queried page was correctly recognized as the WooCommerce Cart.
+- The normal full-page template omitted that cart content with and
+  without ZiloMentor Pro, under both Fiore and Twenty Twenty-Five.
+  This is a page rendering discrepancy in the isolated environment,
+  **not a demonstrated ZiloMentor Pro regression**.
+- All synthetic records/cookies were confined to the private test
+  database and network. No live site modification or purchase.
+
+The isolated QA command deliberately exits nonzero while cart page
+rendering is unresolved. Do not overstate this as a complete editor,
+checkout, payment, ACF field-type or cross-version certification.
+
 ## Suggested validation sequence
 1. Install a disposable WordPress 7.1+, Elementor 4.4.x staging environment.
 2. Record baseline pages/templates and widgets under genuine Elementor Pro.

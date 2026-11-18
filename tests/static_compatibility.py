@@ -71,6 +71,12 @@ check("isolated QA does not copy live configuration or customer data",
       and 'wp-config.php' not in qa_fixture
       and "ZMP_ISOLATED_QA" in qa_fixture
       and '"--internal"' in qa_script)
+check("ACF Pro dynamic field widget has isolated regression coverage",
+      "advanced-custom-fields-pro" in qa_script
+      and "zmp_qa_acf_tag" in qa_script
+      and "ACF dynamic value renders inside Elementor heading" in qa_script
+      and "field_zmp_qa_text" in qa_fixture
+      and (ROOT / "modules/dynamic-tags/acf/tags/acf-text.php").is_file())
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))

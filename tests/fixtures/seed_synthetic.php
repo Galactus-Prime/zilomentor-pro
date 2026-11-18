@@ -33,6 +33,21 @@ $elements = [
                 'elements' => [],
             ],
             [
+                'id' => '1a2b3c02',
+                'elType' => 'widget',
+                'widgetType' => 'heading',
+                'settings' => [
+                    'title' => 'ACF Dynamic Fallback',
+                    '__dynamic__' => [
+                        'title' => \Elementor\Plugin::instance()->dynamic_tags->tag_data_to_tag_text(
+                            'zmp-qa-acf-heading', 'acf-text',
+                            [ 'key' => 'field_zmp_qa_text:zmp_qa_text' ]
+                        ),
+                    ],
+                ],
+                'elements' => [],
+            ],
+            [
                 'id' => $form_id,
                 'elType' => 'widget',
                 'widgetType' => 'form',
@@ -58,6 +73,9 @@ $elements = [
 update_post_meta( $page_id, '_elementor_data', wp_slash( wp_json_encode( $elements ) ) );
 update_post_meta( $page_id, '_elementor_edit_mode', 'builder' );
 update_post_meta( $page_id, '_elementor_version', ELEMENTOR_VERSION );
+if ( function_exists( 'update_field' ) ) {
+    update_field( 'field_zmp_qa_text', 'ZiloMentor Synthetic ACF Value', $page_id );
+}
 $product = new WC_Product_Simple();
 $product->set_name( 'ZiloMentor Synthetic Test Product' );
 $product->set_status( 'publish' );

@@ -23,7 +23,7 @@ import tempfile
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
-PLUGINS = ("elementor", "woocommerce", "vamtam-elementor-integration-fiore")
+PLUGINS = ("advanced-custom-fields-pro", "elementor", "woocommerce", "vamtam-elementor-integration-fiore")
 THEME = "vamtam-fiore"
 
 
@@ -119,7 +119,7 @@ def main():
         mu = site / "wp-content" / "mu-plugins"
         mu.mkdir(exist_ok=True)
         (mu / "zmp-qa-no-mail.php").write_text(
-            """<?php
+            r"""<?php
 // Generated exclusively inside a disposable QA WordPress tree.
 add_filter( 'pre_wp_mail', '__return_true', PHP_INT_MAX );
 add_action( 'template_redirect', function () {
@@ -140,6 +140,68 @@ add_action( 'template_redirect', function () {
         ) ) > 0,
     ] );
 }, 30 );
+
+// Test-only synthetic ACF metadata; never stored on the production website.
+add_action( 'acf/init', function () {
+    if ( ! function_exists( 'acf_add_local_field_group' ) ) {
+        return;
+    }
+    acf_add_local_field_group( [
+        'key' => 'group_zmp_qa_only',
+        'title' => 'ZiloMentor QA Only',
+        'fields' => [
+            [
+                'key' => 'field_zmp_qa_text',
+                'name' => 'zmp_qa_text',
+                'label' => 'ZiloMentor QA Text',
+                'type' => 'text',
+            ],
+        ],
+        'location' => [ [ [ 'param' => 'post_type', 'operator' => '==', 'value' => 'page' ] ] ],
+        'active' => true,
+    ] );
+} );
+add_action( 'template_redirect', function () {
+    if ( ! isset( $_GET['zmp_qa_cart_render'] ) ) {
+        return;
+    }
+    $id = get_queried_object_id();
+    $post = get_post( $id );
+    $raw = $post ? $post->post_content : '';
+    $html = do_shortcode( $raw );
+    wp_send_json( [
+        'queried_id' => $id,
+        'is_cart' => function_exists( 'is_cart' ) && is_cart(),
+        'raw' => $raw,
+        'shortcode_exists' => shortcode_exists( 'woocommerce_cart' ),
+        'shortcode_length' => strlen( $html ),
+        'shortcode_has_item' => str_contains( $html, 'ZiloMentor Synthetic Test Product' ),
+        'shortcode_has_form' => str_contains( $html, 'woocommerce-cart-form' ),
+        'session_count' => WC()->cart ? WC()->cart->get_cart_contents_count() : 0,
+    ] );
+}, 35 );
+add_action( 'template_redirect', function () {
+    if ( ! isset( $_GET['zmp_qa_acf_tag'] ) ) {
+        return;
+    }
+    try {
+        $tags = \Elementor\Plugin::instance()->dynamic_tags;
+        $registered = $tags->get_tags();
+        $value = $tags->get_tag_data_content( 'zmp-acf-test', 'acf-text',
+            [ 'key' => 'field_zmp_qa_text:zmp_qa_text' ] );
+        wp_send_json( [
+            'acf_loaded' => function_exists( 'acf_get_field_groups' ),
+            'acf_text_tag' => isset( $registered['acf-text'] ),
+            'tag_value' => $value,
+            'post_id' => get_queried_object_id(),
+        ] );
+    } catch ( \Throwable $exception ) {
+        wp_send_json( [
+            'acf_text_tag' => false,
+            'error_class' => get_class( $exception ),
+        ], 500 );
+    }
+}, 35 );
 """
         )
 
@@ -204,7 +266,7 @@ add_action( 'template_redirect', function () {
         )
         require(record("fresh WordPress installation", p.returncode == 0),
                 "Could not install synthetic WordPress")
-        for plugin in ("elementor", "elementor-pro", "woocommerce",
+        for plugin in ("advanced-custom-fields-pro", "elementor", "elementor-pro", "woocommerce",
                        "vamtam-elementor-integration-fiore"):
             p = wp("plugin", "activate", plugin)
             require(record("activate " + plugin, p.returncode == 0),
@@ -294,6 +356,9 @@ add_action( 'template_redirect', function () {
                {"status": status, "error": err})
         record("Elementor heading rendered", "ZiloMentor Synthetic Heading" in html)
         record("Elementor Form widget rendered", 'elementor-form' in html and '<form' in html)
+        record("ACF dynamic value renders inside Elementor heading",
+               "ZiloMentor Synthetic ACF Value" in html,
+               {"dynamic_value_present": "ZiloMentor Synthetic ACF Value" in html})
 
         # Send two synthetic form requests; no mail can leave this network.
         form_request = {
@@ -323,6 +388,19 @@ add_action( 'template_redirect', function () {
                status == 200 and isinstance(data, dict)
                and data.get("success") is True,
                {"status": status, "response": body[-350:], "error": error})
+
+        acf_status, acf_body, acf_error = request(
+            "?page_id=" + str(fixtures["page"]) + "&zmp_qa_acf_tag=1"
+        )
+        try:
+            acf_result = json.loads(acf_body)
+        except ValueError:
+            acf_result = {}
+        record("ACF Pro dynamic tag renders synthetic text field",
+               acf_status == 200
+               and acf_result.get("acf_text_tag") is True
+               and acf_result.get("tag_value") == "ZiloMentor Synthetic ACF Value",
+               {"status": acf_status, "result": acf_result, "error": acf_error})
 
         product_url = fixtures["product_url"]
         require(product_url.startswith("http://web:8080/"),
@@ -355,6 +433,27 @@ add_action( 'template_redirect', function () {
         record("WooCommerce session cookie issued",
                any("woocommerce_session_" in name for name in cookie_names),
                {"cookie_names": cookie_names})
+        cart_page_debug = (
+            '$id=' + str(fixtures["cart"]) + ';'
+            '$p=get_post($id);'
+            '$raw=$p ? $p->post_content : "";'
+            '$rendered=do_shortcode($raw);'
+            'echo wp_json_encode(["raw"=>$raw,"has_shortcode"=>has_shortcode($raw,"woocommerce_cart"),'
+            '"shortcode_length"=>strlen($rendered),'
+            '"shortcode_has_product"=>str_contains($rendered,"ZiloMentor Synthetic Test Product"),'
+            '"shortcode_has_cart_form"=>str_contains($rendered,"woocommerce-cart-form"),'
+            '"shortcode_has_cart_markup"=>str_contains($rendered,"woocommerce-cart")]);'
+        )
+        shortcode_result = wp("eval", cart_page_debug)
+        try:
+            shortcode_info = json.loads(shortcode_result.stdout.strip())
+        except ValueError:
+            shortcode_info = {}
+        record("WooCommerce cart shortcode works in WP-CLI",
+               shortcode_result.returncode == 0 and
+               shortcode_info.get("has_shortcode") is True,
+               shortcode_info)
+
         status, html, error = request("?page_id=" + str(fixtures["cart"]))
         record("WooCommerce cart retains synthetic product",
                status == 200 and "ZiloMentor Synthetic Test Product" in html,
@@ -372,6 +471,21 @@ add_action( 'template_redirect', function () {
             cart_state = json.loads(state_body)
         except ValueError:
             cart_state = {}
+        shortcode_status, shortcode_body, shortcode_error = request(
+            "?page_id=" + str(fixtures["cart"]) + "&zmp_qa_cart_render=1"
+        )
+        try:
+            cart_render = json.loads(shortcode_body)
+        except ValueError:
+            cart_render = {}
+        record("WooCommerce shortcode with real HTTP cart session",
+               shortcode_status == 200
+               and cart_render.get("session_count") == 1
+               and cart_render.get("is_cart") is True
+               and cart_render.get("shortcode_has_item") is True
+               and cart_render.get("shortcode_has_form") is True,
+               {"status": shortcode_status, "render": cart_render,
+                "error": shortcode_error})
         record("WooCommerce session cart retains product ID",
                state_status == 200 and
                fixtures["product"] in cart_state.get("product_ids", []),
@@ -489,6 +603,15 @@ add_action( 'template_redirect', function () {
                             "bytes": len(default_cart_html),
                             "transport": default_cart_error})
                     wp("theme", "activate", THEME)
+        body_debug = {
+            "cart_html_length": len(html),
+            "contains_checkout_title": "ZiloMentor Synthetic Checkout" in html,
+            "has_cart_form": "woocommerce-cart-form" in html,
+            "woocommerce_cart_section": html.find("woocommerce-cart"),
+            "raw_shortcode_present": "[woocommerce_cart]" in html,
+            "is_cart_widget_markup": "wc-block-cart" in html,
+        }
+        record("Synthetic WooCommerce cart page markup diagnostics", True, body_debug)
         status, html, error = request("?page_id=" + str(fixtures["checkout"]))
         record("WooCommerce checkout with synthetic cart",
                status == 200 and "checkout" in html.lower(),

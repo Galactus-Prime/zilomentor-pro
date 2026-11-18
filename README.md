@@ -29,11 +29,11 @@ plugin version and must be tested.
 | Area | Status |
 | --- | --- |
 | Original Elementor Pro PHP namespace and hooks | Retained from upstream; static check passes |
-| Theme Builder, dynamic tags and product widgets | 196 widgets registered in isolated WordPress; end-to-end tests pending |
+| Theme Builder, dynamic tags and product widgets | 196 widgets registered; ACF text rendered in a real Elementor Heading; other dynamic tags and templates pending |
 | Vamtam Fiore integration on ItzyBitzyWorkshop | Isolated plugin activation passed on PHP 8.4/8.5; visual tests pending |
 | WordPress plugin path elementor-pro/elementor-pro.php | Provided when staging ZIP is installed |
 | WordPress editing and responsive layouts | Not yet tested |
-| WooCommerce cart, checkout and payments | Synthetic session/cart API works; cart page markup unresolved even without ZiloMentor Pro; payments not tested |
+| WooCommerce cart, checkout and payments | Synthetic session and cart shortcode both work; page template omits shortcode output even without ZiloMentor Pro; payment tests pending |
 | Automated updates | Upstream updater disabled; independent signed updater pending |
 
 The initial source tracks PRO Elements **v4.4.0** at commit
