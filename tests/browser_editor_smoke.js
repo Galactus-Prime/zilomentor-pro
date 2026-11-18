@@ -169,37 +169,85 @@ async function main() {
   result.frameCount = page.frames().length;
   result.domReadyState = dom.readyState;
 
-  // Exercise a read-only editor interaction: select the synthetic Heading
-  // widget in Elementor's preview and inspect its title control. Do not edit
-  // data or save anything in this probe. Both the fork and the free baseline
-  // are run through the same selection check.
+  // Read-only editor interaction: identify and select the synthetic Heading
+  // widget, then inspect control *attributes* (never values/nonces).
+  // Try its normal click, Elementor edit handle, and double-click in order.
   result.previewHeadingFound = false;
-  result.headingSelected = false;
+  result.headingClickCompleted = false;
+  result.headingEditHandleFound = false;
+  result.headingEditHandleClicked = false;
+  result.headingDoubleClicked = false;
   result.titleControlPresent = false;
   result.titleControlMatchesSynthetic = false;
+  result.titleInputOutsidePanelPresent = false;
   try {
-    const previewHeading = page
-      .frameLocator("#elementor-preview-iframe")
+    const heading = page.frameLocator("#elementor-preview-iframe")
       .locator(".elementor-widget-heading").first();
-    await previewHeading.waitFor({ state: "visible", timeout: 9000 });
+    await heading.waitFor({ state: "visible", timeout: 9000 });
     result.previewHeadingFound = true;
-    await previewHeading.click({ timeout: 8000 });
-    await page.waitForTimeout(900);
-    const titleInput = page.locator(
+    result.headingWidgetClass = String(await heading.getAttribute("class") || "").slice(0, 180);
+    result.headingWidgetIdPresent = !!await heading.getAttribute("data-id");
+
+    const panelTitle = page.locator(
       '#elementor-panel input[data-setting="title"], ' +
       '#elementor-panel textarea[data-setting="title"]'
     );
-    result.titleControlPresent = (await titleInput.count()) > 0;
-    if (result.titleControlPresent) {
-      const title = await titleInput.first().inputValue();
-      result.titleControlMatchesSynthetic =
-        title.includes("ZiloMentor Synthetic Heading");
-      result.headingSelected = true;
+    const inspect = async () => {
+      const count = await panelTitle.count();
+      if (count > 0) {
+        result.titleControlPresent = true;
+        const value = await panelTitle.first().inputValue();
+        result.titleControlMatchesSynthetic =
+          value.includes("ZiloMentor Synthetic Heading");
+      }
+    };
+    await heading.click({ timeout: 7000 });
+    result.headingClickCompleted = true;
+    await page.waitForTimeout(1200);
+    await inspect();
+
+    if (!result.titleControlPresent) {
+      const handle = heading.locator(
+        ".elementor-editor-element-edit, .elementor-editor-element-settings .elementor-editor-element-edit"
+      ).first();
+      result.headingEditHandleFound = (await handle.count()) > 0;
+      if (result.headingEditHandleFound) {
+        try {
+          await handle.click({ timeout: 5000, force: true });
+          result.headingEditHandleClicked = true;
+          await page.waitForTimeout(1200);
+          await inspect();
+        } catch {
+          // Record the later panel state without aborting the smoke test.
+        }
+      }
     }
+    if (!result.titleControlPresent) {
+      try {
+        await heading.dblclick({ timeout: 5000 });
+        result.headingDoubleClicked = true;
+        await page.waitForTimeout(1100);
+        await inspect();
+      } catch { /* selector or overlay may not permit double clicks */ }
+    }
+
+    result.titleInputOutsidePanelPresent =
+      (await page.locator('input[data-setting="title"],textarea[data-setting="title"]').count()) > 0;
+    result.panelTextAfterHeadingClick = String(
+      await page.locator("#elementor-panel").innerText({timeout:3000}) || ""
+    ).trim().slice(0, 260);
+    result.panelInputTypes = await page.locator("#elementor-panel input").evaluateAll(
+      elements => elements.slice(0, 15).map(el => ({
+        type: String(el.getAttribute("type") || "").slice(0, 30),
+        setting: String(el.getAttribute("data-setting") || "").slice(0, 80),
+        namePresent: !!el.getAttribute("name"),
+      }))
+    );
   } catch (error) {
     result.headingSelectionErrorCategory =
       error && error.name ? String(error.name).slice(0, 60) : "UnknownError";
   }
+  result.headingSelected = result.titleControlMatchesSynthetic;
   // Login tokens, cookie values and page HTML are deliberately never logged.
 }
 
