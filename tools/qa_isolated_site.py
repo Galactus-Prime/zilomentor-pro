@@ -13,6 +13,7 @@ Example on an already-provisioned private QA server:
 """
 import argparse
 import json
+import re
 import os
 from pathlib import Path
 import secrets
@@ -446,6 +447,30 @@ add_action( 'init', function () {
         except json.JSONDecodeError as e:
             raise RuntimeError("Synthetic fixture did not output JSON") from e
 
+        # The offline BACS method permits a complete synthetic order flow
+        # without contacting a payment processor, sending money, or email.
+        # These options exist ONLY in the fresh disposable QA WordPress DB.
+        offline_setup = wp("eval",
+            '$g=get_option("woocommerce_bacs_settings",[]);'
+            '$g=is_array($g)?$g:[];'
+            '$g["enabled"]="yes";$g["title"]="QA offline bank transfer";'
+            'update_option("woocommerce_bacs_settings",$g);'
+            'update_option("woocommerce_enable_guest_checkout","yes");'
+            'echo wp_json_encode(["gateway_enabled"=>'
+            'get_option("woocommerce_bacs_settings")["enabled"],'
+            '"guest_checkout"=>get_option("woocommerce_enable_guest_checkout")]);'
+        )
+        try:
+            offline_data = json.loads(offline_setup.stdout.strip())
+        except ValueError:
+            offline_data = {}
+        require(record("enable offline checkout only in disposable database",
+                       offline_setup.returncode == 0
+                       and offline_data.get("gateway_enabled") == "yes"
+                       and offline_data.get("guest_checkout") == "yes",
+                       {"exit": offline_setup.returncode, "options": offline_data}),
+                "Could not enable isolated offline checkout")
+
         product_debug = (
             '$p=wc_get_product(' + str(fixtures["product"]) + ');'
             'echo wp_json_encode(["exists"=>(bool)$p,'
@@ -561,7 +586,8 @@ add_action( 'init', function () {
 
         def request(path, fields=None, cookie_file_name="cookies.txt"):
             # Keep privileged synthetic editor cookies out of guest cart tests.
-            require(cookie_file_name in ("cookies.txt", "editor-cookies.txt"),
+            require(cookie_file_name in ("cookies.txt", "editor-cookies.txt",
+                                         "checkout-cookies.txt"),
                     "Unexpected QA cookie file")
             cookie_path = "/qa-cookies/" + cookie_file_name
             command = [
@@ -1263,6 +1289,112 @@ add_action( 'init', function () {
         record("WooCommerce checkout with synthetic cart",
                status == 200 and "checkout" in html.lower(),
                {"status": status, "error": error, "bytes": len(html)})
+        # End-to-end anonymous WooCommerce checkout via its real AJAX
+        # handler, with a *new guest cookie jar* and a synthetic virtual
+        # product. Only offline BACS is enabled for this order. No card,
+        # payment processor, real customer or outbound email is involved.
+        checkout_cookie = "checkout-cookies.txt"
+        checkout_product_id = fixtures["checkout_product"]
+        guest_add_status, guest_add_html, guest_add_err = request(
+            "?add-to-cart=" + str(checkout_product_id),
+            cookie_file_name=checkout_cookie,
+        )
+        record("synthetic guest checkout product added to isolated cart",
+               guest_add_status == 200 and not guest_add_err,
+               {"status": guest_add_status, "error": guest_add_err})
+        checkout_status, checkout_html, checkout_error = request(
+            "?page_id=" + str(fixtures["checkout"]),
+            cookie_file_name=checkout_cookie,
+        )
+        checkout_nonce_match = re.search(
+            r'<input[^>]*name=["\\\']woocommerce-process-checkout-nonce["\\\'][^>]*value=["\\\']([^"\\\']+)',
+            checkout_html, re.IGNORECASE,
+        )
+        if checkout_nonce_match is None:
+            checkout_nonce_match = re.search(
+                r'<input[^>]*value=["\\\']([^"\\\']+)["\\\'][^>]*name=["\\\']woocommerce-process-checkout-nonce',
+                checkout_html, re.IGNORECASE,
+            )
+        checkout_nonce = checkout_nonce_match.group(1) if checkout_nonce_match else None
+        record("WooCommerce guest checkout exposes offline form nonce",
+               checkout_status == 200
+               and checkout_nonce is not None
+               and "woocommerce-checkout" in checkout_html,
+               {"status": checkout_status, "form_present": "woocommerce-checkout" in checkout_html,
+                "nonce_present": checkout_nonce is not None,
+                "offline_payment_visible": "QA offline bank transfer" in checkout_html,
+                "error": checkout_error})
+        checkout_response = {}
+        checkout_post_status = 0
+        checkout_post_error = ""
+        if checkout_nonce is not None:
+            checkout_post_status, checkout_body, checkout_post_error = request(
+                "?wc-ajax=checkout",
+                {
+                    "woocommerce-process-checkout-nonce": checkout_nonce,
+                    "_wp_http_referer": "/?page_id=" + str(fixtures["checkout"]),
+                    "billing_first_name": "Synthetic",
+                    "billing_last_name": "QA",
+                    "billing_company": "",
+                    "billing_country": "GB",
+                    "billing_address_1": "1 Test Street",
+                    "billing_address_2": "",
+                    "billing_city": "London",
+                    "billing_state": "",
+                    "billing_postcode": "SW1A 1AA",
+                    "billing_phone": "02000000000",
+                    "billing_email": "qa-checkout@example.invalid",
+                    "payment_method": "bacs",
+                    "terms": "1",
+                },
+                cookie_file_name=checkout_cookie,
+            )
+            try:
+                checkout_response = json.loads(checkout_body)
+            except ValueError:
+                checkout_response = {}
+        record("WooCommerce AJAX offline guest checkout completes",
+               checkout_post_status == 200
+               and checkout_response.get("result") == "success"
+               and "order-received" in checkout_response.get("redirect", ""),
+               {"status": checkout_post_status,
+                "result": checkout_response.get("result"),
+                "has_confirmation_redirect": "order-received" in checkout_response.get("redirect", ""),
+                "error_type": "checkout_validation" if checkout_response.get("result") == "failure" else None,
+                "checkout_error": checkout_post_error,
+                "message_excerpt": re.sub(r"<[^>]+>", " ", str(checkout_response.get("messages", "")))[:450],
+               })
+        # Independent server-side assertion: a real order exists in the
+        # disposable DB, contains the separate virtual product and records
+        # only the offline payment method and synthetic customer email.
+        order_check_code = (
+            '$orders=wc_get_orders(["limit"=>15,"orderby"=>"date","order"=>"DESC"]);'
+            '$out=["count"=>0,"matched"=>false,"item"=>false,"total"=>false,'
+            '"payment"=>"","status"=>"","transaction_blank"=>true];'
+            'foreach($orders as $o){'
+            'if($o->get_billing_email()!=="qa-checkout@example.invalid")continue;'
+            '$out["count"]++;$out["payment"]=$o->get_payment_method();'
+            '$out["status"]=$o->get_status();'
+            '$out["transaction_blank"]=$o->get_transaction_id()==="";'
+            '$out["total"]=(float)$o->get_total()===7.49;'
+            'foreach($o->get_items() as $i){'
+            'if((int)$i->get_product_id()===' + str(checkout_product_id) + ')'
+            '$out["item"]=(int)$i->get_quantity()===1;}'
+            '$out["matched"]=$out["item"]&&$out["total"]&&'
+            '$out["payment"]==="bacs"&&$out["transaction_blank"];break;}'
+            'echo wp_json_encode($out);'
+        )
+        order_result = wp("eval", order_check_code)
+        try:
+            order_data = json.loads(order_result.stdout.strip())
+        except ValueError:
+            order_data = {}
+        record("offline guest order persisted with synthetic item and no payment transaction",
+               order_result.returncode == 0
+               and order_data.get("matched") is True
+               and order_data.get("count") == 1
+               and order_data.get("status") in ("on-hold", "pending", "processing"),
+               {"wpcli_exit": order_result.returncode, "order": order_data})
         print("QA_RESULTS_JSON=" + json.dumps(observations), flush=True)
         return 0 if all(item["passed"] for item in observations) else 1
 

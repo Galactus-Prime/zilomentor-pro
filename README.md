@@ -33,7 +33,7 @@ plugin version and must be tested.
 | Vamtam Fiore integration on ItzyBitzyWorkshop | Isolated plugin activation passed on PHP 8.4/8.5; visual tests pending |
 | WordPress plugin path elementor-pro/elementor-pro.php | Provided when staging ZIP is installed |
 | WordPress editing and responsive layouts | Browser DOM passed at two sizes; Nginx/PHP-FPM editor panel populated (156 ZiloMentor controls vs 81 free); synthetic Heading title edited with the real Publish button and independently verified in WordPress post meta; pixel fidelity and more editor workflows pending |
-| WooCommerce cart, checkout and payments | 50/50 isolated WooCommerce/Fiore HTTP and diagnostic checks passed after disabling Coming Soon in the disposable store; registered Cart page, sessions, AJAX mini-cart and shortcode work, including a WooCommerce-only baseline; checkout orders/payments pending |
+| WooCommerce cart, checkout and payments | 55/55 isolated HTTP/integration checks passed; registered Cart, AJAX mini-cart, guest checkout and synthetic offline bank-transfer order creation verified; card gateways, shipping and tax scenarios remain untested |
 | Automated updates | Upstream updater disabled; independent signed updater pending |
 
 The initial source tracks PRO Elements **v4.4.0** at commit
@@ -107,7 +107,18 @@ this setting off, the registered Cart page displays the product and form.
 A controlled Coming Soon on/off test confirmed that enabling it hides the
 registered Cart and disabling it restores it, even with ZiloMentor and
 Elementor disabled. **50/50 isolated HTTP/integration checks passed.**
-This does not certify real checkout, payment processing or production visuals.
+An additional **isolated guest checkout and order-creation test** passed.
+The runner uses a separate virtual product, a private guest cookie jar and
+WooCommerce's offline bank-transfer method in the disposable database only.
+The real wc-ajax=checkout handler returned success and a confirmation
+redirect. WP-CLI independently found **one** synthetic order containing the
+correct £7.49 item, offline payment method, on-hold status, and **no payment
+transaction ID**. All **55/55** HTTP and integration checks passed.
+
+This does not certify external payment gateways, real payments, card handling,
+taxes, shipping, refunds or production checkout reliability. All outgoing
+WordPress mail is intercepted in the disposable environment, and the checkout
+customer uses a reserved .invalid email domain.
 
 Run tests/runtime_bootstrap.php and tests/runtime_widgets.php via WP-CLI
 in a disposable staging WordPress installation after activating free

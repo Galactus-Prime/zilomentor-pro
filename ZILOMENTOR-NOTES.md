@@ -334,6 +334,31 @@ visible for anonymous Cart and Checkout tests. With that setting:
 The earlier notes that mark the Cart-page output unresolved refer to the
 pre-fix QA setup and are superseded by these findings.
 
+## Synthetic guest checkout and order-creation verification (18 November 2026)
+
+Using the disposable Nginx/PHP-FPM WordPress environment, an additional
+virtual checkout product priced at **GBP 7.49** was created. A separate
+anonymous cookie jar added the product, loaded the actual WooCommerce
+Checkout form and obtained the checkout nonce. The real WooCommerce
+wc-ajax=checkout handler received synthetic billing details and only
+the offline BACS bank-transfer payment method. WordPress mail was
+blocked by the isolated test-only hook, and the Docker network has
+no published ports or external access.
+
+- HTTP checkout returned result=success and an order-received redirect
+- A separate WP-CLI process independently verified exactly one matching
+  synthetic order in the temporary WordPress database
+- The order contained one correct virtual product, total **GBP 7.49**,
+  payment method bacs, status on-hold and an empty transaction ID
+- The full isolated HTTP/integration run passed **55/55 checks**
+- No payment processor, real recipient, external order, customer data,
+  production database or live shop configuration was involved
+
+This is evidence for WooCommerce's **offline guest order-creation flow**
+with Fiore and ZiloMentor Pro, *not* a payment sandbox, shipping, tax,
+refund, accessibility or production visual validation. Those remain
+release gates.
+
 ## Suggested validation sequence
 1. Install a disposable WordPress 7.1+, Elementor 4.4.x staging environment.
 2. Record baseline pages/templates and widgets under genuine Elementor Pro.

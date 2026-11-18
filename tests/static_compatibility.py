@@ -123,6 +123,14 @@ check("WooCommerce Coming Soon is disabled only for synthetic storefront QA",
       and '"WooCommerce Coming Soon ON intercepts designated Cart"' in qa_script
       and '"WooCommerce Coming Soon OFF restores designated Cart"' in qa_script
       and '"Disposable WooCommerce storefront explicitly live"' in qa_script)
+check("checkout QA uses a separate guest jar and only offline synthetic payment",
+      "checkout-cookies.txt" in qa_script
+      and '"payment_method": "bacs"' in qa_script
+      and '"?wc-ajax=checkout"' in qa_script
+      and "offline guest order persisted" in qa_script
+      and "transaction_blank" in qa_script
+      and "checkout_product" in qa_fixture
+      and "set_virtual( true )" in qa_fixture)
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
