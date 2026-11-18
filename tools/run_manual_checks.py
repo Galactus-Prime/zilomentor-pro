@@ -30,7 +30,13 @@ def main():
         "--skip-php", action="store_true",
         help="Explicitly skip PHP Docker matrix on the dev VM without Docker.",
     )
+    parser.add_argument(
+        "--source-wordpress", type=Path, default=None,
+        help="Also run isolated HTTP/form/WooCommerce regression using only source files copied from this WordPress path.",
+    )
     args = parser.parse_args()
+    if args.source_wordpress is not None and args.skip_php:
+        parser.error("Full isolated QA requires PHP Docker tests; remove --skip-php.")
     execute([sys.executable, "tests/static_compatibility.py"])
     execute([sys.executable, "tools/build_zip.py"])
     if args.skip_php:
@@ -55,7 +61,12 @@ def main():
         ]
         execute(cmd)
         print(f"PASS {label} PHP syntax matrix.")
-    print("PASS all manual checks; no GitHub Actions used.")
+    if args.source_wordpress is not None:
+        execute([
+            sys.executable, "tools/qa_isolated_site.py", "--source-wordpress",
+            str(args.source_wordpress),
+        ])
+    print("PASS all requested manual checks; no GitHub Actions used.")
 
 if __name__ == "__main__":
     try:

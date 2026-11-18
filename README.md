@@ -33,7 +33,7 @@ plugin version and must be tested.
 | Vamtam Fiore integration on ItzyBitzyWorkshop | Isolated plugin activation passed on PHP 8.4/8.5; visual tests pending |
 | WordPress plugin path elementor-pro/elementor-pro.php | Provided when staging ZIP is installed |
 | WordPress editing and responsive layouts | Not yet tested |
-| WooCommerce cart, checkout and payments | Synthetic cart/checkout HTML rendered; payments not tested |
+| WooCommerce cart, checkout and payments | Synthetic session/cart API works; cart page markup unresolved even without ZiloMentor Pro; payments not tested |
 | Automated updates | Upstream updater disabled; independent signed updater pending |
 
 The initial source tracks PRO Elements **v4.4.0** at commit
@@ -50,6 +50,18 @@ On the development VM, without Docker/PHP:
 
 **GitHub Actions is intentionally not used.** Checks run on existing servers;
 no hosted GitHub CI minutes or Actions billing are required.
+
+To also test real synthetic WordPress forms, WooCommerce cart sessions and
+Fiore templates on your QA host, supply a WordPress source-code location:
+
+    python3 tools/run_manual_checks.py --source-wordpress /path/to/wordpress
+
+This copies only allowlisted WordPress core files and the required installed
+plugin/theme source into a disposable environment. It never copies the live
+wp-config.php, uploads, users, database or orders. Temporary containers use
+a private Docker network with no host ports. The fixture prevents real email
+from being sent, and no payments are processed. The isolated cart-page markup test currently
+fails with and without ZiloMentor Pro, so full storefront QA still blocks release.
 
 Run tests/runtime_bootstrap.php and tests/runtime_widgets.php via WP-CLI
 in a disposable staging WordPress installation after activating free

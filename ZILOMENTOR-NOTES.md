@@ -101,6 +101,44 @@ labels were replaced with ZiloMentor Pro.
 popup triggers, form delivery, dynamic tags, checkout/session behaviour and
 payment integrations. Do not deploy this preview to production.
 
+## Disposable HTTP form and WooCommerce session test (18 November 2026)
+
+A reusable, **local-only** integration runner has been prepared at
+tools/qa_isolated_site.py. It requires an explicit WordPress source-code path,
+copies allowlisted WordPress core and the Fiore/Vamtam/WooCommerce/Elementor
+sources only, and uses a fresh synthetic MariaDB database. No production
+wp-config.php, customers, uploads, orders, licence data or database are copied.
+The temporary test intercepts all outgoing WordPress mail. Docker's network is
+internal and no web ports are published.
+
+Run manually on the existing Docker-enabled QA server:
+
+    python3 tools/run_manual_checks.py --source-wordpress /path/to/wordpress
+
+Observed isolated tests with Elementor 4.4.1, WooCommerce 11.3.0 and Fiore:
+
+- PASS: Real Elementor Form widget renders; synthetic invalid AJAX submission
+  is rejected and valid synthetic AJAX submission is accepted.
+- PASS: Synthetic WooCommerce product is published/purchasable and HTTP
+  product rendering succeeds.
+- PASS: After correcting the disposable curl container's private-directory
+  permissions, WooCommerce issues its session/cart cookies.
+- PASS: A subsequent independent HTTP request confirms the synthetic cart
+  contains exactly one product; the AJAX mini-cart fragments include the
+  product. Repeated with ZiloMentor Pro deactivated: WooCommerce's cart
+  session and fragments still work.
+- **OPEN:** The synthetic cart **page HTML** does not display the item,
+  despite successful session storage, with or without ZiloMentor Pro and
+  with Fiore or the standard Twenty Twenty-Five theme. This is not
+  demonstrated to be a ZiloMentor Pro regression. The checkout page
+  returns HTTP 200, but a functional checkout is not yet proven.
+- All test containers/networks/temp copies are cleaned up; no payments or
+  messages are sent; the live website is unchanged.
+
+The isolated HTTP QA command intentionally exits nonzero while this
+synthetic cart-page rendering check remains unresolved. Do not mistake
+passing session/API tests for full storefront or payment validation.
+
 ## Suggested validation sequence
 1. Install a disposable WordPress 7.1+, Elementor 4.4.x staging environment.
 2. Record baseline pages/templates and widgets under genuine Elementor Pro.

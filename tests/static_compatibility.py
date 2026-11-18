@@ -63,6 +63,14 @@ missing = [x for x in fiore_parent_class_files if not (ROOT/x).exists()]
 check("Fiore parent PHP class source files: 20/20", not missing)
 if missing:
     print("Missing:", ", ".join(missing))
+qa_script = (ROOT / "tools/qa_isolated_site.py").read_text()
+qa_fixture = (ROOT / "tests/fixtures/seed_synthetic.php").read_text()
+check("isolated QA does not copy live configuration or customer data",
+      'core_root_files = (' in qa_script
+      and 'source / "wp-content/plugins"' in qa_script
+      and 'wp-config.php' not in qa_fixture
+      and "ZMP_ISOLATED_QA" in qa_fixture
+      and '"--internal"' in qa_script)
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
