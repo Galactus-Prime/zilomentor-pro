@@ -39,3 +39,6 @@ servers.yml
 #################
 
 **/.env
+
+# Generated staging packages (never commit built ZIPs)
+/dist/

@@ -1,20 +1,29 @@
 <?php
 /**
- * Plugin Name: PRO Elements
- * Description: Adds professional features for sites using the Elementor page builder.
- * Plugin URI: https://proelements.org/
- * Version: 4.4.0
- * Author: PROElements.org
- * Author URI: https://proelements.org/
+ * Plugin Name: ZiloMentor Pro
+ * Description: Independent GPL Elementor Pro-compatible features. Derived from PRO Elements; no Elementor subscription or cloud service included.
+ * Plugin URI: https://github.com/Galactus-Prime/zilomentor-pro
+ * Version: 0.1.0
+ * Author: ZiloMentor Pro contributors
+ * Author URI: https://github.com/Galactus-Prime
  * Requires PHP: 7.4
- * Requires at least: 6.8
+ * Requires at least: 7.1
  * Requires Plugins: elementor
  * Elementor tested up to: 4.4.0
- * Text Domain: pro-elements
+ * Update URI: https://github.com/Galactus-Prime/zilomentor-pro
+ * Text Domain: elementor-pro
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
+}
+
+// ZiloMentor Pro release identity is separate from the compatibility API version.
+if ( ! defined( 'ZILOMENTOR_VERSION' ) ) {
+	define( 'ZILOMENTOR_VERSION', '0.1.0' );
+}
+if ( ! defined( 'ZILOMENTOR_UPSTREAM_VERSION' ) ) {
+	define( 'ZILOMENTOR_UPSTREAM_VERSION', '4.4.0' );
 }
 
 
@@ -109,6 +118,15 @@ if ( ! function_exists( 'elementor_pro_compare_major_version' ) ) {
 
 pro_elements_plugin_load_plugin();
 
+// Compatibility entrypoint for themes that probe Elementor Pro's original bootstrap.
+if ( ! function_exists( 'elementor_pro_load_plugin' ) ) {
+	function elementor_pro_load_plugin() {
+		if ( ! defined( 'ELEMENTOR_PRO_VERSION' ) ) {
+			pro_elements_plugin_load_plugin();
+		}
+	}
+}
+
 function pro_elements_print_error( $message ) {
 	if ( ! $message ) {
 		return;
@@ -138,8 +156,8 @@ function pro_elements_plugin_fail_load() {
 
 		$activation_url = wp_nonce_url( 'plugins.php?action=activate&amp;plugin=' . $plugin . '&amp;plugin_status=all&amp;paged=1&amp;s', 'activate-plugin_' . $plugin );
 
-		$message = '<h3>' . esc_html__( 'You\'re not using PRO Elements yet!', 'elementor-pro' ) . '</h3>';
-		$message .= '<p>' . esc_html__( 'Activate the Elementor plugin to start using all of PRO Elements plugin’s features.', 'elementor-pro' ) . '</p>';
+		$message = '<h3>' . esc_html__( 'You\'re not using ZiloMentor Pro yet!', 'elementor-pro' ) . '</h3>';
+		$message .= '<p>' . esc_html__( 'Activate the Elementor plugin to start using ZiloMentor Pro features.', 'elementor-pro' ) . '</p>';
 		$message .= '<p>' . sprintf( '<a href="%s" class="button-primary">%s</a>', $activation_url, esc_html__( 'Activate Now', 'elementor-pro' ) ) . '</p>';
 	} else {
 		if ( ! current_user_can( 'install_plugins' ) ) {
@@ -148,8 +166,8 @@ function pro_elements_plugin_fail_load() {
 
 		$install_url = wp_nonce_url( self_admin_url( 'update.php?action=install-plugin&plugin=elementor' ), 'install-plugin_elementor' );
 
-		$message = '<h3>' . esc_html__( 'PRO Elements plugin requires installing the Elementor plugin', 'elementor-pro' ) . '</h3>';
-		$message .= '<p>' . esc_html__( 'Install and activate the Elementor plugin to access all PRO Elements features.', 'elementor-pro' ) . '</p>';
+		$message = '<h3>' . esc_html__( 'ZiloMentor Pro requires installing the Elementor plugin', 'elementor-pro' ) . '</h3>';
+		$message .= '<p>' . esc_html__( 'Install and activate the Elementor plugin to use ZiloMentor Pro.', 'elementor-pro' ) . '</p>';
 		$message .= '<p>' . sprintf( '<a href="%s" class="button-primary">%s</a>', $install_url, esc_html__( 'Install Now', 'elementor-pro' ) ) . '</p>';
 	}
 
@@ -166,7 +184,7 @@ function pro_elements_plugin_fail_load_out_of_date() {
 	$upgrade_link = wp_nonce_url( self_admin_url( 'update.php?action=upgrade-plugin&plugin=' ) . $file_path, 'upgrade-plugin_' . $file_path );
 	$message = sprintf(
 	/* translators: 1: Title opening tag, 2: Title closing tag */
-		esc_html__( '%1$ssPRO Elements  requires newer version of the Elementor plugin%2$s Update the Elementor plugin to reactivate the PRO Elements plugin.', 'elementor-pro' ),
+		esc_html__( '%1$sZiloMentor Pro requires a newer version of the Elementor plugin%2$s Update Elementor to reactivate ZiloMentor Pro.', 'elementor-pro' ),
 		'<h3>',
 		'</h3>'
 	);
@@ -185,7 +203,7 @@ function pro_elements_plugin_fail_load_wp_out_of_date() {
 	$upgrade_link = self_admin_url( 'update-core.php' );
 	$message = sprintf(
 	/* translators: 1: Title opening tag, 2: Title closing tag, 3: Minimum required WordPress version */
-		esc_html__( '%1$sPRO Elements requires a newer version of WordPress%2$s Update WordPress to version %3$s or higher to reactivate the PRO Elements plugin.', 'elementor-pro' ),
+		esc_html__( '%1$sZiloMentor Pro requires a newer version of WordPress%2$s Update WordPress to version %3$s or higher to reactivate ZiloMentor Pro.', 'elementor-pro' ),
 		'<h3>',
 		'</h3>',
 		esc_html( ELEMENTOR_PRO_REQUIRED_WP_VERSION )

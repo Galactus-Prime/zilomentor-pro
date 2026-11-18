@@ -1,0 +1,61 @@
+"""Non-runtime checks for the ZiloMentor Pro prototype; no WordPress bootstrap."""
+from pathlib import Path
+import re
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+MAIN = ROOT / "elementor-pro.php"
+PLUGIN = ROOT / "plugin.php"
+errors = []
+def check(label, predicate):
+    print(("PASS" if predicate else "FAIL") + " " + label)
+    if not predicate:
+        errors.append(label)
+
+check("forked plugin entrypoint", MAIN.is_file() and not (ROOT / "pro-elements.php").exists())
+main = MAIN.read_text()
+plugin = PLUGIN.read_text()
+check("honest independent plugin branding", "Plugin Name: ZiloMentor Pro" in main)
+check("safe exact plugin basename at install path", "define( 'ELEMENTOR_PRO_PLUGIN_BASE', plugin_basename( ELEMENTOR_PRO__FILE__ ) );" in main)
+check("Elementor Pro API version retained", "define( 'ELEMENTOR_PRO_VERSION', '4.4.0' )" in main)
+check("independent fork release version", "define( 'ZILOMENTOR_VERSION', '0.1.0' )" in main)
+check("ElementorPro PHP namespace preserved", "namespace ElementorPro;" in plugin)
+check("original Elementor Pro bootstrap symbol available", "function elementor_pro_load_plugin()" in main)
+check("upstream updater removed from load path", "new Updater( $config )" not in plugin)
+check("custom Update URI set", "Update URI: https://github.com/Galactus-Prime/zilomentor-pro" in main)
+check("original GPL notice retained", "Elementor Ltd." in (ROOT / "license.txt").read_text())
+check("PRO Elements GPL notice retained", "PRO Elements team" in (ROOT / "license.txt").read_text())
+check("no fake Elementor agency license", "elementor_pro_license_key" not in main
+      and "10.10.2030" not in main and "pre_http_request" not in main)
+# Observed in the real Vamtam Fiore theme/integration PHP source on 2026-11-17.
+fiore_parent_class_files = (
+    "plugin.php",
+    "modules/theme-builder/module.php",
+    "modules/theme-builder/widgets/archive-posts.php",
+    "modules/assets-manager/asset-types/icons/custom-icons.php",
+    "modules/assets-manager/asset-types/icons-manager.php",
+    "modules/assets-manager/asset-types/fonts-manager.php",
+    "modules/dynamic-tags/module.php",
+    "modules/dynamic-tags/tags/base/data-tag.php",
+    "modules/dynamic-tags/tags/base/tag.php",
+    "modules/dynamic-tags/tags/author-profile-picture.php",
+    "modules/popup/module.php",
+    "modules/query-control/module.php",
+    "modules/forms/widgets/form.php",
+    "modules/forms/widgets/login.php",
+    "modules/nav-menu/widgets/nav-menu.php",
+    "modules/posts/widgets/posts.php",
+    "modules/posts/skins/skin-classic.php",
+    "modules/theme-builder/skins/posts-archive-skin-classic.php",
+    "modules/carousel/widgets/testimonial-carousel.php",
+    "modules/woocommerce/widgets/product-images.php",
+)
+missing = [x for x in fiore_parent_class_files if not (ROOT/x).exists()]
+check("Fiore parent PHP class source files: 20/20", not missing)
+if missing:
+    print("Missing:", ", ".join(missing))
+check("theme location function still supplied",
+      "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
+      for p in (ROOT/"modules/theme-builder").rglob("*.php")))
+print("RESULT:", "PASS" if not errors else "FAIL", "-", len(errors), "failed")
+sys.exit(0 if not errors else 1)
