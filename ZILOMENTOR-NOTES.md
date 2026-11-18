@@ -218,6 +218,45 @@ page and any optional editor panel parity failures are resolved. A complete
 editor interaction/edit/save test and production-like staging visual
 comparison remain release blockers.
 
+## Nginx/PHP-FPM editor and WooCommerce comparison (18 November 2026)
+
+The QA runner also supports a fully disposable **Nginx 1.29 + PHP 8.4-FPM**
+web stack. It uses locally cached images, **no published ports**, a private
+Docker network and a separate synthetic MariaDB. PHP-FPM can process
+multiple WordPress/Elementor requests concurrently, unlike the PHP
+development server. The only directory made writable to PHP-FPM is the
+temporary copy of wp-content. Nothing in the live site's tree is changed.
+
+A first full isolated Nginx/PHP-FPM run passed **42 of 46 HTTP checks**;
+the remaining four were the established cart-page rendering discrepancies,
+including cases where ZiloMentor was disabled or a default WP theme was used.
+The synthetic product remains in session, the shortcode and WordPress
+the_content filter render the cart form and item, and ordinary WordPress
+pages display their content. The full synthetic cart page still does not.
+
+A focused editor comparison using Playwright and an explicit wait for a
+populated widget panel passed **29/29 checks**. On the same synthetic
+WordPress installation:
+
+- ZiloMentor enabled: editor panel **156 controls**, 6,472 characters;
+  DOM complete, **0** JS page errors, **0** failed local requests,
+  **0** local HTTP errors.
+- ZiloMentor disabled, free Elementor alone: **81 controls**, 3,558
+  characters, DOM complete, no JS or local HTTP errors.
+- Both tests used the same isolated Fiore theme, temporary admin login
+  and local browser image. A too-early snapshot initially reported only
+  six ZiloMentor controls. **Waiting for actual panel population
+  resolved that false indication.**
+
+Repeat editor-only comparison, no cloud runner or external services:
+
+    python3 tools/run_manual_checks.py --source-wordpress /path/to/wordpress --web-server nginx-fpm --focus editor --editor-playwright-image haven-browser-qa:1.62.1
+
+This validates the editor shell and populated widget panel, but not yet
+editing/saving a page, responsive visual fidelity or payment handling.
+A read-only Heading selection probe has been added for a subsequent test;
+until independently checked, it must not be marked as passed.
+
 ## Suggested validation sequence
 1. Install a disposable WordPress 7.1+, Elementor 4.4.x staging environment.
 2. Record baseline pages/templates and widgets under genuine Elementor Pro.

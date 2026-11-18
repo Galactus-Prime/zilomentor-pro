@@ -35,6 +35,14 @@ def main():
         help="Also run isolated HTTP/form/WooCommerce regression using only source files copied from this WordPress path.",
     )
     parser.add_argument(
+        "--web-server", choices=("php", "nginx-fpm"), default="php",
+        help="Run synthetic WordPress with the original PHP development server, or private Nginx/PHP-FPM workers.",
+    )
+    parser.add_argument(
+        "--focus", choices=("all", "editor"), default="all",
+        help="Run the complete HTTP suite, or the isolated editor comparison only.",
+    )
+    parser.add_argument(
         "--browser-image", default=None,
         help="Optional pre-cached Chromium image for isolated browser DOM smoke tests; requires --source-wordpress.",
     )
@@ -47,6 +55,10 @@ def main():
         parser.error("Full isolated QA requires PHP Docker tests; remove --skip-php.")
     if (args.browser_image or args.editor_playwright_image) and args.source_wordpress is None:
         parser.error("Browser QA requires --source-wordpress.")
+    if args.focus == "editor" and not args.editor_playwright_image:
+        parser.error("--focus editor requires --editor-playwright-image.")
+    if args.web_server == "nginx-fpm" and args.source_wordpress is None:
+        parser.error("--web-server nginx-fpm requires --source-wordpress.")
     execute([sys.executable, "tests/static_compatibility.py"])
     execute([sys.executable, "tools/build_zip.py"])
     if args.skip_php:
@@ -75,6 +87,8 @@ def main():
         qa_cmd = [
             sys.executable, "tools/qa_isolated_site.py", "--source-wordpress",
             str(args.source_wordpress),
+            "--web-server", args.web_server,
+            "--focus", args.focus,
         ]
         if args.browser_image:
             qa_cmd.extend(["--browser-image", args.browser_image])

@@ -42,7 +42,16 @@ def require(condition, message):
 def main():
     argp = argparse.ArgumentParser(description=__doc__)
     argp.add_argument("--source-wordpress", required=True, type=Path)
+    argp.add_argument(
+        "--focus", choices=("all", "editor"), default="all",
+        help="Run the full integration suite, or stop after isolated Elementor editor comparison.",
+    )
     argp.add_argument("--php-image", default="zc0140-php84-fpm-redis63-mysqli:local")
+    argp.add_argument(
+        "--web-server", choices=("php", "nginx-fpm"), default="php",
+        help="Use the existing PHP development server or a disposable Nginx + multiworker PHP-FPM pair.",
+    )
+    argp.add_argument("--nginx-image", default="nginx:1.29-alpine")
     argp.add_argument("--db-image", default="mariadb:11.4")
     argp.add_argument("--curl-image", default="curlimages/curl:8.16.0")
     argp.add_argument("--clean-image", default="alpine:3.21")
@@ -69,6 +78,8 @@ def main():
     require((ROOT / "elementor-pro.php").is_file(), "Missing ZiloMentor entrypoint")
     require(args.wpcli.is_file(), "WP-CLI PHAR not available at --wpcli")
     images = [args.php_image, args.db_image, args.curl_image, args.clean_image]
+    if args.web_server == "nginx-fpm":
+        images.append(args.nginx_image)
     if args.browser_image is not None:
         images.append(args.browser_image)
     if args.editor_playwright_image is not None:
@@ -385,16 +396,98 @@ add_action( 'init', function () {
                and product_data.get("purchasable") is True,
                product_data)
 
-        p = docker([
-            "run", "-d", "--name", web, "--network", network,
-            "--network-alias", "web", "--memory=900m", "--cpus=1",
-            "-v", str(site) + ":/var/www/html", "-w", "/var/www/html",
-            "-e", "ZMP_QA_EDITOR_TOKEN=" + editor_login_token,
-            "--entrypoint", "php", args.php_image,
-            "-S", "0.0.0.0:8080", "-t", "/var/www/html",
-        ], 55)
-        require(p.returncode == 0, "Failed to start isolated PHP web server")
-        active.append(("container", web))
+        if args.web_server == "nginx-fpm":
+            # Keep the existing synthetic site and all test-only credentials
+            # internal to Docker. Two services can handle Elementor's multiple
+            # concurrent JS/CSS/REST requests without the one-worker PHP -S.
+            php_service = "zmp-qa-php-" + tag
+            fpm_ini = temp / "zmp-qa-fpm.ini"
+            fpm_ini.write_text(
+                "memory_limit = 512M\n"
+                "max_execution_time = 120\n"
+                "display_errors = Off\n"
+                "log_errors = On\n"
+            )
+            conf = temp / "zmp-qa-nginx.conf"
+            conf.write_text(r"""server {
+    listen 8080;
+    server_name web;
+    root /var/www/html;
+    index index.php;
+    client_max_body_size 16m;
+    access_log off;
+    error_log /dev/stderr warn;
+    location / {
+        try_files $uri $uri/ /index.php?$args;
+    }
+    location ~ \.php$ {
+        try_files $uri =404;
+        include /etc/nginx/fastcgi_params;
+        fastcgi_pass php:9000;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME /var/www/html$fastcgi_script_name;
+        fastcgi_param DOCUMENT_ROOT /var/www/html;
+        fastcgi_param HTTP_HOST $http_host;
+        fastcgi_read_timeout 120s;
+        fastcgi_buffer_size 64k;
+        fastcgi_buffers 32 64k;
+    }
+    location ~ /\.(?!well-known) {
+        deny all;
+    }
+}
+""")
+            # Only synthetic wp-content is writable by the test PHP worker.
+            # Never change the source installation or the Git repository.
+            wp_content = site / "wp-content"
+            wp_content.mkdir(exist_ok=True)
+            ownership = docker([
+                "run", "--rm", "--network", "none", "--memory=128m",
+                "-v", str(wp_content) + ":/synthetic-content",
+                "--entrypoint", "chown", args.clean_image,
+                "-R", "33:33", "/synthetic-content",
+            ], 100)
+            require(record("make disposable wp-content writable to PHP-FPM",
+                           ownership.returncode == 0),
+                    "Synthetic WP content permission setup failed")
+
+            backend = docker([
+                "run", "-d", "--name", php_service, "--network", network,
+                "--network-alias", "php", "--memory=1700m", "--cpus=2",
+                "-e", "ZMP_QA_EDITOR_TOKEN=" + editor_login_token,
+                "-v", str(site) + ":/var/www/html",
+                "-v", str(fpm_ini) + ":/usr/local/etc/php/conf.d/zz-zmp-qa.ini:ro",
+                "-w", "/var/www/html",
+                "--entrypoint", "php-fpm", args.php_image,
+                "-F",
+            ], 55)
+            require(backend.returncode == 0,
+                    "Failed to start synthetic PHP-FPM: " + backend.stderr[-400:])
+            active.append(("container", php_service))
+
+            frontend = docker([
+                "run", "-d", "--name", web, "--network", network,
+                "--network-alias", "web", "--memory=280m", "--cpus=1",
+                "-v", str(site) + ":/var/www/html:ro",
+                "-v", str(conf) + ":/etc/nginx/conf.d/default.conf:ro",
+                "--entrypoint", "nginx", args.nginx_image,
+                "-g", "daemon off;",
+            ], 55)
+            require(frontend.returncode == 0,
+                    "Failed to start isolated Nginx: " + frontend.stderr[-400:])
+            active.append(("container", web))
+            record("Nginx/PHP-FPM private multiworker web stack", True)
+        else:
+            p = docker([
+                "run", "-d", "--name", web, "--network", network,
+                "--network-alias", "web", "--memory=900m", "--cpus=1",
+                "-v", str(site) + ":/var/www/html", "-w", "/var/www/html",
+                "-e", "ZMP_QA_EDITOR_TOKEN=" + editor_login_token,
+                "--entrypoint", "php", args.php_image,
+                "-S", "0.0.0.0:8080", "-t", "/var/www/html",
+            ], 55)
+            require(p.returncode == 0, "Failed to start isolated PHP web server")
+            active.append(("container", web))
         cookie_dir = temp / "http-cookies"
         cookie_dir.mkdir()
 
@@ -631,12 +724,40 @@ add_action( 'init', function () {
                                    "state": baseline_state,
                                    "test_scope": "Same disposable Fiore site, ZiloMentor disabled",
                                })
-                        if baseline_state.get("panelControlCount", 0) > 0:
-                            record("ZiloMentor editor controls match free baseline",
-                                   editor_state.get("panelControlCount", 0) > 0,
+                        free_controls = baseline_state.get("panelControlCount", 0)
+                        fork_controls = editor_state.get("panelControlCount", 0)
+                        free_text = baseline_state.get("panelTextLength", 0)
+                        fork_text = editor_state.get("panelTextLength", 0)
+                        comparable = free_controls >= 30 and free_text >= 500
+                        record("Free Elementor editor baseline sufficiently populated",
+                               comparable,
+                               {
+                                   "baseline_controls": free_controls,
+                                   "baseline_text_length": free_text,
+                                   "panel_populated": baseline_state.get("panelPopulatedWaitPassed"),
+                               })
+                        if comparable:
+                            # A fork must not lose most of the ordinary widget
+                            # controls or content relative to the same-site free
+                            # Elementor baseline. Earlier >0-only was too weak.
+                            record("ZiloMentor editor panel matches baseline content",
+                                   fork_controls >= free_controls * 0.5
+                                   and fork_text >= free_text * 0.5
+                                   and editor_state.get("panelPopulatedWaitPassed") is True,
                                    {
-                                       "fork_controls": editor_state.get("panelControlCount", 0),
-                                       "baseline_controls": baseline_state.get("panelControlCount", 0),
+                                       "fork_controls": fork_controls,
+                                       "baseline_controls": free_controls,
+                                       "fork_panel_text": fork_text,
+                                       "baseline_panel_text": free_text,
+                                       "fork_populated": editor_state.get("panelPopulatedWaitPassed"),
+                                   })
+                        if baseline_state.get("titleControlMatchesSynthetic") is True:
+                            record("ZiloMentor Heading title selection matches baseline",
+                                   editor_state.get("titleControlMatchesSynthetic") is True,
+                                   {
+                                       "fork_heading_selected": editor_state.get("headingSelected"),
+                                       "fork_title_control": editor_state.get("titleControlPresent"),
+                                       "baseline_heading_selected": baseline_state.get("headingSelected"),
                                    })
                     except subprocess.TimeoutExpired:
                         record("Free Elementor editor baseline without ZiloMentor",
@@ -650,6 +771,10 @@ add_action( 'init', function () {
                 else:
                     record("Free Elementor editor baseline without ZiloMentor",
                            False, {"deactivation_failed": True})
+        if args.focus == "editor":
+            print("QA_RESULTS_JSON=" + json.dumps(observations), flush=True)
+            return 0 if all(item["passed"] for item in observations) else 1
+
         product_url = fixtures["product_url"]
         require(product_url.startswith("http://web:8080/"),
                 "Synthetic product URL escaped isolated test domain")

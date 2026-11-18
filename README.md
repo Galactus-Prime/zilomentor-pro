@@ -32,7 +32,7 @@ plugin version and must be tested.
 | Theme Builder, dynamic tags and product widgets | 196 widgets registered; ACF text rendered in a real Elementor Heading; other dynamic tags and templates pending |
 | Vamtam Fiore integration on ItzyBitzyWorkshop | Isolated plugin activation passed on PHP 8.4/8.5; visual tests pending |
 | WordPress plugin path elementor-pro/elementor-pro.php | Provided when staging ZIP is installed |
-| WordPress editing and responsive layouts | Front-end Chromium DOM passed at two sizes; authenticated editor shell and preview load, but its panel controls remain empty even with ZiloMentor disabled; editing and visual fidelity pending |
+| WordPress editing and responsive layouts | Browser DOM passes at two sizes; populated editor panel verified in private Nginx/PHP-FPM (156 Pro-compatible vs 81 free controls); editing/saving and pixel fidelity pending |
 | WooCommerce cart, checkout and payments | Synthetic session and cart shortcode both work; page template omits shortcode output even without ZiloMentor Pro; payment tests pending |
 | Automated updates | Upstream updater disabled; independent signed updater pending |
 
@@ -70,9 +70,20 @@ using locally cached Playwright (no remote browser service):
 
     python3 tools/run_manual_checks.py --source-wordpress /path/to/wordpress --editor-playwright-image haven-browser-qa:1.62.1
 
-The synthetic editor shell, preview frame and Elementor JavaScript initialized.
-In the restricted staging environment the panel controls remained empty
-**in both configurations**, so actual editing/saving is not verified.
+In the original single-worker PHP staging environment, editor panel controls
+were empty in both configurations during the short observation window.
+A private **Nginx 1.29 + PHP 8.4-FPM** multiworker test, with waits for widget
+panel population, subsequently loaded **156 controls for ZiloMentor Pro**
+and **81 controls for free Elementor**. Both editors reached DOM ready state
+complete without JavaScript page errors or local HTTP errors.
+
+To reproduce the faster, more realistic multiworker editor comparison:
+
+    python3 tools/run_manual_checks.py --source-wordpress /path/to/wordpress --web-server nginx-fpm --focus editor --editor-playwright-image haven-browser-qa:1.62.1
+
+The editor interaction and saving controls remain **not fully verified**.
+No production site is modified. All containers and their private Docker
+network are removed by the test harness.
 The temporary editor token is randomly generated per QA invocation and
 does not provide access to the production website.
 

@@ -96,6 +96,17 @@ check("editor Playwright prevents outbound browser requests",
       (ROOT / "tests/browser_editor_smoke.js").read_text()
       and "--editor-playwright-image" in
       (ROOT / "tools/run_manual_checks.py").read_text())
+check("private Nginx PHP-FPM QA has no public host port mapping",
+      'choices=("php", "nginx-fpm")' in qa_script
+      and '"--network-alias", "web"' in qa_script
+      and '"--network-alias", "php"' in qa_script
+      and '"--entrypoint", "php-fpm"' in qa_script
+      and '"--entrypoint", "nginx"' in qa_script
+      and "--web-server" in (ROOT / "tools/run_manual_checks.py").read_text())
+check("editor readiness baseline requires populated controls",
+      "panelPopulatedWaitPassed" in (ROOT / "tests/browser_editor_smoke.js").read_text()
+      and "Free Elementor editor baseline sufficiently populated" in qa_script
+      and "ZiloMentor editor panel matches baseline content" in qa_script)
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
