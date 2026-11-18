@@ -83,6 +83,12 @@ $product->set_regular_price( '9.99' );
 $product->set_catalog_visibility( 'visible' );
 $product_id = $product->save();
 
+$plain_id = wp_insert_post( [
+    'post_type' => 'page',
+    'post_status' => 'publish',
+    'post_title' => 'ZiloMentor Synthetic Plain Page',
+    'post_content' => 'ZiloMentor Synthetic Plain Content Marker',
+] );
 $cart_id = wp_insert_post( [
     'post_type' => 'page',
     'post_status' => 'publish',
@@ -103,6 +109,7 @@ echo wp_json_encode( [
     'form' => $form_id,
     'product' => $product_id,
     'product_url' => get_permalink( $product_id ),
+    'plain' => $plain_id,
     'cart' => $cart_id,
     'checkout' => $checkout_id,
 ] );

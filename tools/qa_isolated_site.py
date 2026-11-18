@@ -56,6 +56,10 @@ def main():
         default="/ms-playwright/chromium-1243/chrome-linux64/chrome",
         help="Path to Chromium inside the optional browser image.",
     )
+    argp.add_argument(
+        "--editor-playwright-image", default=None,
+        help="Optional cached image with Playwright available for bounded editor JS checks.",
+    )
     args = argp.parse_args()
 
     source = args.source_wordpress.resolve(strict=True)
@@ -67,6 +71,8 @@ def main():
     images = [args.php_image, args.db_image, args.curl_image, args.clean_image]
     if args.browser_image is not None:
         images.append(args.browser_image)
+    if args.editor_playwright_image is not None:
+        images.append(args.editor_playwright_image)
     for image in images:
         p = execute(["docker", "image", "inspect", image], timeout=15)
         require(p.returncode == 0, f"Docker image must already be cached: {image}")
@@ -76,6 +82,7 @@ def main():
     database = f"zmp-qa-db-{tag}"
     web = f"zmp-qa-web-{tag}"
     db_password = "ZmpSynthetic" + secrets.token_hex(16)
+    editor_login_token = secrets.token_hex(28)
     temp = Path(tempfile.mkdtemp(prefix="zmp-isolated-qa-", dir="/tmp"))
     active = []
     observations = []
@@ -214,6 +221,62 @@ add_action( 'template_redirect', function () {
         ], 500 );
     }
 }, 35 );
+
+
+// Inspect the normal WordPress the_content filter on a disposable cart page.
+add_action( 'template_redirect', function () {
+    if ( ! isset( $_GET['zmp_qa_content_filter'] ) ) {
+        return;
+    }
+    $id = get_queried_object_id();
+    $post = get_post( $id );
+    $raw = $post ? $post->post_content : '';
+    $html = apply_filters( 'the_content', $raw );
+    wp_send_json( [
+        'queried_id' => $id,
+        'is_cart' => function_exists( 'is_cart' ) && is_cart(),
+        'raw_has_shortcode' => has_shortcode( $raw, 'woocommerce_cart' ),
+        'filter_bytes' => strlen( $html ),
+        'filter_contains_product' => str_contains(
+            $html, 'ZiloMentor Synthetic Test Product'
+        ),
+        'filter_contains_cart_form' => str_contains(
+            $html, 'woocommerce-cart-form'
+        ),
+    ] );
+}, 35 );
+
+// One-time QA-only editor login: localhost-style private Docker hostname,
+// a per-run 224-bit random token, and an admin user in a synthetic database.
+// The token exists only in the disposable PHP server container environment.
+add_action( 'init', function () {
+    if ( ! isset( $_GET['zmp_qa_editor_login'] ) ) {
+        return;
+    }
+    $token = getenv( 'ZMP_QA_EDITOR_TOKEN' );
+    $received = is_string( $_GET['zmp_qa_editor_login'] )
+        ? $_GET['zmp_qa_editor_login'] : '';
+    $host = $_SERVER['HTTP_HOST'] ?? '';
+    if (
+        ! is_string( $token ) || strlen( $token ) !== 56 ||
+        ! hash_equals( $token, $received ) ||
+        'web:8080' !== $host
+    ) {
+        status_header( 403 );
+        exit;
+    }
+    $user = get_user_by( 'login', 'qa-only' );
+    $page_id = absint( $_GET['zmp_qa_page'] ?? 0 );
+    if ( ! $user || ! user_can( $user, 'manage_options' ) ||
+         'page' !== get_post_type( $page_id ) ) {
+        status_header( 403 );
+        exit;
+    }
+    wp_set_current_user( $user->ID );
+    wp_set_auth_cookie( $user->ID, false );
+    wp_safe_redirect( admin_url( 'post.php?post=' . $page_id . '&action=elementor' ) );
+    exit;
+}, 1 );
 """
         )
 
@@ -326,6 +389,7 @@ add_action( 'template_redirect', function () {
             "run", "-d", "--name", web, "--network", network,
             "--network-alias", "web", "--memory=900m", "--cpus=1",
             "-v", str(site) + ":/var/www/html", "-w", "/var/www/html",
+            "-e", "ZMP_QA_EDITOR_TOKEN=" + editor_login_token,
             "--entrypoint", "php", args.php_image,
             "-S", "0.0.0.0:8080", "-t", "/var/www/html",
         ], 55)
@@ -334,7 +398,11 @@ add_action( 'template_redirect', function () {
         cookie_dir = temp / "http-cookies"
         cookie_dir.mkdir()
 
-        def request(path, fields=None):
+        def request(path, fields=None, cookie_file_name="cookies.txt"):
+            # Keep privileged synthetic editor cookies out of guest cart tests.
+            require(cookie_file_name in ("cookies.txt", "editor-cookies.txt"),
+                    "Unexpected QA cookie file")
+            cookie_path = "/qa-cookies/" + cookie_file_name
             command = [
                 "run", "--rm", "--network", network, "--memory=128m",
                 "--user", "0:0",  # curlimages default UID cannot write private test cookie jar.
@@ -342,7 +410,7 @@ add_action( 'template_redirect', function () {
                 "--entrypoint", "curl", args.curl_image,
                 "-sS", "--max-time", "65", "--max-redirs", "6",
                 "--noproxy", "*", "-L",
-                "-c", "/qa-cookies/cookies.txt", "-b", "/qa-cookies/cookies.txt",
+                "-c", cookie_path, "-b", cookie_path,
                 "-w", "\n__ZMP_HTTP_STATUS__:%{http_code}", "http://web:8080/" + path,
             ]
             if fields:
@@ -368,6 +436,15 @@ add_action( 'template_redirect', function () {
                {"status": status, "error": err})
         record("Elementor heading rendered", "ZiloMentor Synthetic Heading" in html)
         record("Elementor Form widget rendered", 'elementor-form' in html and '<form' in html)
+        plain_status, plain_html, plain_err = request(
+            "?page_id=" + str(fixtures["plain"])
+        )
+        record("Ordinary WordPress page content displays in Fiore",
+               plain_status == 200 and
+               "ZiloMentor Synthetic Plain Content Marker" in plain_html,
+               {"status": plain_status, "bytes": len(plain_html),
+                "marker_present": "ZiloMentor Synthetic Plain Content Marker" in plain_html,
+                "error": plain_err})
         record("ACF dynamic value renders inside Elementor heading",
                "ZiloMentor Synthetic ACF Value" in html,
                {"dynamic_value_present": "ZiloMentor Synthetic ACF Value" in html})
@@ -446,6 +523,133 @@ add_action( 'template_redirect', function () {
                     },
                 )
 
+        if args.browser_image is not None or args.editor_playwright_image is not None:
+            # An isolated synthetic WordPress user and ephemeral token only.
+            editor_login_path = (
+                "?zmp_qa_editor_login=" + editor_login_token
+                + "&zmp_qa_page=" + str(fixtures["page"])
+            )
+            editor_http_status, editor_http, _ = request(
+                editor_login_path, cookie_file_name="editor-cookies.txt"
+            )
+            editor_http_lower = editor_http.lower()
+            editor_http_ok = (
+                editor_http_status == 200
+                and "elementor-editor" in editor_http_lower
+                and "elementor-panel" in editor_http_lower
+                and 'id="loginform"' not in editor_http_lower
+            )
+            record("Authenticated Elementor editor HTTP shell",
+                   editor_http_ok,
+                   {
+                       "status": editor_http_status,
+                       "html_bytes": len(editor_http),
+                       "editor_marker_present": "elementor-editor" in editor_http_lower,
+                       "panel_marker_present": "elementor-panel" in editor_http_lower,
+                       "login_form_present": 'id="loginform"' in editor_http_lower,
+                       "page_title": editor_http_lower.split("<title>", 1)[-1]
+                           .split("</title>", 1)[0][:100] if "<title>" in editor_http_lower else "",
+                   })
+
+            if editor_http_ok and args.editor_playwright_image is not None:
+                # Node's Playwright API navigates at commit, avoiding Chromium
+                # --dump-dom hanging on asynchronous editor/background assets.
+                editor_name = "zmp-qa-editor-" + tag
+                js = plugins_path / "elementor-pro/tests/browser_editor_smoke.js"
+                require(js.is_file(), "Editor smoke test script missing")
+                editor_command = [
+                    "run", "--rm", "--name", editor_name,
+                    "--network", network, "--memory=1600m", "--cpus=2",
+                    "--shm-size=128m",
+                    "-e", "NODE_PATH=/usr/lib/node_modules",
+                    "-e", "ZMP_QA_EDITOR_TOKEN=" + editor_login_token,
+                    "-e", "ZMP_QA_PAGE_ID=" + str(fixtures["page"]),
+                    "-v", str(js) + ":/qa/editor_smoke.js:ro",
+                    "--entrypoint", "timeout", args.editor_playwright_image,
+                    "--signal=TERM", "--kill-after=5s", "55s",
+                    "node", "/qa/editor_smoke.js",
+                ]
+                editor_state = {}
+                try:
+                    editor_run = docker(editor_command, timeout=70)
+                    result_line = next((
+                        line[len("ZMP_EDITOR_JSON="):]
+                        for line in editor_run.stdout.splitlines()
+                        if line.startswith("ZMP_EDITOR_JSON=")
+                    ), None)
+                    if result_line:
+                        try:
+                            editor_state = json.loads(result_line)
+                        except ValueError:
+                            editor_state = {}
+                    else:
+                        editor_state = {}
+                    editor_ok = (
+                        editor_run.returncode == 0
+                        and editor_state.get("navigationCommitted") is True
+                        and editor_state.get("authenticatedEditorPage") is True
+                        and editor_state.get("panelPresent") is True
+                        and editor_state.get("previewPresent") is True
+                    )
+                    record("Authenticated Playwright Elementor editor shell",
+                           editor_ok,
+                           {
+                               "exit_code": editor_run.returncode,
+                               "state": editor_state,
+                               "hard_timeout": editor_run.returncode in (124, 137),
+                           })
+                except subprocess.TimeoutExpired:
+                    record("Authenticated Playwright Elementor editor shell", False,
+                           {"hard_timeout": True, "reason": "QA browser exceeded 70s"})
+                finally:
+                    # Only clean up this run's randomly named transient browser.
+                    docker(["rm", "-f", editor_name], 20)
+
+                # Baseline on exactly the same synthetic WP/Fiore system,
+                # with ZiloMentor Pro disabled. This helps distinguish a
+                # slow/uninitialized free Elementor editor from our fork.
+                inactive = wp("plugin", "deactivate", "elementor-pro")
+                if inactive.returncode == 0:
+                    baseline_state = {}
+                    try:
+                        base_run = docker(editor_command, timeout=70)
+                        baseline_line = next((
+                            line[len("ZMP_EDITOR_JSON="):]
+                            for line in base_run.stdout.splitlines()
+                            if line.startswith("ZMP_EDITOR_JSON=")
+                        ), None)
+                        if baseline_line:
+                            try:
+                                baseline_state = json.loads(baseline_line)
+                            except ValueError:
+                                baseline_state = {}
+                        record("Free Elementor editor baseline without ZiloMentor",
+                               base_run.returncode == 0
+                               and baseline_state.get("navigationCommitted") is True,
+                               {
+                                   "exit_code": base_run.returncode,
+                                   "state": baseline_state,
+                                   "test_scope": "Same disposable Fiore site, ZiloMentor disabled",
+                               })
+                        if baseline_state.get("panelControlCount", 0) > 0:
+                            record("ZiloMentor editor controls match free baseline",
+                                   editor_state.get("panelControlCount", 0) > 0,
+                                   {
+                                       "fork_controls": editor_state.get("panelControlCount", 0),
+                                       "baseline_controls": baseline_state.get("panelControlCount", 0),
+                                   })
+                    except subprocess.TimeoutExpired:
+                        record("Free Elementor editor baseline without ZiloMentor",
+                               False, {"hard_timeout": True})
+                    finally:
+                        docker(["rm", "-f", editor_name], 20)
+                        restore = wp("plugin", "activate", "elementor-pro")
+                        require(record("Restore ZiloMentor in isolated test",
+                                       restore.returncode == 0),
+                                "Failed to restore ZiloMentor in synthetic WP")
+                else:
+                    record("Free Elementor editor baseline without ZiloMentor",
+                           False, {"deactivation_failed": True})
         product_url = fixtures["product_url"]
         require(product_url.startswith("http://web:8080/"),
                 "Synthetic product URL escaped isolated test domain")
@@ -477,6 +681,10 @@ add_action( 'template_redirect', function () {
         record("WooCommerce session cookie issued",
                any("woocommerce_session_" in name for name in cookie_names),
                {"cookie_names": cookie_names})
+        record("Guest cart cookie jar is separate from admin editor cookies",
+               not any(name.startswith(("wordpress_logged_in_", "wordpress_sec_"))
+                       for name in cookie_names),
+               {"cookie_names": cookie_names})
         cart_page_debug = (
             '$id=' + str(fixtures["cart"]) + ';'
             '$p=get_post($id);'
@@ -498,6 +706,17 @@ add_action( 'template_redirect', function () {
                shortcode_info.get("has_shortcode") is True,
                shortcode_info)
 
+        filter_status, filter_body, filter_err = request(
+            "?page_id=" + str(fixtures["cart"]) + "&zmp_qa_content_filter=1"
+        )
+        try:
+            filter_data = json.loads(filter_body)
+        except ValueError:
+            filter_data = {}
+        record("WooCommerce content filter executed in Cart page request",
+               filter_status == 200 and filter_data.get("raw_has_shortcode") is True,
+               {"status": filter_status, "filter": filter_data,
+                "transport": filter_err})
         status, html, error = request("?page_id=" + str(fixtures["cart"]))
         record("WooCommerce cart retains synthetic product",
                status == 200 and "ZiloMentor Synthetic Test Product" in html,

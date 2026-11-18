@@ -84,6 +84,18 @@ check("optional browser QA is isolated and does not require hosted CI",
       and '"--no-sandbox"' in qa_script
       and '"--dump-dom"' in qa_script
       and not (ROOT/".github/workflows/release.yaml").exists())
+check("isolated editor login requires disposable token and protects guest cookies",
+      "ZMP_QA_EDITOR_TOKEN" in qa_script
+      and "editor-cookies.txt" in qa_script
+      and "hash_equals( $token, $received )" in qa_script
+      and "Free Elementor editor baseline without ZiloMentor" in qa_script
+      and (ROOT / "tests/browser_editor_smoke.js").is_file())
+check("editor Playwright prevents outbound browser requests",
+      "context.route" in (ROOT / "tests/browser_editor_smoke.js").read_text()
+      and 'url.hostname === "web"' in
+      (ROOT / "tests/browser_editor_smoke.js").read_text()
+      and "--editor-playwright-image" in
+      (ROOT / "tools/run_manual_checks.py").read_text())
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))

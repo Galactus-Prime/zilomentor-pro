@@ -186,6 +186,38 @@ Run on a Docker-enabled QA server using its existing browser image:
 The integration runner still exits nonzero while the synthetic Cart-page
 template rendering check fails in the baseline without ZiloMentor Pro.
 
+## Authenticated Elementor editor baseline (18 November 2026)
+
+A synthetic WordPress administrator is authenticated using a random per-run
+token inside a temporary **internal-only** Docker network. The token cannot
+authenticate any real administrator or access the production site.
+The editor and storefront use separate cookie jars.
+
+- Authenticated editor page: HTTP 200, expected Elementor editor page title
+  and server-rendered panel markers.
+- Bounded Playwright (local image): editor document and preview iframe
+  loaded; Elementor editor JavaScript object available; zero page errors.
+- **Panel controls: 0 in the observed period**, both with ZiloMentor Pro
+  enabled and with it deactivated on exactly the same synthetic Fiore site.
+  This is not evidence of a plugin-specific failure. The editor is **not**
+  certified for editing or saving.
+- The browser blocks external requests, the app panel is still empty, and
+  the controlled QA environment may not faithfully reproduce a normal
+  internet-connected Elementor editing session.
+- The same QA run confirmed guest WooCommerce cookies are independent
+  from the temporary editor login; the full synthetic Cart page is still
+  missing content with and without ZiloMentor, although its cart API,
+  shortcode and WordPress content-filter output contain the product.
+
+Use the existing QA host (no GitHub Actions or paid services):
+
+    python3 tools/run_manual_checks.py --source-wordpress /path/to/wordpress --editor-playwright-image haven-browser-qa:1.62.1
+
+The integration test remains a **nonzero** exit until the synthetic cart
+page and any optional editor panel parity failures are resolved. A complete
+editor interaction/edit/save test and production-like staging visual
+comparison remain release blockers.
+
 ## Suggested validation sequence
 1. Install a disposable WordPress 7.1+, Elementor 4.4.x staging environment.
 2. Record baseline pages/templates and widgets under genuine Elementor Pro.

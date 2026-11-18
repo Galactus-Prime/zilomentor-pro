@@ -32,7 +32,7 @@ plugin version and must be tested.
 | Theme Builder, dynamic tags and product widgets | 196 widgets registered; ACF text rendered in a real Elementor Heading; other dynamic tags and templates pending |
 | Vamtam Fiore integration on ItzyBitzyWorkshop | Isolated plugin activation passed on PHP 8.4/8.5; visual tests pending |
 | WordPress plugin path elementor-pro/elementor-pro.php | Provided when staging ZIP is installed |
-| WordPress editing and responsive layouts | Chromium DOM smoke passed at 1366x768 and 390x844; editor and visual fidelity pending |
+| WordPress editing and responsive layouts | Front-end Chromium DOM passed at two sizes; authenticated editor shell and preview load, but its panel controls remain empty even with ZiloMentor disabled; editing and visual fidelity pending |
 | WooCommerce cart, checkout and payments | Synthetic session and cart shortcode both work; page template omits shortcode output even without ZiloMentor Pro; payment tests pending |
 | Automated updates | Upstream updater disabled; independent signed updater pending |
 
@@ -64,6 +64,17 @@ using the already-cached browser image on the existing QA server:
 Browser checks verify Elementor headings, form markup and ACF dynamic values
 after loading JavaScript. They do not certify visual pixel fidelity, editor
 interactions or checkout functionality.
+
+To compare the authenticated Elementor editor with and without ZiloMentor
+using locally cached Playwright (no remote browser service):
+
+    python3 tools/run_manual_checks.py --source-wordpress /path/to/wordpress --editor-playwright-image haven-browser-qa:1.62.1
+
+The synthetic editor shell, preview frame and Elementor JavaScript initialized.
+In the restricted staging environment the panel controls remained empty
+**in both configurations**, so actual editing/saving is not verified.
+The temporary editor token is randomly generated per QA invocation and
+does not provide access to the production website.
 
 This copies only allowlisted WordPress core files and the required installed
 plugin/theme source into a disposable environment. It never copies the live
