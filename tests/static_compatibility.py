@@ -21,6 +21,12 @@ check("Elementor Pro API version retained", "define( 'ELEMENTOR_PRO_VERSION', '4
 check("independent fork release version", "define( 'ZILOMENTOR_VERSION', '0.1.0' )" in main)
 check("ElementorPro PHP namespace preserved", "namespace ElementorPro;" in plugin)
 check("original Elementor Pro bootstrap symbol available", "function elementor_pro_load_plugin()" in main)
+check("ZiloMentor Pro user-facing interface labels",
+      "ZiloMentor Pro Data Updater" in (ROOT/"core/upgrade/manager.php").read_text()
+      and "ZiloMentor Pro Canvas" in
+      (ROOT/"modules/theme-builder/documents/theme-page-document.php").read_text()
+      and "ZiloMentor Pro Notes" in
+      (ROOT/"modules/notes/user/preferences.php").read_text())
 check("deferred bootstrap after free Elementor initialization",
       "add_action( 'plugins_loaded', 'pro_elements_plugin_load_plugin', 10 )" in main
       and "if ( did_action( 'plugins_loaded' ) ) {" in main)

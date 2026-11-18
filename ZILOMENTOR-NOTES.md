@@ -73,6 +73,34 @@ Elementor 4.4.1, WooCommerce, Fiore and Vamtam Elementor integration.
 These are WordPress CLI/registry tests, **not** proof that front-end designs,
 popup triggering, forms, dynamic tags or WooCommerce payments work end-to-end.
 
+## Synthetic browser-facing HTTP results (18 November 2026)
+
+In a private Docker network with a temporary PHP web server, Fiore,
+Vamtam integration, WooCommerce and ZiloMentor Pro:
+
+- A synthetic Elementor page rendered a **heading** and **Form widget** on
+  the server (2,500 bytes of widget markup); HTTP page output included
+  the heading and was approximately 45 KB.
+- Synthetic WooCommerce cart and checkout shortcode pages returned HTML
+  (approximately 95 KB each). No checkout transaction or payment executed.
+- A synthetic WooCommerce product initially appeared blank to the tester,
+  because it requested the numeric post ID without following the
+  canonical **HTTP 301 redirect**. The same redirect occurred without
+  ZiloMentor Pro and under the standard Twenty Twenty-Five theme.
+  Following the redirect returned **HTTP 200** and the expected product
+  name. This was a test-harness URL error, not a detected plugin fault.
+- The whole source with user-interface brand refinements passed PHP syntax
+  checks for **930/930 PHP files** on **PHP 8.4 and PHP 8.5**.
+- Test containers, synthetic DB, network and temporary files were removed.
+
+The source retains upstream PRO Elements copyright, attribution, changelog
+and compatibility version header where needed; only user-visible product
+labels were replaced with ZiloMentor Pro.
+
+**Still unverified:** actual storefront visual fidelity, live templates,
+popup triggers, form delivery, dynamic tags, checkout/session behaviour and
+payment integrations. Do not deploy this preview to production.
+
 ## Suggested validation sequence
 1. Install a disposable WordPress 7.1+, Elementor 4.4.x staging environment.
 2. Record baseline pages/templates and widgets under genuine Elementor Pro.
