@@ -33,7 +33,7 @@ plugin version and must be tested.
 | Vamtam Fiore integration on ItzyBitzyWorkshop | Isolated plugin activation passed on PHP 8.4/8.5; visual tests pending |
 | WordPress plugin path elementor-pro/elementor-pro.php | Provided when staging ZIP is installed |
 | WordPress editing and responsive layouts | Browser DOM passed at two sizes; Nginx/PHP-FPM editor panel populated (156 ZiloMentor controls vs 81 free); synthetic Heading title edited with the real Publish button and independently verified in WordPress post meta; pixel fidelity and more editor workflows pending |
-| WooCommerce cart, checkout and payments | Synthetic session, shortcode and ordinary cart page work; registered Cart page bypasses the_content in isolated staging even with Elementor and the Fiore bridge disabled under the default theme; real checkout/payment tests pending |
+| WooCommerce cart, checkout and payments | 50/50 isolated WooCommerce/Fiore HTTP and diagnostic checks passed after disabling Coming Soon in the disposable store; registered Cart page, sessions, AJAX mini-cart and shortcode work, including a WooCommerce-only baseline; checkout orders/payments pending |
 | Automated updates | Upstream updater disabled; independent signed updater pending |
 
 The initial source tracks PRO Elements **v4.4.0** at commit
@@ -98,8 +98,16 @@ This copies only allowlisted WordPress core files and the required installed
 plugin/theme source into a disposable environment. It never copies the live
 wp-config.php, uploads, users, database or orders. Temporary containers use
 a private Docker network with no host ports. The fixture prevents real email
-from being sent, and no payments are processed. The isolated cart-page markup test currently
-fails with and without ZiloMentor Pro, so full storefront QA still blocks release.
+from being sent, and no payments are processed.
+
+**Important WooCommerce QA setup:** newly installed WooCommerce stores may
+enable Coming Soon mode for registered store pages. The disposable test
+runner explicitly sets only its **synthetic** storefront to live mode. With
+this setting off, the registered Cart page displays the product and form.
+A controlled Coming Soon on/off test confirmed that enabling it hides the
+registered Cart and disabling it restores it, even with ZiloMentor and
+Elementor disabled. **50/50 isolated HTTP/integration checks passed.**
+This does not certify real checkout, payment processing or production visuals.
 
 Run tests/runtime_bootstrap.php and tests/runtime_widgets.php via WP-CLI
 in a disposable staging WordPress installation after activating free

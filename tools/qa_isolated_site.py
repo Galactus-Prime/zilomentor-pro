@@ -404,6 +404,27 @@ add_action( 'init', function () {
             p = wp("plugin", "activate", plugin)
             require(record("activate " + plugin, p.returncode == 0),
                     "Plugin activation failed: " + plugin)
+        # A fresh WooCommerce 9.3+ installation starts in store-page-only
+        # Coming Soon mode. Its ComingSoonRequestHandler exits during
+        # template_include for the designated Cart/Checkout pages, hiding the
+        # actual shortcode/form from anonymous HTTP tests. Our disposable
+        # store must explicitly emulate a *live* storefront before testing.
+        # This option is written ONLY in the freshly created synthetic DB.
+        initial_visibility = wp("option", "get", "woocommerce_coming_soon")
+        visibility_set = wp("option", "update", "woocommerce_coming_soon", "no")
+        visibility_check = wp("option", "get", "woocommerce_coming_soon")
+        require(record("Disposable WooCommerce storefront explicitly live",
+                       visibility_set.returncode == 0
+                       and visibility_check.returncode == 0
+                       and visibility_check.stdout.strip() == "no",
+                       {
+                           "initial_store_coming_soon":
+                               initial_visibility.stdout.strip() if initial_visibility.returncode == 0 else "unknown",
+                           "final_store_coming_soon":
+                               visibility_check.stdout.strip() if visibility_check.returncode == 0 else "unknown",
+                       }),
+                "Failed to disable Coming Soon mode in disposable WooCommerce QA store")
+
         p = wp("theme", "activate", THEME)
         require(record("activate Fiore theme", p.returncode == 0),
                 "Fiore activation failed")
@@ -1198,6 +1219,36 @@ add_action( 'init', function () {
                        False,
                        {"dependency_deactivation_failed": True,
                         "return_codes": [x.returncode for x in (a, b, c, d)]})
+
+        if has_default_theme:
+            # A/B confirmation for WooCommerce 9.3+ store Coming Soon handler.
+            # Still WooCommerce-only, default WP theme, disposable DB/network.
+            only_store = wp("option", "update", "woocommerce_store_pages_only", "yes")
+            enable_soon = wp("option", "update", "woocommerce_coming_soon", "yes")
+            soon_status, soon_html, soon_err = request(
+                "?page_id=" + str(fixtures["cart"])
+            )
+            record("WooCommerce Coming Soon ON intercepts designated Cart",
+                   only_store.returncode == 0 and enable_soon.returncode == 0
+                   and soon_status == 200
+                   and "ZiloMentor Synthetic Test Product" not in soon_html
+                   and "woocommerce-cart-form" not in soon_html,
+                   {"status": soon_status,
+                    "product_visible": "ZiloMentor Synthetic Test Product" in soon_html,
+                    "cart_form_visible": "woocommerce-cart-form" in soon_html,
+                    "transport": soon_err})
+            disable_soon = wp("option", "update", "woocommerce_coming_soon", "no")
+            live_status, live_html, live_err = request(
+                "?page_id=" + str(fixtures["cart"])
+            )
+            record("WooCommerce Coming Soon OFF restores designated Cart",
+                   disable_soon.returncode == 0 and live_status == 200
+                   and "ZiloMentor Synthetic Test Product" in live_html
+                   and "woocommerce-cart-form" in live_html,
+                   {"status": live_status,
+                    "product_visible": "ZiloMentor Synthetic Test Product" in live_html,
+                    "cart_form_visible": "woocommerce-cart-form" in live_html,
+                    "transport": live_err})
 
         body_debug = {
             "cart_html_length": len(html),

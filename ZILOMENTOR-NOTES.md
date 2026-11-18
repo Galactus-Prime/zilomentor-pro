@@ -9,6 +9,20 @@ Preserve Elementor Pro's PHP classes, widgets, template data, hook identifiers
 and standard WordPress plugin basename elementor-pro/elementor-pro.php for
 third-party WordPress themes, without modifying those themes.
 
+## Current QA position (18 November 2026)
+
+- The **synthetic Heading edit -> Publish -> database persistence** test
+  passed; 32/32 focused checks with the private Nginx/PHP-FPM editor.
+- The **registered WooCommerce Cart page now renders correctly** once the
+  fresh disposable store is explicitly switched out of Coming Soon mode.
+  A second synthetic A/B run reproduced hide/show by toggling Coming Soon;
+  the full isolated WooCommerce suite passed **50/50 checks**.
+- The earlier cart-page errors documented below are *historical and now
+  resolved in the QA harness*, not ZiloMentor plugin defects.
+- Actual checkout order creation, payments, popup and Theme Builder
+  interactions, cross-theme visual comparisons and secure independent
+  release updating remain outstanding. **No production deployment.**
+
 ## Critical limitations
 - Prototype only. Static checks are not full WordPress/theme runtime tests.
 - Free Elementor must be installed and compatible.
@@ -290,6 +304,35 @@ reach the normal page.php template in the isolated request. This strongly
 isolates a WooCommerce/designated-page rendering-path or staging discrepancy,
 not an established ZiloMentor regression. It does not prove that production
 WooCommerce has the same problem. No payments or customer data were involved.
+
+## WooCommerce Coming Soon A/B resolution (18 November 2026)
+
+In the installed WooCommerce 11.3 sources, the
+Automattic WooCommerce Internal ComingSoon ComingSoonRequestHandler can
+intercept assigned store pages during template loading. WooCommerce's
+new-install defaults include woocommerce_coming_soon=yes and
+woocommerce_store_pages_only=yes; assignment to the Cart page is checked
+by the store-page helper. This explains why the registered Cart page
+bypassed WordPress the_content while an ordinary page rendered the
+same shortcode correctly.
+
+The isolated QA runner now explicitly sets woocommerce_coming_soon=no
+**only within its disposable database**, making the synthetic store
+visible for anonymous Cart and Checkout tests. With that setting:
+
+- **50/50 isolated HTTP and integration checks passed**, including Fiore
+  Cart rendering, product display, WooCommerce session cookies, AJAX
+  fragments, add-to-cart and default-theme comparisons.
+- A controlled WooCommerce-only A/B test toggled Coming Soon **on** and
+  verified the registered Cart item and form were hidden; it toggled
+  Coming Soon **off** and verified both returned.
+- No production store option, live content, real orders, user accounts,
+  payment gateway or outgoing mail was touched.
+- Rendering the Checkout page with HTTP 200 is *not* proof of completed
+  orders, taxes, shipping, sandbox payments or checkout end-to-end flow.
+
+The earlier notes that mark the Cart-page output unresolved refer to the
+pre-fix QA setup and are superseded by these findings.
 
 ## Suggested validation sequence
 1. Install a disposable WordPress 7.1+, Elementor 4.4.x staging environment.

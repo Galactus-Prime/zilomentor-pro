@@ -118,6 +118,11 @@ check("cart rendering test isolates designated Cart page from shortcode control"
       "zmp_qa_content_trace" in qa_script
       and "Ordinary page with WooCommerce cart shortcode displays item" in qa_script
       and "cart_control" in qa_fixture)
+check("WooCommerce Coming Soon is disabled only for synthetic storefront QA",
+      '"woocommerce_coming_soon", "no"' in qa_script
+      and '"WooCommerce Coming Soon ON intercepts designated Cart"' in qa_script
+      and '"WooCommerce Coming Soon OFF restores designated Cart"' in qa_script
+      and '"Disposable WooCommerce storefront explicitly live"' in qa_script)
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
