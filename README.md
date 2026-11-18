@@ -3,8 +3,8 @@
 **An independently maintained, GPL-licensed Elementor Pro compatibility fork for WordPress.**
 
 > **Development preview, v0.1.0. Not production-ready.** The compatibility work
-> has passed structural checks, but has not passed full WordPress, editor,
-> WooCommerce or theme runtime tests.
+> has passed structural and isolated WordPress/Fiore activation and widget tests,
+> but not full browser, forms-delivery, checkout or payment tests.
 
 ZiloMentor Pro is a fork of [PRO Elements](https://github.com/proelements/proelements),
 which in turn incorporates GPL-licensed code originally developed by Elementor Ltd.
@@ -29,11 +29,11 @@ plugin version and must be tested.
 | Area | Status |
 | --- | --- |
 | Original Elementor Pro PHP namespace and hooks | Retained from upstream; static check passes |
-| Theme Builder, dynamic tags and product widgets | Source modules present; runtime tests pending |
-| Vamtam Fiore integration on ItzyBitzyWorkshop | 20 referenced source-file targets present; end-to-end tests pending |
+| Theme Builder, dynamic tags and product widgets | 196 widgets registered in isolated WordPress; end-to-end tests pending |
+| Vamtam Fiore integration on ItzyBitzyWorkshop | Isolated plugin activation passed on PHP 8.4/8.5; visual tests pending |
 | WordPress plugin path elementor-pro/elementor-pro.php | Provided when staging ZIP is installed |
 | WordPress editing and responsive layouts | Not yet tested |
-| WooCommerce cart, checkout and payments | Not yet tested |
+| WooCommerce cart, checkout and payments | Synthetic cart/checkout HTML rendered; payments not tested |
 | Automated updates | Upstream updater disabled; independent signed updater pending |
 
 The initial source tracks PRO Elements **v4.4.0** at commit
@@ -42,8 +42,14 @@ The public fork retains its original upstream commit history.
 
 ## Build and test (development only)
 
-    python3 tests/static_compatibility.py
-    python3 tools/build_zip.py
+    python3 tools/run_manual_checks.py  # existing Docker/PHP QA host
+
+On the development VM, without Docker/PHP:
+
+    python3 tools/run_manual_checks.py --skip-php
+
+**GitHub Actions is intentionally not used.** Checks run on existing servers;
+no hosted GitHub CI minutes or Actions billing are required.
 
 Run tests/runtime_bootstrap.php and tests/runtime_widgets.php via WP-CLI
 in a disposable staging WordPress installation after activating free
@@ -61,13 +67,15 @@ screenshots. **Never overwrite an active production plugin or a live store.**
 
 ## Development plan
 
-1. Run PHP 8.4/8.5 syntax checks in CI and add full WordPress integration tests.
+1. Run PHP 8.4/8.5 syntax checks manually on existing servers, and extend full WordPress integration tests.
 2. Add disposable WordPress/Elementor matrix tests and Vamtam Fiore fixtures.
 3. Investigate compatibility differences and implement only justified fixes.
 4. Introduce a verified update pipeline, security policy and changelog.
 5. Publish a release only after end-to-end staging and rollback tests pass.
 
-See [ZILOMENTOR-NOTES.md](ZILOMENTOR-NOTES.md) for the current staging checklist,\n[SECURITY.md](SECURITY.md) for security reporting, and\n[CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
+See [ZILOMENTOR-NOTES.md](ZILOMENTOR-NOTES.md) for the current staging checklist,
+[SECURITY.md](SECURITY.md) for security reporting, and
+[CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 
 ## Licence, provenance and trademarks
 

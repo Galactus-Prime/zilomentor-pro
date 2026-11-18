@@ -42,3 +42,7 @@ servers.yml
 
 # Generated staging packages (never commit built ZIPs)
 /dist/
+
+# Local Python test caches
+__pycache__/
+*.pyc

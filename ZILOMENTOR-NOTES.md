@@ -111,3 +111,15 @@ payment integrations. Do not deploy this preview to production.
    AJAX, REST API and checkout including payment sandbox.
 6. Revert the staging copy after comparison if any functional difference appears.
 7. Do not deploy to production until the end-to-end suite passes.
+
+## Testing without GitHub Actions
+
+This project deliberately uses no GitHub Actions or hosted CI. The inherited
+upstream release workflow was removed from the development branch. Run
+python3 tools/run_manual_checks.py on an existing Docker-enabled QA server
+(with the already-installed PHP 8.4/8.5 images). On the development VM without
+Docker, use --skip-php and explicitly treat PHP linting as outstanding until
+it is completed on the QA server.
+
+This requires no GitHub-hosted runner minutes. Do not push release tags or
+enable the inherited workflow on the untouched upstream-based master branch.

@@ -11,6 +11,6 @@ Please report potential vulnerabilities privately to the repository owner via
 GitHub's private vulnerability reporting feature when available. Do not post
 secrets, exploit details, customer data, or credentials in public issues.
 
-Any release must pass automated static checks, a PHP runtime compatibility
+Any release must pass manually run static checks, a PHP runtime compatibility
 matrix, a clean staging WordPress test, and a non-destructive WooCommerce
 checkout test with sandbox payment methods.
