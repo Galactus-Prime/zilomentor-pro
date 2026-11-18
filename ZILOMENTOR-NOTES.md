@@ -37,6 +37,22 @@ third-party WordPress themes, without modifying those themes.
 - GitHub repository exists but connector branch creation returns a 403;
   pending additional GitHub write authorisation.
 
+## Test harness and load-order regression
+
+The first isolated WordPress/Fiore/WooCommerce activation test loaded all plugins,
+but detected an absent ElementorPro bootstrap: the standard plugin directory
+elementor-pro/ is loaded before elementor/ alphabetically. The early
+did_action('elementor/loaded') guard returned before free Elementor initialized.
+The development fix defers the bootstrap until plugins_loaded.
+
+A disposable staging installation should run the following read-only regression:
+
+    wp eval-file wp-content/plugins/elementor-pro/tests/runtime_bootstrap.php
+
+This test checks the Elementor and ZiloMentor version constants, the
+ElementorPro Plugin class, and theme location helper. Repeat on each supported
+PHP version and after plugin updates. Never run this against a live shop.
+
 ## Suggested validation sequence
 1. Install a disposable WordPress 7.1+, Elementor 4.4.x staging environment.
 2. Record baseline pages/templates and widgets under genuine Elementor Pro.

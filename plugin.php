@@ -491,7 +491,7 @@ class Plugin {
 	}
 
 	final public static function get_title() {
-		return esc_html__( 'Pro Elements', 'elementor-pro' );
+		return esc_html__( 'ZiloMentor Pro', 'elementor-pro' );
 	}
 }
 

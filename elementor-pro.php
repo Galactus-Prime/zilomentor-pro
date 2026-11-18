@@ -63,7 +63,14 @@ function pro_elements_plugin_load_plugin() {
 	\ElementorPro\Modules\AdminNotices\Classes\Upgrade_Recommendation_Dismissal::register_dismiss_handlers();
 
 	define( 'IS_PRO_ELEMENTS', 'true' );
-	add_action( 'plugins_loaded', 'pro_elements_load_plugin_func' );
+	// When bootstrapping from plugins_loaded itself, WordPress has already
+	// reached that hook. Initialize immediately rather than registering a
+	// callback which may not fire until a later request.
+	if ( did_action( 'plugins_loaded' ) ) {
+		pro_elements_load_plugin_func();
+	} else {
+		add_action( 'plugins_loaded', 'pro_elements_load_plugin_func' );
+	}
 }
 
 /**
@@ -116,12 +123,16 @@ if ( ! function_exists( 'elementor_pro_compare_major_version' ) ) {
 	}
 }
 
-pro_elements_plugin_load_plugin();
+// The compatibility folder elementor-pro/ loads ahead of elementor/ in WordPress'
+// alphabetical plugin order. Wait until plugins_loaded, after Elementor has
+// fired its elementor/loaded event, before resolving Elementor Pro dependencies.
+add_action( 'plugins_loaded', 'pro_elements_plugin_load_plugin', 10 );
 
 // Compatibility entrypoint for themes that probe Elementor Pro's original bootstrap.
 if ( ! function_exists( 'elementor_pro_load_plugin' ) ) {
 	function elementor_pro_load_plugin() {
-		if ( ! defined( 'ELEMENTOR_PRO_VERSION' ) ) {
+		// Avoid triggering premature initialization by third-party themes.
+		if ( did_action( 'plugins_loaded' ) && ! defined( 'ELEMENTOR_PRO_VERSION' ) ) {
 			pro_elements_plugin_load_plugin();
 		}
 	}

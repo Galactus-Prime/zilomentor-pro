@@ -45,6 +45,9 @@ The public fork retains its original upstream commit history.
     python3 tests/static_compatibility.py
     python3 tools/build_zip.py
 
+Run tests/runtime_bootstrap.php via WP-CLI in a disposable staging
+WordPress installation after activating free Elementor and ZiloMentor Pro.
+
 The ZIP build uses the elementor-pro/ directory and
 elementor-pro/elementor-pro.php entrypoint for interoperability. This is an
 implementation detail: the plugin's public name is **ZiloMentor Pro**.
