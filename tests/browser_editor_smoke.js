@@ -222,6 +222,20 @@ async function main() {
         }
       }
     }
+    if (!result.titleControlPresent && result.headingEditHandleFound) {
+      // Direct DOM click, bounded to the synthetic iframe edit handle, rules
+      // out Playwright actionability/overlay issues. Still no data is changed.
+      try {
+        const handle = heading.locator(".elementor-editor-element-edit").first();
+        result.editHandleTag = String(await handle.evaluate(el => el.tagName)).slice(0, 25);
+        await handle.evaluate(el => el.click());
+        result.headingEditHandleDomClick = true;
+        await page.waitForTimeout(1600);
+        await inspect();
+      } catch (err) {
+        result.editHandleDomError = err?.name || "UnknownError";
+      }
+    }
     if (!result.titleControlPresent) {
       try {
         await heading.dblclick({ timeout: 5000 });
@@ -231,6 +245,9 @@ async function main() {
       } catch { /* selector or overlay may not permit double clicks */ }
     }
 
+    result.previewEditorModelPresent = await page.evaluate(() =>
+      !!(window.elementor && window.elementor.getPreviewView)
+    );
     result.titleInputOutsidePanelPresent =
       (await page.locator('input[data-setting="title"],textarea[data-setting="title"]').count()) > 0;
     result.panelTextAfterHeadingClick = String(
@@ -243,6 +260,68 @@ async function main() {
         namePresent: !!el.getAttribute("name"),
       }))
     );
+
+    if (process.env.ZMP_QA_SAVE_TEST === "yes") {
+      // Strictly test only the known synthetic Heading in the temporary DB.
+      // This variable is supplied by the explicit --verify-editor-save flag
+      // in the private QA runner, never on the live WordPress installation.
+      result.saveActionCompleted = false;
+      if (await heading.getAttribute("data-id") !== "1a2b3c01" ||
+          !result.titleControlMatchesSynthetic) {
+        result.saveAborted = "wrong-synthetic-heading-or-title";
+      } else {
+        const title = panelTitle.first();
+        const expected = "ZiloMentor QA Saved Heading";
+        await title.fill(expected, { timeout: 6500 });
+        await title.dispatchEvent("change");
+        result.editedTitleInputMatches = (await title.inputValue()) === expected;
+        if (!result.editedTitleInputMatches) {
+          result.saveAborted = "test-title-not-applied";
+        } else {
+          await page.waitForTimeout(900);
+          // Prefer the actual editor Save/Update/Publish button when present.
+          result.saveCandidates = await page.locator("button").evaluateAll(elements =>
+            elements.filter(el => /^(update|publish|save)$/i.test(
+              (el.textContent || "").trim()
+            )).slice(0, 7).map(el => ({
+              text: (el.textContent || "").trim().slice(0, 25),
+              enabled: !el.disabled,
+            }))
+          );
+          const candidates = page.getByRole("button", { name: /^(Update|Publish|Save)$/i });
+          let clicked = false;
+          for (let i = 0; i < Math.min(await candidates.count(), 8); i++) {
+            const candidate = candidates.nth(i);
+            if (await candidate.isVisible() && await candidate.isEnabled()) {
+              try {
+                await candidate.click({ timeout: 7000 });
+                clicked = true;
+                result.saveMethod = "editor-ui-button";
+                break;
+              } catch { /* try the next available toolbar control */ }
+            }
+          }
+          if (!clicked) {
+            // Elementor's own document/save/update command, as implemented
+            // in the installed free editor. This still tests a real AJAX save.
+            try {
+              const commandIssued = await page.evaluate(async () => {
+                if (!window.$e || typeof window.$e.run !== "function") return false;
+                await window.$e.run("document/save/update");
+                return true;
+              });
+              result.saveMethod = "elementor-document-save-update-command";
+              result.saveActionCompleted = commandIssued;
+            } catch (error) {
+              result.saveActionErrorCategory = error?.name || "UnknownError";
+            }
+          } else {
+            result.saveActionCompleted = true;
+          }
+          await page.waitForTimeout(2100);
+        }
+      }
+    }
   } catch (error) {
     result.headingSelectionErrorCategory =
       error && error.name ? String(error.name).slice(0, 60) : "UnknownError";

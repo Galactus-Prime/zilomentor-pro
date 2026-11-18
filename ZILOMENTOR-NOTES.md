@@ -257,6 +257,40 @@ editing/saving a page, responsive visual fidelity or payment handling.
 A read-only Heading selection probe has been added for a subsequent test;
 until independently checked, it must not be marked as passed.
 
+## Verified Elementor Heading edit and synthetic cart control (18 November 2026)
+
+In private Nginx 1.29 / PHP 8.4-FPM staging with a disposable WordPress
+database, Playwright found the Heading widget in the editor preview and
+opened its Title control. An optional end-to-end test then changed the
+**synthetic-only** Heading title to "ZiloMentor QA Saved Heading",
+clicked the editor's actual **Publish** button and independently read the
+saved _elementor_data from WP-CLI. The new title was present in the
+database. **32/32** focused test checks passed, including comparisons to
+free Elementor. The test made no changes on the live shop.
+
+To reproduce the optional write test (all writes are temporary):
+
+    python3 tools/run_manual_checks.py --source-wordpress /path/to/wordpress --web-server nginx-fpm --focus editor --editor-playwright-image haven-browser-qa:1.62.1 --verify-editor-save
+
+WooCommerce Cart page analysis also confirmed that a separate ordinary
+synthetic WordPress page containing the woocommerce_cart shortcode renders the
+product and cart form correctly. On the specifically **registered**
+Cart page, WordPress's the_content callback was not invoked at all,
+while the ordinary control page invoked it once. The cart contents,
+registered shortcode, and direct the_content filtering all worked.
+A subsequent disposable Cart-page mapping comparison established that
+the failure **follows the WooCommerce designated Cart-page setting**:
+the formerly designated page displays the product when unassigned, while
+the replacement designated page loses the content. The original registered
+Cart page still fails in a **WooCommerce-only** baseline with free Elementor,
+ZiloMentor, Vamtam integration disabled, and the standard Twenty Twenty-Five
+theme active. The registered page runs **zero** the_content callbacks, while
+the unregistered control page runs **one**. The registered page did not
+reach the normal page.php template in the isolated request. This strongly
+isolates a WooCommerce/designated-page rendering-path or staging discrepancy,
+not an established ZiloMentor regression. It does not prove that production
+WooCommerce has the same problem. No payments or customer data were involved.
+
 ## Suggested validation sequence
 1. Install a disposable WordPress 7.1+, Elementor 4.4.x staging environment.
 2. Record baseline pages/templates and widgets under genuine Elementor Pro.

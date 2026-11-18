@@ -95,6 +95,12 @@ $cart_id = wp_insert_post( [
     'post_title' => 'ZiloMentor Synthetic Cart',
     'post_content' => '[woocommerce_cart]',
 ] );
+$cart_control_id = wp_insert_post( [
+    'post_type' => 'page',
+    'post_status' => 'publish',
+    'post_title' => 'ZiloMentor Synthetic Cart Control',
+    'post_content' => '<p>ZiloMentor Cart Control Before</p>[woocommerce_cart]<p>ZiloMentor Cart Control After</p>',
+] );
 $checkout_id = wp_insert_post( [
     'post_type' => 'page',
     'post_status' => 'publish',
@@ -111,5 +117,6 @@ echo wp_json_encode( [
     'product_url' => get_permalink( $product_id ),
     'plain' => $plain_id,
     'cart' => $cart_id,
+    'cart_control' => $cart_control_id,
     'checkout' => $checkout_id,
 ] );

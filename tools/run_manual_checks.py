@@ -50,6 +50,10 @@ def main():
         "--editor-playwright-image", default=None,
         help="Optional pre-cached Playwright image for authenticated synthetic Elementor editor baseline checks.",
     )
+    parser.add_argument(
+        "--verify-editor-save", action="store_true",
+        help="Opt-in synthetic Heading change and database-persistence check; requires editor-only Nginx/FPM + Playwright.",
+    )
     args = parser.parse_args()
     if args.source_wordpress is not None and args.skip_php:
         parser.error("Full isolated QA requires PHP Docker tests; remove --skip-php.")
@@ -59,6 +63,11 @@ def main():
         parser.error("--focus editor requires --editor-playwright-image.")
     if args.web_server == "nginx-fpm" and args.source_wordpress is None:
         parser.error("--web-server nginx-fpm requires --source-wordpress.")
+    if args.verify_editor_save and not (
+        args.focus == "editor" and args.web_server == "nginx-fpm"
+        and args.editor_playwright_image and args.source_wordpress
+    ):
+        parser.error("--verify-editor-save requires --focus editor, --web-server nginx-fpm, --editor-playwright-image and --source-wordpress.")
     execute([sys.executable, "tests/static_compatibility.py"])
     execute([sys.executable, "tools/build_zip.py"])
     if args.skip_php:
@@ -94,6 +103,8 @@ def main():
             qa_cmd.extend(["--browser-image", args.browser_image])
         if args.editor_playwright_image:
             qa_cmd.extend(["--editor-playwright-image", args.editor_playwright_image])
+        if args.verify_editor_save:
+            qa_cmd.append("--verify-editor-save")
         execute(qa_cmd)
     print("PASS all requested manual checks; no GitHub Actions used.")
 

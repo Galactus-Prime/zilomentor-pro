@@ -46,6 +46,10 @@ def main():
         "--focus", choices=("all", "editor"), default="all",
         help="Run the full integration suite, or stop after isolated Elementor editor comparison.",
     )
+    argp.add_argument(
+        "--verify-editor-save", action="store_true",
+        help="Opt-in synthetic Heading edit/save on the disposable WordPress database only; requires --focus editor and Playwright.",
+    )
     argp.add_argument("--php-image", default="zc0140-php84-fpm-redis63-mysqli:local")
     argp.add_argument(
         "--web-server", choices=("php", "nginx-fpm"), default="php",
@@ -70,6 +74,10 @@ def main():
         help="Optional cached image with Playwright available for bounded editor JS checks.",
     )
     args = argp.parse_args()
+    if args.verify_editor_save:
+        require(args.focus == "editor" and args.editor_playwright_image is not None
+                and args.web_server == "nginx-fpm",
+                "--verify-editor-save needs --focus editor, --web-server nginx-fpm and --editor-playwright-image")
 
     source = args.source_wordpress.resolve(strict=True)
     require(source.is_dir() and (source / "wp-admin").is_dir()
@@ -233,6 +241,45 @@ add_action( 'template_redirect', function () {
     }
 }, 35 );
 
+
+// Diagnose actual template rendering without leaking any production data.
+// This runs only inside disposable QA WordPress and emits only booleans/counts.
+$GLOBALS['zmp_qa_content_trace'] = [
+    'calls' => 0,
+    'has_item' => false,
+    'has_cart_form' => false,
+    'has_control_preamble' => false,
+    'template_name' => '',
+];
+add_filter( 'template_include', function ( $template ) {
+    if ( isset( $_GET['zmp_qa_trace'] ) ) {
+        $GLOBALS['zmp_qa_content_trace']['template_name'] = basename( $template );
+    }
+    return $template;
+}, PHP_INT_MAX );
+add_filter( 'the_content', function ( $content ) {
+    if ( ! isset( $_GET['zmp_qa_trace'] ) ) {
+        return $content;
+    }
+    $state = &$GLOBALS['zmp_qa_content_trace'];
+    $state['calls']++;
+    $state['has_item'] = $state['has_item'] ||
+        str_contains( $content, 'ZiloMentor Synthetic Test Product' );
+    $state['has_cart_form'] = $state['has_cart_form'] ||
+        str_contains( $content, 'woocommerce-cart-form' );
+    $state['has_control_preamble'] = $state['has_control_preamble'] ||
+        str_contains( $content, 'ZiloMentor Cart Control Before' );
+    return $content;
+}, PHP_INT_MAX );
+add_action( 'shutdown', function () {
+    if ( ! isset( $_GET['zmp_qa_trace'] ) ) {
+        return;
+    }
+    $s = $GLOBALS['zmp_qa_content_trace'];
+    $s['queried_page'] = (int) get_queried_object_id();
+    $s['cart_condition'] = function_exists( 'is_cart' ) && is_cart();
+    echo "\n<!--ZMP_QA_TRACE:" . wp_json_encode( $s ) . "-->\n";
+}, PHP_INT_MAX );
 
 // Inspect the normal WordPress the_content filter on a disposable cart page.
 add_action( 'template_redirect', function () {
@@ -771,6 +818,69 @@ add_action( 'init', function () {
                 else:
                     record("Free Elementor editor baseline without ZiloMentor",
                            False, {"deactivation_failed": True})
+        if args.verify_editor_save:
+            # Re-activate ZiloMentor after the free Elementor baseline first.
+            # Then run an entirely separate browser on this disposable site.
+            # No real pages, credentials or user data are involved.
+            save_name = "zmp-qa-save-" + tag
+            save_cmd = [
+                "run", "--rm", "--name", save_name,
+                "--network", network, "--memory=1600m", "--cpus=2",
+                "--shm-size=128m",
+                "-e", "NODE_PATH=/usr/lib/node_modules",
+                "-e", "ZMP_QA_EDITOR_TOKEN=" + editor_login_token,
+                "-e", "ZMP_QA_PAGE_ID=" + str(fixtures["page"]),
+                "-e", "ZMP_QA_SAVE_TEST=yes",
+                "-v", str(js) + ":/qa/editor_smoke.js:ro",
+                "--entrypoint", "timeout", args.editor_playwright_image,
+                "--signal=TERM", "--kill-after=5s", "65s",
+                "node", "/qa/editor_smoke.js",
+            ]
+            save_state = {}
+            try:
+                run = docker(save_cmd, timeout=85)
+                result_line = next((
+                    line[len("ZMP_EDITOR_JSON="):]
+                    for line in run.stdout.splitlines()
+                    if line.startswith("ZMP_EDITOR_JSON=")
+                ), None)
+                if result_line:
+                    try:
+                        save_state = json.loads(result_line)
+                    except ValueError:
+                        save_state = {}
+                record("Synthetic Elementor save action completed",
+                       run.returncode == 0 and save_state.get("saveActionCompleted") is True,
+                       {"exit_code": run.returncode,
+                        "save_state": {k: v for k, v in save_state.items()
+                                       if k.startswith("save") or k.startswith("edited")}})
+            except subprocess.TimeoutExpired:
+                record("Synthetic Elementor save action completed", False,
+                       {"hard_timeout": True})
+            finally:
+                docker(["rm", "-f", save_name], 20)
+            # Independent server-side verification of the stored post meta,
+            # not merely the visible text in the browser.
+            verify_code = (
+                '$d=json_decode(get_post_meta(' + str(fixtures["page"]) +
+                ', "_elementor_data", true), true);'
+                '$found=false;$saved=false;'
+                '$scan=function($n)use(&$scan,&$found,&$saved){'
+                'foreach((array)$n as $item){if(!is_array($item))continue;'
+                'if(($item["id"]??"")==="1a2b3c01"){$found=true;'
+                '$saved=($item["settings"]["title"]??"")==="ZiloMentor QA Saved Heading";}'
+                'if(!empty($item["elements"]))$scan($item["elements"]);}};'
+                '$scan($d);echo wp_json_encode(["heading_exists"=>$found,"saved"=>$saved]);'
+            )
+            result = wp("eval", verify_code)
+            try:
+                verify_data = json.loads(result.stdout.strip())
+            except ValueError:
+                verify_data = {}
+            record("Synthetic Heading title persisted to WordPress database",
+                   result.returncode == 0 and verify_data.get("saved") is True,
+                   {"wpcli_exit": result.returncode, "verification": verify_data})
+
         if args.focus == "editor":
             print("QA_RESULTS_JSON=" + json.dumps(observations), flush=True)
             return 0 if all(item["passed"] for item in observations) else 1
@@ -830,6 +940,49 @@ add_action( 'init', function () {
                shortcode_result.returncode == 0 and
                shortcode_info.get("has_shortcode") is True,
                shortcode_info)
+
+        control_status, control_html, control_error = request(
+            "?page_id=" + str(fixtures["cart_control"])
+        )
+        record("Ordinary page with WooCommerce cart shortcode displays item",
+               control_status == 200
+               and "ZiloMentor Cart Control Before" in control_html
+               and "ZiloMentor Cart Control After" in control_html
+               and "ZiloMentor Synthetic Test Product" in control_html
+               and "woocommerce-cart-form" in control_html,
+               {
+                   "status": control_status,
+                   "preamble": "ZiloMentor Cart Control Before" in control_html,
+                   "postamble": "ZiloMentor Cart Control After" in control_html,
+                   "item": "ZiloMentor Synthetic Test Product" in control_html,
+                   "cart_form": "woocommerce-cart-form" in control_html,
+                   "html_bytes": len(control_html),
+                   "transport": control_error,
+               })
+        for page_type, page_id in (
+            ("cart", fixtures["cart"]),
+            ("control", fixtures["cart_control"]),
+        ):
+            trace_status, trace_html, trace_err = request(
+                "?page_id=" + str(page_id) + "&zmp_qa_trace=1"
+            )
+            marker = "<!--ZMP_QA_TRACE:"
+            trace = {}
+            if marker in trace_html:
+                raw_trace = trace_html.rsplit(marker, 1)[1].split("-->", 1)[0]
+                try:
+                    trace = json.loads(raw_trace)
+                except ValueError:
+                    pass
+            record("WordPress full-page content hook trace: " + page_type,
+                   trace_status == 200 and "calls" in trace,
+                   {
+                       "status": trace_status,
+                       "trace": trace,
+                       "has_product_in_final_html":
+                           "ZiloMentor Synthetic Test Product" in trace_html,
+                       "error": trace_err,
+                   })
 
         filter_status, filter_body, filter_err = request(
             "?page_id=" + str(fixtures["cart"]) + "&zmp_qa_content_filter=1"
@@ -991,6 +1144,61 @@ add_action( 'init', function () {
                             "bytes": len(default_cart_html),
                             "transport": default_cart_error})
                     wp("theme", "activate", THEME)
+        # Isolate the WordPress/WooCommerce designated Cart page mapping.
+        # All options and pages here belong to this disposable database only.
+        swap = wp("option", "update", "woocommerce_cart_page_id",
+                  str(fixtures["cart_control"]))
+        if swap.returncode == 0:
+            old_status, old_html, old_error = request(
+                "?page_id=" + str(fixtures["cart"])
+            )
+            new_status, new_html, new_error = request(
+                "?page_id=" + str(fixtures["cart_control"])
+            )
+            record("Disposable Woo Cart page reassignment diagnostic",
+                   old_status == 200 and new_status == 200,
+                   {
+                       "former_cart_product_visible":
+                           "ZiloMentor Synthetic Test Product" in old_html,
+                       "new_registered_cart_product_visible":
+                           "ZiloMentor Synthetic Test Product" in new_html,
+                       "former_cart_form_visible":
+                           "woocommerce-cart-form" in old_html,
+                       "new_cart_form_visible":
+                           "woocommerce-cart-form" in new_html,
+                       "error": old_error or new_error,
+                   })
+            wp("option", "update", "woocommerce_cart_page_id",
+               str(fixtures["cart"]))
+
+        if has_default_theme:
+            # WooCommerce-only baseline: remove Elementor and Vamtam bridge
+            # in this throwaway site to distinguish template selection from
+            # any Elementor/Fiore integration. No production plugins touched.
+            a = wp("theme", "activate", "twentytwentyfive")
+            b = wp("plugin", "deactivate", "vamtam-elementor-integration-fiore")
+            c = wp("plugin", "deactivate", "elementor-pro")
+            d = wp("plugin", "deactivate", "elementor")
+            if all(x.returncode == 0 for x in (a, b, c, d)):
+                pure_status, pure_html, pure_error = request(
+                    "?page_id=" + str(fixtures["cart"])
+                )
+                record("Pure WooCommerce default-theme Cart page diagnostic",
+                       pure_status == 200,
+                       {
+                           "status": pure_status,
+                           "product_visible":
+                               "ZiloMentor Synthetic Test Product" in pure_html,
+                           "cart_form_visible":
+                               "woocommerce-cart-form" in pure_html,
+                           "error": pure_error,
+                       })
+            else:
+                record("Pure WooCommerce default-theme Cart page diagnostic",
+                       False,
+                       {"dependency_deactivation_failed": True,
+                        "return_codes": [x.returncode for x in (a, b, c, d)]})
+
         body_debug = {
             "cart_html_length": len(html),
             "contains_checkout_title": "ZiloMentor Synthetic Checkout" in html,

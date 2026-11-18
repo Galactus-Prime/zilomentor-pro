@@ -4,7 +4,7 @@
 
 > **Development preview, v0.1.0. Not production-ready.** The compatibility work
 > has passed structural and isolated WordPress/Fiore activation and widget tests,
-> but not full browser, forms-delivery, checkout or payment tests.
+> but not production-like visual comparisons, real form delivery, full checkout or payment tests.
 
 ZiloMentor Pro is a fork of [PRO Elements](https://github.com/proelements/proelements),
 which in turn incorporates GPL-licensed code originally developed by Elementor Ltd.
@@ -32,8 +32,8 @@ plugin version and must be tested.
 | Theme Builder, dynamic tags and product widgets | 196 widgets registered; ACF text rendered in a real Elementor Heading; other dynamic tags and templates pending |
 | Vamtam Fiore integration on ItzyBitzyWorkshop | Isolated plugin activation passed on PHP 8.4/8.5; visual tests pending |
 | WordPress plugin path elementor-pro/elementor-pro.php | Provided when staging ZIP is installed |
-| WordPress editing and responsive layouts | Browser DOM passes at two sizes; populated editor panel verified in private Nginx/PHP-FPM (156 Pro-compatible vs 81 free controls); editing/saving and pixel fidelity pending |
-| WooCommerce cart, checkout and payments | Synthetic session and cart shortcode both work; page template omits shortcode output even without ZiloMentor Pro; payment tests pending |
+| WordPress editing and responsive layouts | Browser DOM passed at two sizes; Nginx/PHP-FPM editor panel populated (156 ZiloMentor controls vs 81 free); synthetic Heading title edited with the real Publish button and independently verified in WordPress post meta; pixel fidelity and more editor workflows pending |
+| WooCommerce cart, checkout and payments | Synthetic session, shortcode and ordinary cart page work; registered Cart page bypasses the_content in isolated staging even with Elementor and the Fiore bridge disabled under the default theme; real checkout/payment tests pending |
 | Automated updates | Upstream updater disabled; independent signed updater pending |
 
 The initial source tracks PRO Elements **v4.4.0** at commit
@@ -81,9 +81,16 @@ To reproduce the faster, more realistic multiworker editor comparison:
 
     python3 tools/run_manual_checks.py --source-wordpress /path/to/wordpress --web-server nginx-fpm --focus editor --editor-playwright-image haven-browser-qa:1.62.1
 
-The editor interaction and saving controls remain **not fully verified**.
-No production site is modified. All containers and their private Docker
-network are removed by the test harness.
+A separate opt-in **end-to-end synthetic Heading edit-and-save test** passed:
+Playwright opened the Heading title control, changed it, clicked Elementor's
+actual **Publish** button, and WP-CLI independently verified the new title
+persisted in the disposable database.
+
+    python3 tools/run_manual_checks.py --source-wordpress /path/to/wordpress --web-server nginx-fpm --focus editor --editor-playwright-image haven-browser-qa:1.62.1 --verify-editor-save
+
+This does not certify other widget types, popup editing, visual fidelity,
+checkout or payment functionality. No production site is modified. All
+containers and their private Docker network are removed by the harness.
 The temporary editor token is randomly generated per QA invocation and
 does not provide access to the production website.
 
