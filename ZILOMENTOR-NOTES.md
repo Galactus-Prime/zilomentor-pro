@@ -48,10 +48,30 @@ The development fix defers the bootstrap until plugins_loaded.
 A disposable staging installation should run the following read-only regression:
 
     wp eval-file wp-content/plugins/elementor-pro/tests/runtime_bootstrap.php
+    wp eval-file wp-content/plugins/elementor-pro/tests/runtime_widgets.php
 
 This test checks the Elementor and ZiloMentor version constants, the
 ElementorPro Plugin class, and theme location helper. Repeat on each supported
 PHP version and after plugin updates. Never run this against a live shop.
+
+## Isolated Fiore runtime results (18 November 2026)
+
+Using **no production database or configuration**, isolated WordPress was
+created from public WordPress core plus the installed site code for free
+Elementor 4.4.1, WooCommerce, Fiore and Vamtam Elementor integration.
+
+- **PHP 8.4:** WordPress installation, all plugin/theme activations and
+  ZiloMentor Pro bootstrap regression passed.
+- **PHP 8.5:** The same read-only bootstrap regression passed.
+- **Both versions:** Elementor registered 196 widgets. The form, nav-menu,
+  posts, theme-site-logo and WooCommerce menu-cart widgets were present.
+- **Both versions:** Vamtam Fiore integration plugin was confirmed active,
+  with Elementor Pro compatibility API version 4.4.0.
+- All disposable MariaDB/WordPress containers, networks and test files were
+  cleaned up. **Live ItzyBitzyWorkshop was unchanged.**
+
+These are WordPress CLI/registry tests, **not** proof that front-end designs,
+popup triggering, forms, dynamic tags or WooCommerce payments work end-to-end.
 
 ## Suggested validation sequence
 1. Install a disposable WordPress 7.1+, Elementor 4.4.x staging environment.
