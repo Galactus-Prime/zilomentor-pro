@@ -77,6 +77,13 @@ check("ACF Pro dynamic field widget has isolated regression coverage",
       and "ACF dynamic value renders inside Elementor heading" in qa_script
       and "field_zmp_qa_text" in qa_fixture
       and (ROOT / "modules/dynamic-tags/acf/tags/acf-text.php").is_file())
+check("optional browser QA is isolated and does not require hosted CI",
+      "--browser-image" in qa_script
+      and "--browser-image" in (ROOT/"tools/run_manual_checks.py").read_text()
+      and '"--network", network' in qa_script
+      and '"--no-sandbox"' in qa_script
+      and '"--dump-dom"' in qa_script
+      and not (ROOT/".github/workflows/release.yaml").exists())
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))

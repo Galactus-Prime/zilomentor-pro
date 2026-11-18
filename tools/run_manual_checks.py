@@ -34,9 +34,15 @@ def main():
         "--source-wordpress", type=Path, default=None,
         help="Also run isolated HTTP/form/WooCommerce regression using only source files copied from this WordPress path.",
     )
+    parser.add_argument(
+        "--browser-image", default=None,
+        help="Optional pre-cached Chromium image for isolated browser DOM smoke tests; requires --source-wordpress.",
+    )
     args = parser.parse_args()
     if args.source_wordpress is not None and args.skip_php:
         parser.error("Full isolated QA requires PHP Docker tests; remove --skip-php.")
+    if args.browser_image and args.source_wordpress is None:
+        parser.error("--browser-image requires --source-wordpress.")
     execute([sys.executable, "tests/static_compatibility.py"])
     execute([sys.executable, "tools/build_zip.py"])
     if args.skip_php:
@@ -62,10 +68,13 @@ def main():
         execute(cmd)
         print(f"PASS {label} PHP syntax matrix.")
     if args.source_wordpress is not None:
-        execute([
+        qa_cmd = [
             sys.executable, "tools/qa_isolated_site.py", "--source-wordpress",
             str(args.source_wordpress),
-        ])
+        ]
+        if args.browser_image:
+            qa_cmd.extend(["--browser-image", args.browser_image])
+        execute(qa_cmd)
     print("PASS all requested manual checks; no GitHub Actions used.")
 
 if __name__ == "__main__":

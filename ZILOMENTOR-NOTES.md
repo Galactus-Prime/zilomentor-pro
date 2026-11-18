@@ -163,6 +163,29 @@ The isolated QA command deliberately exits nonzero while cart page
 rendering is unresolved. Do not overstate this as a complete editor,
 checkout, payment, ACF field-type or cross-version certification.
 
+## Optional Chromium DOM smoke (18 November 2026)
+
+Using the already cached Playwright Chromium image on the QA VPS, with
+only a private Docker network and a synthetic WordPress installation:
+
+- Desktop (1366x768): the browser returned 0 and the DOM contained the
+  synthetic Elementor Heading, ACF-generated Heading value and Form widget.
+- Narrow viewport (390x844): the same browser DOM checks passed.
+- No public network endpoint, paid cloud browser service or GitHub Actions
+  was used. The temporary environment was removed after the test.
+
+The above checks confirm browser-level markup is present at both viewport
+sizes, **not** pixel-accurate theme fidelity, mobile layout correctness,
+Elementor editor functionality, popup behavior or payment flows. The separate
+baseline Cart-page rendering issue remains unresolved.
+
+Run on a Docker-enabled QA server using its existing browser image:
+
+    python3 tools/run_manual_checks.py --source-wordpress /path/to/wordpress --browser-image mcr.microsoft.com/playwright:v1.63.0-noble
+
+The integration runner still exits nonzero while the synthetic Cart-page
+template rendering check fails in the baseline without ZiloMentor Pro.
+
 ## Suggested validation sequence
 1. Install a disposable WordPress 7.1+, Elementor 4.4.x staging environment.
 2. Record baseline pages/templates and widgets under genuine Elementor Pro.

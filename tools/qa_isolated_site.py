@@ -47,6 +47,15 @@ def main():
     argp.add_argument("--curl-image", default="curlimages/curl:8.16.0")
     argp.add_argument("--clean-image", default="alpine:3.21")
     argp.add_argument("--wpcli", default="/usr/local/bin/wp", type=Path)
+    argp.add_argument(
+        "--browser-image", default=None,
+        help="Optional locally cached Chromium Docker image for real-browser DOM smoke tests.",
+    )
+    argp.add_argument(
+        "--browser-bin",
+        default="/ms-playwright/chromium-1243/chrome-linux64/chrome",
+        help="Path to Chromium inside the optional browser image.",
+    )
     args = argp.parse_args()
 
     source = args.source_wordpress.resolve(strict=True)
@@ -55,7 +64,10 @@ def main():
             "--source-wordpress must point to an existing WordPress installation")
     require((ROOT / "elementor-pro.php").is_file(), "Missing ZiloMentor entrypoint")
     require(args.wpcli.is_file(), "WP-CLI PHAR not available at --wpcli")
-    for image in (args.php_image, args.db_image, args.curl_image, args.clean_image):
+    images = [args.php_image, args.db_image, args.curl_image, args.clean_image]
+    if args.browser_image is not None:
+        images.append(args.browser_image)
+    for image in images:
         p = execute(["docker", "image", "inspect", image], timeout=15)
         require(p.returncode == 0, f"Docker image must already be cached: {image}")
 
@@ -401,6 +413,38 @@ add_action( 'template_redirect', function () {
                and acf_result.get("acf_text_tag") is True
                and acf_result.get("tag_value") == "ZiloMentor Synthetic ACF Value",
                {"status": acf_status, "result": acf_result, "error": acf_error})
+
+        if args.browser_image is not None:
+            # Browser has access only to this disposable internal Docker network.
+            for width, height in ((1366, 768), (390, 844)):
+                command = [
+                    "run", "--rm", "--network", network,
+                    "--memory=1300m", "--cpus=2", "--shm-size=128m",
+                    "--entrypoint", args.browser_bin, args.browser_image,
+                    "--no-sandbox", "--headless=new", "--disable-gpu",
+                    "--disable-dev-shm-usage", "--disable-background-networking",
+                    "--disable-extensions", "--no-first-run", "--no-proxy-server",
+                    "--virtual-time-budget=4000",
+                    "--window-size=" + str(width) + "," + str(height),
+                    "--dump-dom", "http://web:8080/?page_id=" + str(fixtures["page"]),
+                ]
+                browser = docker(command, timeout=95)
+                markup = browser.stdout
+                record(
+                    "Chromium Elementor+ACF DOM " + str(width) + "x" + str(height),
+                    browser.returncode == 0
+                    and "ZiloMentor Synthetic Heading" in markup
+                    and "ZiloMentor Synthetic ACF Value" in markup
+                    and "elementor-form" in markup,
+                    {
+                        "browser_exit": browser.returncode,
+                        "dom_bytes": len(markup),
+                        "heading_present": "ZiloMentor Synthetic Heading" in markup,
+                        "acf_value_present": "ZiloMentor Synthetic ACF Value" in markup,
+                        "form_present": "elementor-form" in markup,
+                        "browser_error_tail": browser.stderr[-280:] if browser.returncode else "",
+                    },
+                )
 
         product_url = fixtures["product_url"]
         require(product_url.startswith("http://web:8080/"),

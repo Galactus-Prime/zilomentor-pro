@@ -32,7 +32,7 @@ plugin version and must be tested.
 | Theme Builder, dynamic tags and product widgets | 196 widgets registered; ACF text rendered in a real Elementor Heading; other dynamic tags and templates pending |
 | Vamtam Fiore integration on ItzyBitzyWorkshop | Isolated plugin activation passed on PHP 8.4/8.5; visual tests pending |
 | WordPress plugin path elementor-pro/elementor-pro.php | Provided when staging ZIP is installed |
-| WordPress editing and responsive layouts | Not yet tested |
+| WordPress editing and responsive layouts | Chromium DOM smoke passed at 1366x768 and 390x844; editor and visual fidelity pending |
 | WooCommerce cart, checkout and payments | Synthetic session and cart shortcode both work; page template omits shortcode output even without ZiloMentor Pro; payment tests pending |
 | Automated updates | Upstream updater disabled; independent signed updater pending |
 
@@ -55,6 +55,15 @@ To also test real synthetic WordPress forms, WooCommerce cart sessions and
 Fiore templates on your QA host, supply a WordPress source-code location:
 
     python3 tools/run_manual_checks.py --source-wordpress /path/to/wordpress
+
+To add isolated Chromium front-end DOM checks at desktop and narrow viewports,
+using the already-cached browser image on the existing QA server:
+
+    python3 tools/run_manual_checks.py --source-wordpress /path/to/wordpress --browser-image mcr.microsoft.com/playwright:v1.63.0-noble
+
+Browser checks verify Elementor headings, form markup and ACF dynamic values
+after loading JavaScript. They do not certify visual pixel fidelity, editor
+interactions or checkout functionality.
 
 This copies only allowlisted WordPress core files and the required installed
 plugin/theme source into a disposable environment. It never copies the live
