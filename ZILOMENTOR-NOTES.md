@@ -359,6 +359,41 @@ with Fiore and ZiloMentor Pro, *not* a payment sandbox, shipping, tax,
 refund, accessibility or production visual validation. Those remain
 release gates.
 
+## Conditional Theme Builder and automatic Popup regression (18 November 2026)
+
+In disposable Nginx 1.29 / PHP 8.4-FPM staging, the integration runner
+seeds a dedicated WordPress page and two synthetic Elementor Library
+documents: a **Header** and **Popup**. Both use actual Elementor document
+types with include/singular/page/{synthetic-id} conditions saved through
+ZiloMentor's Theme Builder conditions manager.
+
+The tests verified that both documents were registered, selected and
+rendered on the target page, while **neither** was selected or rendered
+on an unrelated page. The header and popup had recognizable synthetic
+Heading content. No production page/template or display condition was changed.
+
+A real local Playwright browser then used the same temporary Fiore
+installation and confirmed:
+
+- Conditional Header visible on the target page
+- Popup frontend API and document registered
+- **On Page Load** popup appeared automatically at both 1366x768 and
+  390x844 viewports, using separate private browser contexts
+- Visible popup Heading correct; closing the modal worked
+- Unrelated page did not load the Header or Popup
+- Zero page JavaScript errors and zero failed local HTTP requests
+- **59/59** isolated integration checks passed, including earlier forms,
+  ACF dynamic values, Cart, and offline guest order creation
+
+The browser only accesses the private web:8080 QA network and blocks
+requests elsewhere. This does not establish scroll/exit-intent trigger
+compatibility, popup editor/save behavior, focus-trap/accessibility,
+visual precision, or external payment correctness.
+
+Repeat on the Docker-enabled QA host (no GitHub Actions):
+
+    python3 tools/run_manual_checks.py --source-wordpress /path/to/wordpress --web-server nginx-fpm --frontend-playwright-image haven-browser-qa:1.62.1
+
 ## Suggested validation sequence
 1. Install a disposable WordPress 7.1+, Elementor 4.4.x staging environment.
 2. Record baseline pages/templates and widgets under genuine Elementor Pro.

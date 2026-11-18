@@ -29,7 +29,7 @@ plugin version and must be tested.
 | Area | Status |
 | --- | --- |
 | Original Elementor Pro PHP namespace and hooks | Retained from upstream; static check passes |
-| Theme Builder, dynamic tags and product widgets | 196 widgets registered; ACF text rendered in a real Elementor Heading; other dynamic tags and templates pending |
+| Theme Builder, dynamic tags and product widgets | 196 widgets registered; ACF text renders in a real Elementor Heading; synthetic Header conditions and Popup rendering/automatic page-load triggers passed in isolated Fiore; other template/trigger combinations pending |
 | Vamtam Fiore integration on ItzyBitzyWorkshop | Isolated plugin activation passed on PHP 8.4/8.5; visual tests pending |
 | WordPress plugin path elementor-pro/elementor-pro.php | Provided when staging ZIP is installed |
 | WordPress editing and responsive layouts | Browser DOM passed at two sizes; Nginx/PHP-FPM editor panel populated (156 ZiloMentor controls vs 81 free); synthetic Heading title edited with the real Publish button and independently verified in WordPress post meta; pixel fidelity and more editor workflows pending |
@@ -89,8 +89,24 @@ persisted in the disposable database.
     python3 tools/run_manual_checks.py --source-wordpress /path/to/wordpress --web-server nginx-fpm --focus editor --editor-playwright-image haven-browser-qa:1.62.1 --verify-editor-save
 
 This does not certify other widget types, popup editing, visual fidelity,
-checkout or payment functionality. No production site is modified. All
-containers and their private Docker network are removed by the harness.
+checkout or external payment functionality. No production site is modified.
+All containers and their private Docker network are removed by the harness.
+
+**Theme Builder / Popup regression:** a disposable Elementor Header and Popup
+each use a real saved template and a display condition targeting only one
+synthetic page. Both render on that page and are excluded from unrelated
+pages. Playwright verifies the Popup opens automatically on page load at
+desktop **1366x768** and mobile **390x844**, contains the expected Heading,
+and closes successfully. The integrated **59/59** isolated checks passed.
+
+Run the optional no-Actions frontend trigger test with an already-cached
+Playwright image:
+
+    python3 tools/run_manual_checks.py --source-wordpress /path/to/wordpress --web-server nginx-fpm --frontend-playwright-image haven-browser-qa:1.62.1
+
+This confirms conditional Header rendering, popup open/close and page-load
+triggers. Other display conditions, triggers, Theme Builder visual accuracy,
+editing popup templates, and accessibility are not yet certified.
 The temporary editor token is randomly generated per QA invocation and
 does not provide access to the production website.
 

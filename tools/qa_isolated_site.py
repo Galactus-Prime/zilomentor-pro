@@ -71,6 +71,10 @@ def main():
         help="Path to Chromium inside the optional browser image.",
     )
     argp.add_argument(
+        "--frontend-playwright-image", default=None,
+        help="Optional cached Playwright image for isolated front-end Popup open/close verification.",
+    )
+    argp.add_argument(
         "--editor-playwright-image", default=None,
         help="Optional cached image with Playwright available for bounded editor JS checks.",
     )
@@ -93,6 +97,8 @@ def main():
         images.append(args.browser_image)
     if args.editor_playwright_image is not None:
         images.append(args.editor_playwright_image)
+    if args.frontend_playwright_image is not None:
+        images.append(args.frontend_playwright_image)
     for image in images:
         p = execute(["docker", "image", "inspect", image], timeout=15)
         require(p.returncode == 0, f"Docker image must already be cached: {image}")
@@ -305,6 +311,43 @@ add_action( 'template_redirect', function () {
     ] );
 }, 35 );
 
+// Scoped synthetic Theme Builder/Popup inspection. No production path.
+add_action( 'template_redirect', function () {
+    if ( ! isset( $_GET['zmp_qa_theme_popup'] ) ) {
+        return;
+    }
+    try {
+        $module = \ElementorPro\Modules\ThemeBuilder\Module::instance();
+        $locations = $module->get_locations_manager();
+        $conditions = $module->get_conditions_manager();
+        $header_docs = $conditions->get_documents_for_location( 'header' );
+        $popup_docs = $conditions->get_documents_for_location( 'popup' );
+        ob_start();
+        $header_render = $locations->do_location( 'header' );
+        $header_html = ob_get_clean();
+        ob_start();
+        $popup_render = $locations->do_location( 'popup' );
+        $popup_html = ob_get_clean();
+        wp_send_json( [
+            'queried_id' => get_queried_object_id(),
+            'header_doc_ids' => array_map( 'intval', array_keys( $header_docs ) ),
+            'popup_doc_ids' => array_map( 'intval', array_keys( $popup_docs ) ),
+            'header_render' => (bool) $header_render,
+            'popup_render' => (bool) $popup_render,
+            'header_marker' => str_contains( $header_html, 'ZMP Synthetic Conditional Header' ),
+            'popup_marker' => str_contains( $popup_html, 'ZMP Synthetic Conditional Popup' ),
+            'header_bytes' => strlen( $header_html ),
+            'popup_bytes' => strlen( $popup_html ),
+            'popup_modal_markup' => str_contains( $popup_html, 'elementor-popup-modal' ),
+        ] );
+    } catch ( \Throwable $exception ) {
+        wp_send_json( [
+            'error_class' => get_class( $exception ),
+            'error_seen' => true,
+        ], 500 );
+    }
+}, 40 );
+
 // One-time QA-only editor login: localhost-style private Docker hostname,
 // a per-run 224-bit random token, and an admin user in a synthetic database.
 // The token exists only in the disposable PHP server container environment.
@@ -446,6 +489,26 @@ add_action( 'init', function () {
             fixtures = json.loads(p.stdout.strip())
         except json.JSONDecodeError as e:
             raise RuntimeError("Synthetic fixture did not output JSON") from e
+
+        template_seed = wp(
+            "eval-file",
+            "wp-content/plugins/elementor-pro/tests/fixtures/seed_theme_popup.php",
+            environment={"ZMP_ISOLATED_QA": "yes"},
+        )
+        try:
+            theme_fixtures = json.loads(template_seed.stdout.strip())
+        except ValueError:
+            theme_fixtures = {}
+        require(record("seed isolated Header and Popup theme conditions",
+                       template_seed.returncode == 0
+                       and theme_fixtures.get("types_registered", {}).get("header") is True
+                       and theme_fixtures.get("types_registered", {}).get("popup") is True
+                       and theme_fixtures.get("conditions_saved", {}).get("header") is True
+                       and theme_fixtures.get("conditions_saved", {}).get("popup") is True
+                       and theme_fixtures.get("documents", {}).get("header", {}).get("location") == "header"
+                       and theme_fixtures.get("documents", {}).get("popup", {}).get("location") == "popup",
+                       {"exit": template_seed.returncode, "fixtures": theme_fixtures}),
+                "Cannot register isolated Theme Builder/Popup fixtures")
 
         # The offline BACS method permits a complete synthetic order flow
         # without contacting a payment processor, sending money, or email.
@@ -635,6 +698,83 @@ add_action( 'init', function () {
         record("ACF dynamic value renders inside Elementor heading",
                "ZiloMentor Synthetic ACF Value" in html,
                {"dynamic_value_present": "ZiloMentor Synthetic ACF Value" in html})
+
+        # Header/Popup conditions must be limited to their synthetic target,
+        # rather than leaking onto other posts or the working WooCommerce pages.
+        for page_label, page_id, expect_match in (
+            ("target", theme_fixtures["target"], True),
+            ("unrelated", fixtures["plain"], False),
+        ):
+            theme_status, theme_body, theme_err = request(
+                "?page_id=" + str(page_id) + "&zmp_qa_theme_popup=1"
+            )
+            try:
+                theme_data = json.loads(theme_body)
+            except ValueError:
+                theme_data = {}
+            target_doc_ids = theme_fixtures.get("documents", {})
+            header_id = target_doc_ids.get("header", {}).get("id")
+            popup_id = target_doc_ids.get("popup", {}).get("id")
+            theme_passed = (
+                theme_status == 200
+                and ((header_id in theme_data.get("header_doc_ids", [])) is expect_match)
+                and ((popup_id in theme_data.get("popup_doc_ids", [])) is expect_match)
+                and (theme_data.get("header_marker") is expect_match)
+                and (theme_data.get("popup_marker") is expect_match)
+            )
+            record("Theme Builder and Popup condition/render: " + page_label,
+                   theme_passed,
+                   {"status": theme_status, "render": theme_data, "error": theme_err})
+
+        if args.frontend_playwright_image is not None:
+            # Real browser Popup test: open/close via the product's own JS API,
+            # with no public host ports or external network access.
+            browser_test = plugins_path / "elementor-pro/tests/browser_theme_popup.js"
+            require(browser_test.is_file(), "Missing private Popup browser test")
+            browser_name = "zmp-qa-popup-" + tag
+            browser_cmd = [
+                "run", "--rm", "--name", browser_name,
+                "--network", network, "--memory=1500m", "--cpus=2",
+                "--shm-size=128m",
+                "-e", "NODE_PATH=/usr/lib/node_modules",
+                "-e", "ZMP_QA_TARGET_ID=" + str(theme_fixtures["target"]),
+                "-e", "ZMP_QA_UNRELATED_ID=" + str(fixtures["plain"]),
+                "-e", "ZMP_QA_POPUP_ID=" +
+                    str(theme_fixtures["documents"]["popup"]["id"]),
+                "-v", str(browser_test) + ":/qa/theme_popup.js:ro",
+                "--entrypoint", "timeout", args.frontend_playwright_image,
+                "--signal=TERM", "--kill-after=5s", "65s",
+                "node", "/qa/theme_popup.js",
+            ]
+            try:
+                browser_run = docker(browser_cmd, timeout=85)
+                result_line = next((
+                    line[len("ZMP_THEME_POPUP_BROWSER_JSON="):]
+                    for line in browser_run.stdout.splitlines()
+                    if line.startswith("ZMP_THEME_POPUP_BROWSER_JSON=")
+                ), None)
+                try:
+                    result_data = json.loads(result_line) if result_line else {}
+                except ValueError:
+                    result_data = {}
+                record("Chromium Popup opens, renders, closes and respects conditions",
+                       browser_run.returncode == 0
+                       and all(result_data.get(key) is True for key in (
+                           "loadedTarget", "loadedUnrelated", "headerVisible",
+                           "popupApiReady", "popupDocumentRegistered",
+                           "popupModalOpened", "popupHeadingVisible",
+                           "popupModalClosed", "popupAutoOpened",
+                           "popupAutoOpenedMobile", "unrelatedPopupAbsent",
+                           "unrelatedHeaderAbsent",
+                       ))
+                       and result_data.get("pageErrors") == 0
+                       and result_data.get("failedLocalRequests") == 0,
+                       {"exit": browser_run.returncode, "checks": result_data})
+            except subprocess.TimeoutExpired:
+                record("Chromium Popup opens, renders, closes and respects conditions",
+                       False, {"hard_timeout": True})
+            finally:
+                docker(["rm", "-f", browser_name], 20)
 
         # Send two synthetic form requests; no mail can leave this network.
         form_request = {

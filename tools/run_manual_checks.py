@@ -47,6 +47,10 @@ def main():
         help="Optional pre-cached Chromium image for isolated browser DOM smoke tests; requires --source-wordpress.",
     )
     parser.add_argument(
+        "--frontend-playwright-image", default=None,
+        help="Optional cached Playwright image for isolated Header/Popup frontend open-close and trigger checks.",
+    )
+    parser.add_argument(
         "--editor-playwright-image", default=None,
         help="Optional pre-cached Playwright image for authenticated synthetic Elementor editor baseline checks.",
     )
@@ -57,7 +61,8 @@ def main():
     args = parser.parse_args()
     if args.source_wordpress is not None and args.skip_php:
         parser.error("Full isolated QA requires PHP Docker tests; remove --skip-php.")
-    if (args.browser_image or args.editor_playwright_image) and args.source_wordpress is None:
+    if (args.browser_image or args.editor_playwright_image
+            or args.frontend_playwright_image) and args.source_wordpress is None:
         parser.error("Browser QA requires --source-wordpress.")
     if args.focus == "editor" and not args.editor_playwright_image:
         parser.error("--focus editor requires --editor-playwright-image.")
@@ -103,6 +108,8 @@ def main():
             qa_cmd.extend(["--browser-image", args.browser_image])
         if args.editor_playwright_image:
             qa_cmd.extend(["--editor-playwright-image", args.editor_playwright_image])
+        if args.frontend_playwright_image:
+            qa_cmd.extend(["--frontend-playwright-image", args.frontend_playwright_image])
         if args.verify_editor_save:
             qa_cmd.append("--verify-editor-save")
         execute(qa_cmd)

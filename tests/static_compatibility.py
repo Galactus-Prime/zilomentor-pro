@@ -131,6 +131,24 @@ check("checkout QA uses a separate guest jar and only offline synthetic payment"
       and "transaction_blank" in qa_script
       and "checkout_product" in qa_fixture
       and "set_virtual( true )" in qa_fixture)
+check("Theme Builder/Popup fixtures require disposable WordPress",
+      (ROOT / "tests/fixtures/seed_theme_popup.php").is_file()
+      and "ZMP_ISOLATED_QA" in
+      (ROOT / "tests/fixtures/seed_theme_popup.php").read_text()
+      and "include" in
+      (ROOT / "tests/fixtures/seed_theme_popup.php").read_text()
+      and "save_conditions" in
+      (ROOT / "tests/fixtures/seed_theme_popup.php").read_text()
+      and "Theme Builder and Popup condition/render" in qa_script)
+check("frontend Popup QA blocks external requests and verifies automatic trigger",
+      (ROOT / "tests/browser_theme_popup.js").is_file()
+      and 'context.route("**/*"' in
+      (ROOT / "tests/browser_theme_popup.js").read_text()
+      and "popupAutoOpenedMobile" in
+      (ROOT / "tests/browser_theme_popup.js").read_text()
+      and "popupAutoOpened" in qa_script
+      and "--frontend-playwright-image" in
+      (ROOT / "tools/run_manual_checks.py").read_text())
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
