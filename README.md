@@ -107,6 +107,56 @@ validated. Run the opt-in visual canary before/after manually, test representati
 templates and payment integrations in a sandbox, and maintain a tested rollback
 path and recent independent backups.
 
+## 0.1.2 candidate: signed manual releases and additional security review
+
+The **development branch** has moved to **0.1.2**, while Itzy Bitzy Workshop
+continues to run the **verified live 0.1.1 beta**. Do not confuse the two.
+The unreleased changes validate legacy custom attribute names, exclude
+event-handling attributes and unsafe URL schemes on Elementor wrappers, and
+avoid a null-post dereference during Posts widget pagination. The legacy
+custom-attribute injection regression is exercised against a real synthetic
+Heading in disposable WordPress/Fiore, not only a PHP unit mock.
+
+From **0.1.2 onwards**, the safe manual deployment script refuses updates
+without a valid, non-expired **Ed25519-signed manifest** independently
+describing the *exact release ZIP* (version, filename, byte size, SHA256 and
+plugin basename). A private trust anchor stored outside the webroot must
+already be provisioned by the site owner; a supplied public key is never
+taken from the ZIP or from the untrusted update manifest. It also rejects
+downgrades, zip traversal, dangerous runtime files and oversized archives.
+These protections are checked in synthetic installer/security tests.
+
+**Manual, offline-key release workflow (no GitHub Actions or hosted CI):**
+
+1. On a trusted **offline** machine with PHP Sodium, create and securely
+   preserve a keypair **once** with
+   `php tools/release_signature.php generate /secure/private-signing-key.b64 /secure/public-release-key.b64`.
+   Never generate or store the private signing key on the production VPS,
+   under `public_html`, in Git, or inside an installable plugin ZIP.
+2. Build and thoroughly test the candidate on your disposable QA host:
+   `python3 tools/run_manual_checks.py`. Generate the exact JSON with
+   `python3 tools/create_release_manifest.py --zip /path/to/zilomentor-pro-compat-0.1.2-staging-only.zip --out /path/to/stable.json`.
+3. Copy the manifest onto the offline signing machine and sign its **exact
+   bytes**:
+   `php tools/release_signature.php sign /path/to/stable.json /secure/private-signing-key.b64 /path/to/stable.json.sig`.
+   Keep the private key offline. Verify key ownership/fingerprint through
+   an independent trusted channel and place **only** the public key in the
+   site's private backup directory.
+4. With a fresh protected WordPress backup and all release gates passed,
+   run a read-only preflight using the matching ZIP, full SHA256,
+   `--signed-manifest /path/to/stable.json`,
+   `--signature /path/to/stable.json.sig`,
+   `--trusted-public-key /private/backup/public-release-key.b64` and
+   `--require-signature`. Explicitly add `--apply` only for an approved
+   deployment. The previous release and original Elementor Pro files are
+   retained privately for file-only rollback.
+
+The signer refuses to overwrite existing key/signature files and enforces
+0600 permissions for private signing keys. This is a **signed, owner-operated
+manual update pathway**, not yet a self-hosted automatic update service or
+public one-click WordPress updater. There is deliberately **no live signing
+key and no 0.1.2 production deployment** at this stage.
+
 ## Build and test (development only)
 
     python3 tools/run_manual_checks.py  # existing Docker/PHP QA host
