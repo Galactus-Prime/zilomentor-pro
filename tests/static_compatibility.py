@@ -207,6 +207,13 @@ check("atomic attributes security escapes output and excludes event handlers",
           (ROOT / "modules/attributes/props-resolver/transformers/settings/pro-attributes-transformer.php").read_text()
           for token in ("esc_attr( $raw )", "esc_url( $raw )",
                         "wp_kses_uri_attributes()", "srcdoc", "style")))
+check("release archive uses tracked source only, excludes runtime logs",
+      '"git", "ls-files", "-z"' in (ROOT / "tools/build_zip.py").read_text()
+      and "unsafe_names" in (ROOT / "tools/build_zip.py").read_text()
+      and "unsafe_suffixes" in (ROOT / "tools/build_zip.py").read_text()
+      and (ROOT / "tests/test_build_zip.py").is_file()
+      and "tests/test_build_zip.py" in
+          (ROOT / "tools/run_manual_checks.py").read_text())
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
