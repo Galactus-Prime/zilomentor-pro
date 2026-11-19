@@ -44,6 +44,23 @@ function zmp_release_key( $path, $length, $is_secret = false ) {
     }
     return $value;
 }
+function zmp_release_refuse_secret_in_repo( $path ) {
+    $directory = realpath( dirname( $path ) );
+    if ( ! $directory ) {
+        zmp_release_abort( 'Signing key directory must already exist' );
+    }
+    $current = $directory;
+    while ( true ) {
+        if ( file_exists( $current . '/.git' ) ) {
+            zmp_release_abort( 'Never generate or use a private signing key inside a Git working tree' );
+        }
+        $parent = dirname( $current );
+        if ( $parent === $current ) {
+            break;
+        }
+        $current = $parent;
+    }
+}
 function zmp_release_write_new( $path, $text ) {
     if ( file_exists( $path ) || is_link( $path ) ) {
         zmp_release_abort( 'Refusing to overwrite existing output' );
@@ -71,6 +88,8 @@ if ( count( $argv ) !== 5 && count( $argv ) !== 4 ) {
 }
 $operation = $argv[1];
 if ( 'generate' === $operation && count( $argv ) === 4 ) {
+    zmp_release_refuse_secret_in_repo( $argv[2] );
+    zmp_release_refuse_secret_in_repo( $argv[3] );
     $keypair = sodium_crypto_sign_keypair();
     zmp_release_write_new( $argv[2], base64_encode( sodium_crypto_sign_secretkey( $keypair ) ) . "\n" );
     zmp_release_write_new( $argv[3], base64_encode( sodium_crypto_sign_publickey( $keypair ) ) . "\n" );
@@ -79,6 +98,7 @@ if ( 'generate' === $operation && count( $argv ) === 4 ) {
     exit( 0 );
 }
 if ( 'sign' === $operation && count( $argv ) === 5 ) {
+    zmp_release_refuse_secret_in_repo( $argv[3] );
     $payload = zmp_release_file( $argv[2] );
     $secret = zmp_release_key( $argv[3], SODIUM_CRYPTO_SIGN_SECRETKEYBYTES, true );
     $signature = sodium_crypto_sign_detached( $payload, $secret );
