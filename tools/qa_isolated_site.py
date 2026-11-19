@@ -343,6 +343,7 @@ add_action( 'template_redirect', function () {
             'header_render' => (bool) $header_render,
             'popup_render' => (bool) $popup_render,
             'header_marker' => str_contains( $header_html, 'ZMP Synthetic Conditional Header' ),
+            'header_saved_marker' => str_contains( $header_html, 'ZiloMentor QA Saved Header' ),
             'popup_marker' => str_contains( $popup_html, 'ZMP Synthetic Conditional Popup' ),
             'scroll_popup_marker' => str_contains( $popup_html, 'ZMP Synthetic Scroll Popup' ),
             'exit_popup_marker' => str_contains( $popup_html, 'ZMP Synthetic Exit Popup' ),
@@ -379,8 +380,15 @@ add_action( 'init', function () {
     }
     $user = get_user_by( 'login', 'qa-only' );
     $page_id = absint( $_GET['zmp_qa_page'] ?? 0 );
+    $post_type = get_post_type( $page_id );
+    $allowed_page = 'page' === $post_type;
+    $allowed_theme_fixture = (
+        'elementor_library' === $post_type
+        && 'header' === get_post_meta( $page_id, '_elementor_template_type', true )
+        && 'ZMP Synthetic Header' === get_the_title( $page_id )
+    );
     if ( ! $user || ! user_can( $user, 'manage_options' ) ||
-         'page' !== get_post_type( $page_id ) ) {
+         ( ! $allowed_page && ! $allowed_theme_fixture ) ) {
         status_header( 403 );
         exit;
     }
