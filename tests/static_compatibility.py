@@ -242,6 +242,14 @@ check("signed manifest generator has offline schema/integrity tests",
           (ROOT / "tools/run_manual_checks.py").read_text()
       and "expires_at" in
           (ROOT / "tools/create_release_manifest.py").read_text())
+check("external MU guard rejects accidental official plugin overwrite",
+      (ROOT / "tools/zmp-release-guard.php").is_file()
+      and (ROOT / "tests/runtime_release_guard.php").is_file()
+      and "runtime_release_guard.php" in qa_script
+      and all(h in (ROOT / "tools/zmp-release-guard.php").read_text()
+              for h in ("upgrader_pre_download", "upgrader_pre_install",
+                        "upgrader_source_selection", "auto_update_plugin"))
+      and "get_file_data" in (ROOT / "tools/zmp-release-guard.php").read_text())
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
