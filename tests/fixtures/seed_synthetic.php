@@ -29,7 +29,13 @@ $elements = [
                 'id' => '1a2b3c01',
                 'elType' => 'widget',
                 'widgetType' => 'heading',
-                'settings' => [ 'title' => 'ZiloMentor Synthetic Heading' ],
+                'settings' => [
+                    'title' => 'ZiloMentor Synthetic Heading',
+                    // These custom attributes exist ONLY in a disposable
+                    // test database; verify safe data/ARIA values survive
+                    // and event handlers or unsafe protocols never render.
+                    '_attributes' => "data-zmp-security|visible\nonclick|alert(1)\nonmouseover|alert(1)\nhref|javascript:alert(1)\naria-label|Quoted \"example\"",
+                ],
                 'elements' => [],
             ],
             [
