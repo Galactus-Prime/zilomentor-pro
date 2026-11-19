@@ -66,6 +66,10 @@ def main():
         "--verify-theme-builder-save", action="store_true",
         help="Opt-in Theme Builder Header edit, Publish and independent database + scoped render verification in disposable WordPress.",
     )
+    parser.add_argument(
+        "--verify-editor-responsive", action="store_true",
+        help="Opt-in real Elementor editor Desktop Tablet Mobile breakpoint switching on a disposable page.",
+    )
     args = parser.parse_args()
     if args.source_wordpress is not None and args.skip_php:
         parser.error("Full isolated QA requires PHP Docker tests; remove --skip-php.")
@@ -76,7 +80,7 @@ def main():
         parser.error("--focus editor requires --editor-playwright-image.")
     if args.web_server == "nginx-fpm" and args.source_wordpress is None:
         parser.error("--web-server nginx-fpm requires --source-wordpress.")
-    if (args.verify_editor_save or args.verify_editor_form_save or args.verify_theme_builder_save) and not (
+    if (args.verify_editor_save or args.verify_editor_form_save or args.verify_theme_builder_save or args.verify_editor_responsive) and not (
         args.focus == "editor" and args.web_server == "nginx-fpm"
         and args.editor_playwright_image and args.source_wordpress
     ):
@@ -124,6 +128,8 @@ def main():
             qa_cmd.append("--verify-editor-form-save")
         if args.verify_theme_builder_save:
             qa_cmd.append("--verify-theme-builder-save")
+        if args.verify_editor_responsive:
+            qa_cmd.append("--verify-editor-responsive")
         execute(qa_cmd)
     print("PASS all requested manual checks; no GitHub Actions used.")
 
