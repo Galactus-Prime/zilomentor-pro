@@ -2,7 +2,7 @@
 
 **An independently maintained, GPL-licensed Elementor Pro compatibility fork for WordPress.**
 
-> **Limited live beta, v0.1.0, not a general production release.** Explicitly authorised
+> **Limited live beta, v0.1.1, not a general production release.** Explicitly authorised
 > deployment to Itzy Bitzy Workshop succeeded on 19 November 2026 after offline
 > private backups and guarded rollback preparation. Public homepage screenshots
 > remained pixel-identical on desktop and mobile; live checkout/payments and
@@ -49,7 +49,9 @@ The owner explicitly authorised testing on `https://itzybitzyworkshop.co.uk/`.
 A private database snapshot and exact original Elementor Pro 4.4.0 plugin files
 were preserved **outside public_html** before a checksum-verified, cPanel-owner
 deployment. The original Pro plugin was replaced in-place with ZiloMentor
-0.1.0 at the compatible `elementor-pro/elementor-pro.php` basename. Free
+0.1.0 at the compatible `elementor-pro/elementor-pro.php` basename, then
+upgraded through the owner-only, SHA256-verified manual updater to **0.1.1**.
+The previous 0.1.0 and original Pro plugin code remain available for rollback. Free
 Elementor 4.4.1, WooCommerce, Fiore and caching plugins remained active.
 
 - WordPress bootstrap passed Core, Pro compatibility, WooCommerce and fork
@@ -69,12 +71,25 @@ Elementor 4.4.1, WooCommerce, Fiore and caching plugins remained active.
   could erase orders placed since the backup.
 
 **Security release gate:** Elementor's official Pro 4.4.1 (16 November 2026)
-lists improvements to attributes security. This derivative currently contains
-community PRO Elements 4.4.0, not a verified 4.4.1 patchset. A trusted,
+lists improvements to attributes security. ZiloMentor **0.1.1** includes
+an independently tested, narrow Atomic Attributes transformer hardening:
+HTML attribute values are escaped, attribute names validated, unsafe event
+handlers / `srcdoc` / inline `style` blocked and unsafe URL protocols rejected.
+The isolated security runtime verified 10 adversarial and valid attribute
+cases; the updated plugin passed 47/47 combined editor checks and PHP 8.4/8.5
+syntax checks across 933 files. This does **not** establish complete parity
+with the official 4.4.1 patchset: the rest of the source is still based on
+community PRO Elements 4.4.0. A trusted,
 reviewed upstream update and security audit remain necessary before a general
 release. Do not install untrusted or so-called nulled ZIP archives. WordPress
 recognises the fork's separate Update URI, but **there is no unattended online
 release channel or cryptographically signed update manifest yet**.
+
+**0.1.1 post-upgrade canary:** the public homepage at desktop 1366×768 and
+mobile 390×844 returned HTTP 200, with identical widget types/counts,
+unchanged error counts, and **pixel-identical screenshots** to the baseline
+original Elementor Pro installation (mean RGB difference 0.0). No real
+checkout, live mail or payment transactions were attempted.
 
 ### Optional manual release and rollback
 
