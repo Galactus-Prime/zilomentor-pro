@@ -27,8 +27,16 @@ Trusted-source audit:
   instead of dereferencing `$post->post_status` when no WP_Post exists.
 - The isolated Fiore/Elementor synthetic Heading case exercised hostile
   `onclick`, `onmouseover` and `javascript:` attributes plus valid data
-  and ARIA controls; **39/39 focused runtime/editor checks passed**.
-  A separate no-global-post REST-preview regression was added.
+  and ARIA controls; **40/40 focused runtime/editor checks passed**,
+  including a no-global-post REST-preview regression that verified the
+  REST-specific path was exercised and produced zero PHP warnings.
+- A complete disposable frontend/browser/WooCommerce integration suite passed
+  **64/64 checks**, including popup triggers and one offline synthetic BACS
+  checkout with a verified on-hold test order.
+- All four actual editor workflows passed together in a separate isolated
+  run: Heading, Pro Form, conditional Theme Builder Header and responsive
+  Desktop/Tablet/Mobile switching, **49/49 checks**. All private Docker
+  databases/containers/networks were removed.
 
 Release distribution:
 - **Ed25519 detached signatures** implemented with local PHP Sodium in
@@ -45,10 +53,11 @@ Release distribution:
   signatures. No permanent/private signing key was committed, uploaded,
   or installed on the production VPS; it should only ever be generated
   on a trusted offline machine. No signed online feed has yet been published.
-- **No GitHub Actions**; the PR remains draft. 0.1.2 still needs full isolated
-  QA, final archive lint and offline key provisioning before any live
-  promotion. The verified 0.1.1 live site and both rollback routes are
-  unchanged by this development work.
+- **No GitHub Actions**; the PR remains draft. Full isolated tests are
+  green. The latest 0.1.2 candidate still needs final clean-package
+  verification, independent release approval and **offline operational
+  signing-key custody** before any live promotion. The verified 0.1.1 live
+  site and both rollback routes remain unchanged by this development work.
 
 ## 0.1.1 targeted security hardening and guarded live upgrade (19 November 2026)
 
