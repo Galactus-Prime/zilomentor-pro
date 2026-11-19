@@ -9,6 +9,47 @@ Preserve Elementor Pro's PHP classes, widgets, template data, hook identifiers
 and standard WordPress plugin basename elementor-pro/elementor-pro.php for
 third-party WordPress themes, without modifying those themes.
 
+## Unreleased 0.1.2: signed manual updater and extra Pro hardening (19 November 2026)
+
+**Production beta remains on 0.1.1.** Only the development branch and
+disposable QA contain candidate 0.1.2 changes.
+
+Trusted-source audit:
+- Official Elementor Pro changelog lists 4.4.1 on 16 November 2026 with
+  improved attribute-security handling and a Posts widget PHP warning fix.
+  Current community PRO Elements public source/release still reports 4.4.0.
+  We cannot claim exact 4.4.1 source-code parity without its trusted diff.
+- The fork's **legacy** custom attributes now reject invalid HTML attribute
+  names, event handlers, srcdoc, style and dangerous URL schemes while
+  retaining safe data/ARIA values. This is in addition to the earlier
+  **Atomic** attribute transformer hardening.
+- The Posts widget `get_wp_link_page()` now has a missing-post fallback
+  instead of dereferencing `$post->post_status` when no WP_Post exists.
+- The isolated Fiore/Elementor synthetic Heading case exercised hostile
+  `onclick`, `onmouseover` and `javascript:` attributes plus valid data
+  and ARIA controls; **39/39 focused runtime/editor checks passed**.
+  A separate no-global-post REST-preview regression was added.
+
+Release distribution:
+- **Ed25519 detached signatures** implemented with local PHP Sodium in
+  `tools/release_signature.php`, including offline key generation, signing,
+  signature verification and protection against file overwrites.
+- A manifest generator binds ZIP basename, plugin path, exact version,
+  SHA256 digest, byte length, issue time and maximum 180-day expiry. The
+  owner-operated `tools/manual_live_swap.py` independently checks these
+  fields, verifies the signature using a public key already present under
+  the private site backup root, checks expiration and version monotonicity
+  and rejects ZIP bombs, risky archive files and unsigned 0.1.2+ releases.
+- Synthetic installer tests use disposable Ed25519 keys, proving correct
+  signature acceptance and refusal of tampering, expiry and missing
+  signatures. No permanent/private signing key was committed, uploaded,
+  or installed on the production VPS; it should only ever be generated
+  on a trusted offline machine. No signed online feed has yet been published.
+- **No GitHub Actions**; the PR remains draft. 0.1.2 still needs full isolated
+  QA, final archive lint and offline key provisioning before any live
+  promotion. The verified 0.1.1 live site and both rollback routes are
+  unchanged by this development work.
+
 ## 0.1.1 targeted security hardening and guarded live upgrade (19 November 2026)
 
 The 0.1.1 fork patches an identified direct string-concatenation path in
