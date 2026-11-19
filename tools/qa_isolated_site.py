@@ -158,7 +158,11 @@ def main():
             shutil.copytree(default_theme, themes_path / "twentytwentyfive")
         shutil.copytree(
             ROOT, plugins_path / "elementor-pro",
-            ignore=shutil.ignore_patterns(".git", ".github", "dist", "__pycache__", "*.pyc"),
+            # Ignore transient cPanel EA-PHP CLI cache files as well. They can
+            # disappear between copytree's listing and file-copy phase.
+            ignore=shutil.ignore_patterns(
+                ".git", ".github", "dist", "__pycache__", "*.pyc",
+                ".ea-php-cli*"),
         )
         # Test-only mail intercept: no messages may reach real recipients.
         mu = site / "wp-content" / "mu-plugins"
