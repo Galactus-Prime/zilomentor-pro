@@ -159,6 +159,15 @@ check("scroll and exit-intent popups are isolated in browser QA",
 check("staging ZIP excludes transient cPanel CLI cache",
       '.ea-php-cli' in (ROOT / "tools/build_zip.py").read_text()
       and '.ea-php-cli' in qa_script)
+check("Pro Form editor UI save requires isolated opt-in and independent verification",
+      (ROOT / "tests/browser_editor_form_save.js").is_file()
+      and "ZMP_QA_FORM_SAVE" in (ROOT / "tests/browser_editor_form_save.js").read_text()
+      and "actualSaveButtonClicked" in (ROOT / "tests/browser_editor_form_save.js").read_text()
+      and "--verify-editor-form-save" in qa_script
+      and "--verify-editor-form-save" in
+          (ROOT / "tools/run_manual_checks.py").read_text()
+      and "Synthetic Pro Form editor value persisted in WordPress database" in qa_script
+      and "Saved Pro Form name rendered on isolated frontend" in qa_script)
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
