@@ -3,7 +3,7 @@
  * Plugin Name: ZiloMentor Pro
  * Description: Independent GPL Elementor Pro-compatible features. Derived from PRO Elements; no Elementor subscription or cloud service included.
  * Plugin URI: https://github.com/Galactus-Prime/zilomentor-pro
- * Version: 0.1.0
+ * Version: 0.1.1
  * Author: ZiloMentor Pro contributors
  * Author URI: https://github.com/Galactus-Prime
  * Requires PHP: 7.4
@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // ZiloMentor Pro release identity is separate from the compatibility API version.
 if ( ! defined( 'ZILOMENTOR_VERSION' ) ) {
-	define( 'ZILOMENTOR_VERSION', '0.1.0' );
+	define( 'ZILOMENTOR_VERSION', '0.1.1' );
 }
 if ( ! defined( 'ZILOMENTOR_UPSTREAM_VERSION' ) ) {
 	define( 'ZILOMENTOR_UPSTREAM_VERSION', '4.4.0' );
