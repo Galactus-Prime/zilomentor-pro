@@ -22,6 +22,8 @@ const result = {
   actualSaveButtonClicked: false,
   pageErrors: 0,
   failedLocalRequests: 0,
+  cancelledLocalRequests: 0,
+  failedLocalRequestKinds: [],
   localHttpErrors: 0,
   blockedExternalRequests: 0,
 };
@@ -53,8 +55,26 @@ async function main() {
   page.on("pageerror", () => { result.pageErrors++; });
   page.on("requestfailed", req => {
     try {
-      if (new URL(req.url()).hostname === "web") result.failedLocalRequests++;
-    } catch { /* no raw URL logged */ }
+      if (new URL(req.url()).hostname !== "web") return;
+      const raw = req.failure();
+      const reason = typeof raw === "string" ? raw :
+        String(raw?.errorText || "unknown");
+      const kind = reason.slice(0, 60);
+      // Chromium normally aborts in-flight WP admin-ajax requests when the
+      // editor replaces views/navigates. A cancelled request is not a
+      // network/server failure, but we record its category for diagnosis.
+      if (/ERR_ABORTED|NS_BINDING_ABORTED/i.test(kind)) {
+        result.cancelledLocalRequests++;
+      } else {
+        result.failedLocalRequests++;
+      }
+      if (result.failedLocalRequestKinds.length < 8) {
+        result.failedLocalRequestKinds.push({
+          path: new URL(req.url()).pathname.slice(0, 90),
+          kind,
+        });
+      }
+    } catch { /* never log the raw URL or any auth token */ }
   });
   page.on("response", response => {
     try {
