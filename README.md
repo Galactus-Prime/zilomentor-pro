@@ -2,9 +2,11 @@
 
 **An independently maintained, GPL-licensed Elementor Pro compatibility fork for WordPress.**
 
-> **Development preview, v0.1.0. Not production-ready.** The compatibility work
-> has passed structural and isolated WordPress/Fiore activation and widget tests,
-> but not production-like visual comparisons, real form delivery, full checkout or payment tests.
+> **Limited live beta, v0.1.0, not a general production release.** Explicitly authorised
+> deployment to Itzy Bitzy Workshop succeeded on 19 November 2026 after offline
+> private backups and guarded rollback preparation. Public homepage screenshots
+> remained pixel-identical on desktop and mobile; live checkout/payments and
+> many editor functions remain uncertified.
 
 ZiloMentor Pro is a fork of [PRO Elements](https://github.com/proelements/proelements),
 which in turn incorporates GPL-licensed code originally developed by Elementor Ltd.
@@ -22,7 +24,8 @@ plugin version and must be tested.
   proprietary support or remotely licensed features.
 - **Requirement:** the free Elementor plugin must also be installed.
 - **Do not run alongside Elementor Pro or PRO Elements.** They share PHP identifiers.
-- **Safe starting point:** test on an isolated WordPress staging site only.
+- **Safe starting point:** use disposable staging QA before any new installation
+  or upgrade. One explicitly authorised live beta is under controlled testing.
 
 ## Compatibility
 
@@ -30,15 +33,64 @@ plugin version and must be tested.
 | --- | --- |
 | Original Elementor Pro PHP namespace and hooks | Retained from upstream; static check passes |
 | Theme Builder, dynamic tags and product widgets | 196 widgets registered; ACF text renders in a real Elementor Heading; synthetic Header conditions and Popup Page Load, On Scroll and Exit Intent browser triggers passed in isolated Fiore; other template/trigger combinations pending |
-| Vamtam Fiore integration on ItzyBitzyWorkshop | Isolated plugin activation passed on PHP 8.4/8.5; visual tests pending |
+| Vamtam Fiore integration on ItzyBitzyWorkshop | Live beta v0.1.0 active alongside free Elementor 4.4.1; public 1366x768 and 390x844 homepage screenshots pixel-identical with the original Pro 4.4.0 baseline; other pages still require visual comparison |
 | WordPress plugin path elementor-pro/elementor-pro.php | Provided when staging ZIP is installed |
-| WordPress editing and responsive layouts | Browser DOM passed at two sizes; Nginx/PHP-FPM editor panel populated (156 ZiloMentor controls vs 81 free); synthetic Heading and Pro Form settings edited with real editor Publish/Update controls and independently verified in WordPress post meta (Form Name also verified over HTTP); pixel fidelity and more editor workflows pending |
+| WordPress editing and responsive layouts | 156 editor controls vs 81 free; isolated Heading, Pro Form and Theme Builder Header edits use real Publish/Update and independent database/conditional-render checks. Desktop → tablet (768px) → mobile (360px) → desktop editor switching passed; additional workflows pending |
 | WooCommerce cart, checkout and payments | 55/55 isolated HTTP/integration checks passed; registered Cart, AJAX mini-cart, guest checkout and synthetic offline bank-transfer order creation verified; card gateways, shipping and tax scenarios remain untested |
-| Automated updates | Upstream updater disabled; independent signed updater pending |
+| Release management | Upstream updater disabled; owner-only SHA256-pinned manual deployment and offline backups/previous-version/official-plugin file rollback implemented and synthetic tested. Signed online updater is not yet available |
 
 The initial source tracks PRO Elements **v4.4.0** at commit
 [58d52e0](https://github.com/proelements/proelements/commit/58d52e0f10640088aa179e28b40b161c33c57de4).
 The public fork retains its original upstream commit history.
+
+## Current beta deployment and limitations (19 November 2026)
+
+The owner explicitly authorised testing on `https://itzybitzyworkshop.co.uk/`.
+A private database snapshot and exact original Elementor Pro 4.4.0 plugin files
+were preserved **outside public_html** before a checksum-verified, cPanel-owner
+deployment. The original Pro plugin was replaced in-place with ZiloMentor
+0.1.0 at the compatible `elementor-pro/elementor-pro.php` basename. Free
+Elementor 4.4.1, WooCommerce, Fiore and caching plugins remained active.
+
+- WordPress bootstrap passed Core, Pro compatibility, WooCommerce and fork
+  identity checks; 213 Elementor widgets registered in the real site runtime.
+- Read-only public homepage tests at desktop **1366×768** and mobile
+  **390×844** yielded **pixel-identical before/after screenshots** and unchanged
+  widget types/counts (85 desktop, 89 mobile). The pre-existing single broken
+  image and desktop JavaScript error count of two were unchanged.
+- Shop, guest Cart, guest Checkout and a product page returned HTTP 200 and
+  contained WooCommerce markup, with no observed PHP fatal errors. **No live
+  payment, order, customer edit or outbound form submission was performed.**
+- A private `tools/manual_live_swap.py` provides explicit SHA256 checks,
+  read-only preflight, `--apply`, and owner-only `--rollback` /
+  `--rollback-to-official` routes. Its synthetic installation, upgrade,
+  malformed archive, downgrade and rollback tests run locally with no Actions.
+  **Never automatically restore a WooCommerce database snapshot**, which
+  could erase orders placed since the backup.
+
+**Security release gate:** Elementor's official Pro 4.4.1 (16 November 2026)
+lists improvements to attributes security. This derivative currently contains
+community PRO Elements 4.4.0, not a verified 4.4.1 patchset. A trusted,
+reviewed upstream update and security audit remain necessary before a general
+release. Do not install untrusted or so-called nulled ZIP archives. WordPress
+recognises the fork's separate Update URI, but **there is no unattended online
+release channel or cryptographically signed update manifest yet**.
+
+### Optional manual release and rollback
+
+These commands require the site's actual filesystem owner, a private
+non-web-accessible backup directory, and a trusted release ZIP. Do **not**
+point them at a production site merely to test the instructions.
+
+    python3 tools/manual_live_swap.py --site /path/to/wp --backup-dir /private/backup --zip /path/to/staging.zip --sha256 FULL_64_CHARACTER_SHA256
+    python3 tools/manual_live_swap.py --site /path/to/wp --backup-dir /private/backup --zip /path/to/staging.zip --sha256 FULL_64_CHARACTER_SHA256 --apply
+    python3 tools/manual_live_swap.py --site /path/to/wp --backup-dir /private/backup --rollback
+    python3 tools/manual_live_swap.py --site /path/to/wp --backup-dir /private/backup --rollback-to-official
+
+A successful production WP bootstrap alone does **not** mean a store is fully
+validated. Run the opt-in visual canary before/after manually, test representative
+templates and payment integrations in a sandbox, and maintain a tested rollback
+path and recent independent backups.
 
 ## Build and test (development only)
 
@@ -111,6 +163,19 @@ repeaters, field validation and action integrations, popup editing, visual
 fidelity, checkout or external payment functionality. No production site is
 modified. All containers and their private Docker network are removed by
 the harness.
+
+**Theme Builder Header edit/Publish regression:** isolated Chromium selected a
+real synthetic Header document Heading, edited its title, clicked Elementor's
+Publish button, verified the saved WordPress template data, and verified the
+new header appears **only** on the intended page: **40/40 checks passed**.
+
+    python3 tools/run_manual_checks.py --source-wordpress /path/to/wordpress --web-server nginx-fpm --focus editor --editor-playwright-image haven-browser-qa:1.62.1 --verify-theme-builder-save
+
+**Responsive editor:** actual Elementor 4.4 device toolbar controls were used
+to switch desktop 1140px → tablet 768px → mobile 360px → desktop 1140px,
+retaining the Heading and Pro Form: **38/38 isolated checks passed**.
+
+    python3 tools/run_manual_checks.py --source-wordpress /path/to/wordpress --web-server nginx-fpm --focus editor --editor-playwright-image haven-browser-qa:1.62.1 --verify-editor-responsive
 
 **Theme Builder / Popup regression:** a disposable Elementor Header and Popup
 each use a real saved template and a display condition targeting only one
