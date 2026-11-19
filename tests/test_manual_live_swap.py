@@ -177,6 +177,16 @@ class ManualSwapTests(unittest.TestCase):
         self.assertEqual(swap.plugin_name(self.plugin), "Elementor Pro")
         self.assertTrue((self.backup / "wordpress-before.sql").is_file())
 
+    def test_previous_rollback_never_silently_restores_official(self):
+        package, digest = self.zip("0.1.0")
+        self.run_command("--zip", str(package), "--sha256", digest, "--apply")
+        with self.assertRaisesRegex(RuntimeError, "use --rollback-to-official"):
+            self.run_command("--rollback")
+        self.assertEqual(swap.plugin_version(self.plugin), "0.1.0")
+        restored = self.run_command("--rollback-to-official")
+        self.assertIn("RESTORED=Elementor Pro", restored)
+        self.assertEqual(swap.plugin_name(self.plugin), "Elementor Pro")
+
     def test_bad_hash_and_unsafe_archive_never_swap_files(self):
         package, digest = self.zip("0.1.0")
         with self.assertRaisesRegex(RuntimeError, "SHA256 mismatch"):
