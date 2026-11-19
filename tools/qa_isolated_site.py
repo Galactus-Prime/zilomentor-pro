@@ -336,6 +336,8 @@ add_action( 'template_redirect', function () {
             'popup_render' => (bool) $popup_render,
             'header_marker' => str_contains( $header_html, 'ZMP Synthetic Conditional Header' ),
             'popup_marker' => str_contains( $popup_html, 'ZMP Synthetic Conditional Popup' ),
+            'scroll_popup_marker' => str_contains( $popup_html, 'ZMP Synthetic Scroll Popup' ),
+            'exit_popup_marker' => str_contains( $popup_html, 'ZMP Synthetic Exit Popup' ),
             'header_bytes' => strlen( $header_html ),
             'popup_bytes' => strlen( $popup_html ),
             'popup_modal_markup' => str_contains( $popup_html, 'elementor-popup-modal' ),
@@ -504,9 +506,11 @@ add_action( 'init', function () {
                        and theme_fixtures.get("types_registered", {}).get("header") is True
                        and theme_fixtures.get("types_registered", {}).get("popup") is True
                        and theme_fixtures.get("conditions_saved", {}).get("header") is True
-                       and theme_fixtures.get("conditions_saved", {}).get("popup") is True
+                       and all(theme_fixtures.get("conditions_saved", {}).get(key) is True
+                               for key in ("popup", "scroll_popup", "exit_popup"))
                        and theme_fixtures.get("documents", {}).get("header", {}).get("location") == "header"
-                       and theme_fixtures.get("documents", {}).get("popup", {}).get("location") == "popup",
+                       and all(theme_fixtures.get("documents", {}).get(key, {}).get("location") == "popup"
+                               for key in ("popup", "scroll_popup", "exit_popup")),
                        {"exit": template_seed.returncode, "fixtures": theme_fixtures}),
                 "Cannot register isolated Theme Builder/Popup fixtures")
 
@@ -726,6 +730,33 @@ add_action( 'init', function () {
                    theme_passed,
                    {"status": theme_status, "render": theme_data, "error": theme_err})
 
+        # Dedicated targets ensure Page Load, On Scroll and Exit Intent
+        # do not mask one another or cross page-specific conditions.
+        for label, target, expected_popup, marker_key in (
+            ("scroll", theme_fixtures["scroll_target"], "scroll_popup", "scroll_popup_marker"),
+            ("exit", theme_fixtures["exit_target"], "exit_popup", "exit_popup_marker"),
+        ):
+            trigger_status, trigger_body, trigger_err = request(
+                "?page_id=" + str(target) + "&zmp_qa_theme_popup=1"
+            )
+            try:
+                trigger_data = json.loads(trigger_body)
+            except ValueError:
+                trigger_data = {}
+            expected_id = theme_fixtures["documents"][expected_popup]["id"]
+            excluded_ids = (
+                theme_fixtures["documents"][k]["id"]
+                for k in ("popup", "scroll_popup", "exit_popup") if k != expected_popup
+            )
+            shown = trigger_data.get("popup_doc_ids", [])
+            record("Popup page-specific condition: " + label,
+                   trigger_status == 200 and expected_id in shown
+                   and all(other not in shown for other in excluded_ids)
+                   and trigger_data.get(marker_key) is True
+                   and trigger_data.get("header_marker") is False,
+                   {"status": trigger_status, "render": trigger_data,
+                    "error": trigger_err})
+
         if args.frontend_playwright_image is not None:
             # Real browser Popup test: open/close via the product's own JS API,
             # with no public host ports or external network access.
@@ -741,6 +772,12 @@ add_action( 'init', function () {
                 "-e", "ZMP_QA_UNRELATED_ID=" + str(fixtures["plain"]),
                 "-e", "ZMP_QA_POPUP_ID=" +
                     str(theme_fixtures["documents"]["popup"]["id"]),
+                "-e", "ZMP_QA_SCROLL_TARGET_ID=" + str(theme_fixtures["scroll_target"]),
+                "-e", "ZMP_QA_EXIT_TARGET_ID=" + str(theme_fixtures["exit_target"]),
+                "-e", "ZMP_QA_SCROLL_POPUP_ID=" +
+                    str(theme_fixtures["documents"]["scroll_popup"]["id"]),
+                "-e", "ZMP_QA_EXIT_POPUP_ID=" +
+                    str(theme_fixtures["documents"]["exit_popup"]["id"]),
                 "-v", str(browser_test) + ":/qa/theme_popup.js:ro",
                 "--entrypoint", "timeout", args.frontend_playwright_image,
                 "--signal=TERM", "--kill-after=5s", "65s",
@@ -766,6 +803,9 @@ add_action( 'init', function () {
                            "popupModalClosed", "popupAutoOpened",
                            "popupAutoOpenedMobile", "unrelatedPopupAbsent",
                            "unrelatedHeaderAbsent",
+                           "scrollPopupAbsentBeforeScroll", "scrollPopupOpenedByScroll",
+                           "exitPopupAbsentBeforeIntent", "exitPopupOpenedByIntent",
+                           "unrelatedScrollPopupAbsent", "unrelatedExitPopupAbsent",
                        ))
                        and result_data.get("pageErrors") == 0
                        and result_data.get("failedLocalRequests") == 0,
