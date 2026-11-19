@@ -719,6 +719,25 @@ add_action( 'init', function () {
         record("Elementor page HTTP 200", status == 200,
                {"status": status, "error": err})
         record("Elementor heading rendered", "ZiloMentor Synthetic Heading" in html)
+        # Inspect ONLY the synthetic Heading's opening tag: a site may
+        # legitimately contain other onclick strings in theme scripts.
+        match = re.search(
+            r'<[^>]*\\bdata-id=["\\']1a2b3c01["\\'][^>]*>', html
+        )
+        wrapper = match.group(0) if match else ""
+        record("Legacy custom HTML attributes reject executable injection",
+               bool(wrapper)
+               and 'data-zmp-security="visible"' in wrapper
+               and "aria-label=" in wrapper
+               and "onclick=" not in wrapper
+               and "onmouseover=" not in wrapper
+               and "javascript:" not in wrapper,
+               {"widget_found": bool(wrapper),
+                "safe_data_retained": 'data-zmp-security="visible"' in wrapper,
+                "aria_retained": "aria-label=" in wrapper,
+                "unsafe_event_present": "onclick=" in wrapper or "onmouseover=" in wrapper,
+                "unsafe_protocol_present": "javascript:" in wrapper})
+
         record("Elementor Form widget rendered", 'elementor-form' in html and '<form' in html)
         plain_status, plain_html, plain_err = request(
             "?page_id=" + str(fixtures["plain"])
