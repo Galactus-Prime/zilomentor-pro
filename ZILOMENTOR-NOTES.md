@@ -9,7 +9,7 @@ Preserve Elementor Pro's PHP classes, widgets, template data, hook identifiers
 and standard WordPress plugin basename elementor-pro/elementor-pro.php for
 third-party WordPress themes, without modifying those themes.
 
-## Current QA position (18 November 2026)
+## Current QA position (19 November 2026)
 
 - The **synthetic Heading edit -> Publish -> database persistence** test
   passed; 32/32 focused checks with the private Nginx/PHP-FPM editor.
@@ -19,9 +19,40 @@ third-party WordPress themes, without modifying those themes.
   the full isolated WooCommerce suite passed **50/50 checks**.
 - The earlier cart-page errors documented below are *historical and now
   resolved in the QA harness*, not ZiloMentor plugin defects.
-- Actual checkout order creation, payments, popup and Theme Builder
-  interactions, cross-theme visual comparisons and secure independent
-  release updating remain outstanding. **No production deployment.**
+- The synthetic WooCommerce guest BACS checkout created and independently
+  verified an on-hold GBP 7.49 order. Real card payments, taxes, shipping,
+  notifications and refunds remain unverified.
+- Page-scoped Header, automatic Popup Page Load, On Scroll and desktop
+  Exit Intent passed in real Chromium against disposable pages: **61/61**
+  integrated HTTP/browser/WooCommerce checks and no page JavaScript or
+  local HTTP request errors. Theme Builder editing, other trigger types,
+  visual fidelity and secure independent updating remain outstanding.
+  **No production deployment.**
+
+## Popup On Scroll and Exit Intent browser regression (19 November 2026)
+
+The QA harness seeds three independently conditioned popup templates in a
+fresh private WordPress database: Page Load, On Scroll (down 20%) and desktop
+Exit Intent. The Scroll target contains disposable tall content; the mouse
+pointer leaves the top of a separate Exit target in real Chromium. Neither
+popup is activated by a direct API call.
+
+- **61/61 isolated integration checks passed**, including WooCommerce's
+  previously verified offline guest checkout and Cart page controls.
+- On Scroll and Exit Intent each remained closed before their respective
+  browser interaction, then opened with the expected template heading.
+- Per-page display conditions excluded each popup from unrelated pages.
+- Automatic Page Load popup still opened and closed correctly at desktop
+  and mobile sizes; zero browser page errors or failed local requests.
+- The PHP 8.4 and PHP 8.5 syntax matrices each parsed **932/932** PHP files.
+- A cPanel PHP CLI transient cache race was corrected in the source-copy
+  allowlist; the staging ZIP builder now also excludes that cache.
+- The temporary Docker network, containers and WordPress database were
+  cleaned; no public ports, real payments, customer data or live shop changes.
+
+This validates tested front-end behaviours, not the Popup editor UI,
+additional popup triggers, real messages, checkout gateway payments, or
+cross-theme visual fidelity.
 
 ## Critical limitations
 - Prototype only. Static checks are not full WordPress/theme runtime tests.
