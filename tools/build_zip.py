@@ -14,7 +14,10 @@ if (root / "pro-elements.php").exists():
 excluded = {".git",".github","dist","tools","tests","__pycache__"}
 files = sorted(p for p in root.rglob("*") if p.is_file()
                and not p.is_symlink()
-               and not any(x in excluded for x in p.relative_to(root).parts))
+               and not any(x in excluded for x in p.relative_to(root).parts)
+               # cPanel EA-PHP may create short-lived CLI cache files next to
+               # parsed sources; never include those in installable packages.
+               and not p.name.startswith(".ea-php-cli"))
 with zipfile.ZipFile(dest,"w",compression=zipfile.ZIP_DEFLATED,compresslevel=9) as z:
     for p in files:
         archive_path="elementor-pro/"+p.relative_to(root).as_posix()
