@@ -111,7 +111,7 @@ class ManualSwapTests(unittest.TestCase):
             "issued_at": now.isoformat().replace("+00:00", "Z"),
             "expires_at": (now + timedelta(days=30)).isoformat().replace("+00:00", "Z"),
         }
-        manifest_path.write_text(json.dumps(manifest, sort_keys=True) + "\\n")
+        manifest_path.write_text(json.dumps(manifest, sort_keys=True) + "\n")
         subprocess.run([str(sodium_php), str(verifier), "sign",
                         str(manifest_path), str(private), str(signature)],
                        check=True, capture_output=True, text=True)
@@ -128,7 +128,7 @@ class ManualSwapTests(unittest.TestCase):
             self.assertEqual(swap.plugin_version(self.plugin), "0.1.2")
             # The signature covers the EXACT manifest bytes, so a single
             # character modification must fail before touching installed files.
-            manifest_path.write_text(json.dumps({**manifest, "size_bytes": 1}) + "\\n")
+            manifest_path.write_text(json.dumps({**manifest, "size_bytes": 1}) + "\n")
             with self.assertRaisesRegex(RuntimeError, "Ed25519 signature is invalid"):
                 swap.verify_signed_release(
                     package, digest, "0.1.2", manifest_path,
@@ -142,7 +142,7 @@ class ManualSwapTests(unittest.TestCase):
             expired["expires_at"] = (now - timedelta(days=1)).isoformat().replace("+00:00", "Z")
             expired_path = self.root / "expired.json"
             expired_sig = self.root / "expired.sig"
-            expired_path.write_text(json.dumps(expired) + "\\n")
+            expired_path.write_text(json.dumps(expired) + "\n")
             subprocess.run([str(sodium_php), str(verifier), "sign",
                             str(expired_path), str(private), str(expired_sig)],
                            check=True, capture_output=True, text=True)
