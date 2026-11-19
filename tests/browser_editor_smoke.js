@@ -169,6 +169,32 @@ async function main() {
   result.frameCount = page.frames().length;
   result.domReadyState = dom.readyState;
 
+  // Bound, read-only discovery of the actual free Elementor 4.4 responsive
+  // controls. No reliance on legacy selectors or guessed editor commands.
+  result.responsiveControls = await page.locator("button,[role=button]").evaluateAll(nodes =>
+    nodes.filter(node => /responsive|desktop|tablet|mobile/i.test(
+      [
+        node.getAttribute("aria-label") || "",
+        node.getAttribute("title") || "",
+        node.getAttribute("data-testid") || "",
+        (node.textContent || "").trim().slice(0,70),
+      ].join(" ")
+    )).slice(0,24).map(node => ({
+      tag:node.tagName,
+      label:(node.getAttribute("aria-label") || "").slice(0,100),
+      title:(node.getAttribute("title") || "").slice(0,100),
+      testId:(node.getAttribute("data-testid") || "").slice(0,100),
+      css:String(node.className || "").slice(0,130),
+      text:(node.textContent || "").trim().slice(0,55),
+    }))
+  );
+  result.responsivePreview = await page.evaluate(() => ({
+    outerPreviewWidth:document.querySelector("#elementor-preview")?.clientWidth || 0,
+    previewIframeWidth:document.querySelector("#elementor-preview-iframe")?.clientWidth || 0,
+    deviceMode:typeof window.elementor?.getCurrentDeviceMode === "function"
+      ? window.elementor.getCurrentDeviceMode() : null,
+  }));
+
   // Read-only editor interaction: identify and select the synthetic Heading
   // widget, then inspect control *attributes* (never values/nonces).
   // Try its normal click, Elementor edit handle, and double-click in order.
