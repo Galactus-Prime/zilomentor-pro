@@ -25,6 +25,7 @@ set_error_handler( function( $severity, $message ) use ( &$warnings ) {
     return false;
 } );
 try {
+    $rest_routed = $widget->is_rest_request();
     $result = $widget->get_wp_link_page( 2 );
     $expected = esc_url( get_pagenum_link( 2 ) );
 } finally {
@@ -41,9 +42,11 @@ try {
         $_SERVER['HTTP_REFERER'] = $original_ref;
     }
 }
-$passed = is_string( $result ) && '' !== $result && $result === $expected && ! $warnings;
+$passed = $rest_routed && is_string( $result ) && '' !== $result
+    && $result === $expected && ! $warnings;
 echo wp_json_encode( [
     'passed' => $passed,
+    'rest_preview_path_exercised' => $rest_routed,
     'expected_fallback_used' => $result === $expected,
     'warning_count' => count( $warnings ),
 ] );
