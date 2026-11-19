@@ -168,6 +168,36 @@ check("Pro Form editor UI save requires isolated opt-in and independent verifica
           (ROOT / "tools/run_manual_checks.py").read_text()
       and "Synthetic Pro Form editor value persisted in WordPress database" in qa_script
       and "Saved Pro Form name rendered on isolated frontend" in qa_script)
+check("Theme Builder editing restricted to disposable Header document",
+      (ROOT / "tests/browser_theme_editor_save.js").is_file()
+      and "ZMP_QA_THEME_SAVE" in (ROOT / "tests/browser_theme_editor_save.js").read_text()
+      and "'ZMP Synthetic Header' === get_the_title" in qa_script
+      and "Edited Header renders only on its intended synthetic page" in qa_script
+      and "--verify-theme-builder-save" in qa_script
+      and "--verify-theme-builder-save" in
+          (ROOT / "tools/run_manual_checks.py").read_text())
+check("responsive editing uses actual Elementor device controls",
+      (ROOT / "tests/browser_editor_responsive.js").is_file()
+      and all(x in (ROOT / "tests/browser_editor_responsive.js").read_text()
+              for x in ("switch-device-to-desktop", "switch-device-to-tablet",
+                        "switch-device-to-mobile", "ZMP_QA_RESPONSIVE"))
+      and "Real Elementor editor responsive Desktop Tablet Mobile switching" in qa_script
+      and "--verify-editor-responsive" in
+          (ROOT / "tools/run_manual_checks.py").read_text())
+check("read-only live canary cannot submit form or purchase",
+      (ROOT / "tests/browser_live_canary.js").is_file()
+      and 'readOnly:true' in (ROOT / "tests/browser_live_canary.js").read_text()
+      and "page.goto" in (ROOT / "tests/browser_live_canary.js").read_text()
+      and not any(x in (ROOT / "tests/browser_live_canary.js").read_text()
+                  for x in ("page.click(", "page.fill(", "page.locator(", "page.request.post(")))
+check("manual SHA256-checked installation supports safe prior/official rollback",
+      (ROOT / "tools/manual_live_swap.py").is_file()
+      and (ROOT / "tests/test_manual_live_swap.py").is_file()
+      and "hashlib.sha256" in (ROOT / "tools/manual_live_swap.py").read_text()
+      and "--rollback-to-official" in (ROOT / "tools/manual_live_swap.py").read_text()
+      and "DATABASE_NOT_RESTORED=YES" in (ROOT / "tools/manual_live_swap.py").read_text()
+      and "tests/test_manual_live_swap.py" in
+          (ROOT / "tools/run_manual_checks.py").read_text())
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
