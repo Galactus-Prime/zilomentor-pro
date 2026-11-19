@@ -499,10 +499,15 @@ add_action( 'init', function () {
         p = wp("theme", "activate", THEME)
         require(record("activate Fiore theme", p.returncode == 0),
                 "Fiore activation failed")
-        for filename in ("runtime_bootstrap.php", "runtime_widgets.php"):
+        for filename in ("runtime_bootstrap.php", "runtime_widgets.php",
+                         "runtime_atomic_attributes_security.php"):
             p = wp("eval-file",
-                   "wp-content/plugins/elementor-pro/tests/" + filename)
-            require(record("runtime " + filename, p.returncode == 0),
+                   "wp-content/plugins/elementor-pro/tests/" + filename,
+                   environment={"ZMP_ISOLATED_QA": "yes"})
+            require(record("runtime " + filename, p.returncode == 0,
+                           {"exit": p.returncode,
+                            "security_checks": p.stdout.strip().splitlines()[:15]
+                            if filename == "runtime_atomic_attributes_security.php" else []}),
                     "Runtime check failed: " + (p.stdout + p.stderr)[-500:])
 
         p = wp(
