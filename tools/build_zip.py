@@ -1,6 +1,8 @@
 """Create staging-only GPL source ZIP without .git and test tooling."""
 from pathlib import Path
 import hashlib
+import os
+import subprocess
 import zipfile
 import sys
 import re
@@ -18,12 +20,39 @@ if not (root / "elementor-pro.php").is_file():
 if (root / "pro-elements.php").exists():
     raise SystemExit("Unexpected original plugin bootstrap")
 excluded = {".git",".github","dist","tools","tests","__pycache__"}
-files = sorted(p for p in root.rglob("*") if p.is_file()
-               and not p.is_symlink()
-               and not any(x in excluded for x in p.relative_to(root).parts)
-               # cPanel EA-PHP may create short-lived CLI cache files next to
-               # parsed sources; never include those in installable packages.
-               and not p.name.startswith(".ea-php-cli"))
+unsafe_names = {
+    "error_log", "debug.log", "wp-config.php", ".env", ".env.local",
+    "id_rsa", "id_ed25519", "credentials.json",
+}
+unsafe_suffixes = {".log", ".sql", ".sqlite", ".db", ".pem", ".key", ".bak", ".old"}
+# Packaging MUST use Git-tracked source only, not rglob(): cPanel can create
+# untracked error_log files and .ea-php-cli caches inside a checkout. A local
+# runtime file must never be distributed in an installable WordPress ZIP.
+tracked = subprocess.run(
+    ["git", "ls-files", "-z"], cwd=root, capture_output=True, check=True,
+).stdout.split(b"\0")
+files = []
+for item in tracked:
+    if not item:
+        continue
+    rel = Path(os.fsdecode(item))
+    if (
+        any(x in excluded for x in rel.parts)
+        or any(x.startswith(".ea-php-cli") for x in rel.parts)
+        or rel.name.lower() in unsafe_names
+        or rel.suffix.lower() in unsafe_suffixes
+        or any(x.startswith(".") for x in rel.parts)
+    ):
+        continue
+    candidate = root / rel
+    if not candidate.is_file() or candidate.is_symlink():
+        raise SystemExit("Tracked release file missing or symlinked: " + str(rel))
+    if candidate.stat().st_size > 15 * 1024 * 1024:
+        raise SystemExit("Tracked file exceeds plugin packaging cap: " + str(rel))
+    files.append(candidate)
+files.sort()
+if len(files) < 1000:
+    raise SystemExit("Release packaging source unexpectedly incomplete")
 with zipfile.ZipFile(dest,"w",compression=zipfile.ZIP_DEFLATED,compresslevel=9) as z:
     for p in files:
         archive_path="elementor-pro/"+p.relative_to(root).as_posix()
