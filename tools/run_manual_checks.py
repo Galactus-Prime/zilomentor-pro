@@ -86,6 +86,9 @@ def main():
     ):
         parser.error("Editor save verification requires --focus editor, --web-server nginx-fpm, --editor-playwright-image and --source-wordpress.")
     execute([sys.executable, "tests/static_compatibility.py"])
+    # Always prove our release-switch and rollback logic against synthetic
+    # files before building an installable ZIP. This never opens production WP.
+    execute([sys.executable, "tests/test_manual_live_swap.py"])
     execute([sys.executable, "tools/build_zip.py"])
     if args.skip_php:
         print("PHP matrix SKIPPED (explicit --skip-php); not a full QA pass.")
