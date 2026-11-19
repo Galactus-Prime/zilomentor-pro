@@ -722,7 +722,7 @@ add_action( 'init', function () {
         # Inspect ONLY the synthetic Heading's opening tag: a site may
         # legitimately contain other onclick strings in theme scripts.
         match = re.search(
-            r'<[^>]*\\bdata-id=["\\']1a2b3c01["\\'][^>]*>', html
+            r'<[^>]*\bdata-id=[^ >]*1a2b3c01[^>]*>', html
         )
         wrapper = match.group(0) if match else ""
         record("Legacy custom HTML attributes reject executable injection",
