@@ -58,6 +58,10 @@ def main():
         "--verify-editor-save", action="store_true",
         help="Opt-in synthetic Heading change and database-persistence check; requires editor-only Nginx/FPM + Playwright.",
     )
+    parser.add_argument(
+        "--verify-editor-form-save", action="store_true",
+        help="Opt-in Pro Form name edit, real editor Publish/Update click and independent DB/HTTP verification in disposable WordPress.",
+    )
     args = parser.parse_args()
     if args.source_wordpress is not None and args.skip_php:
         parser.error("Full isolated QA requires PHP Docker tests; remove --skip-php.")
@@ -68,11 +72,11 @@ def main():
         parser.error("--focus editor requires --editor-playwright-image.")
     if args.web_server == "nginx-fpm" and args.source_wordpress is None:
         parser.error("--web-server nginx-fpm requires --source-wordpress.")
-    if args.verify_editor_save and not (
+    if (args.verify_editor_save or args.verify_editor_form_save) and not (
         args.focus == "editor" and args.web_server == "nginx-fpm"
         and args.editor_playwright_image and args.source_wordpress
     ):
-        parser.error("--verify-editor-save requires --focus editor, --web-server nginx-fpm, --editor-playwright-image and --source-wordpress.")
+        parser.error("Editor save verification requires --focus editor, --web-server nginx-fpm, --editor-playwright-image and --source-wordpress.")
     execute([sys.executable, "tests/static_compatibility.py"])
     execute([sys.executable, "tools/build_zip.py"])
     if args.skip_php:
@@ -112,6 +116,8 @@ def main():
             qa_cmd.extend(["--frontend-playwright-image", args.frontend_playwright_image])
         if args.verify_editor_save:
             qa_cmd.append("--verify-editor-save")
+        if args.verify_editor_form_save:
+            qa_cmd.append("--verify-editor-form-save")
         execute(qa_cmd)
     print("PASS all requested manual checks; no GitHub Actions used.")
 
