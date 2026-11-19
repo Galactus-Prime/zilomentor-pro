@@ -88,9 +88,20 @@ persisted in the disposable database.
 
     python3 tools/run_manual_checks.py --source-wordpress /path/to/wordpress --web-server nginx-fpm --focus editor --editor-playwright-image haven-browser-qa:1.62.1 --verify-editor-save
 
-This does not certify other widget types, popup editing, visual fidelity,
-checkout or external payment functionality. No production site is modified.
-All containers and their private Docker network are removed by the harness.
+The separate opt-in **Pro Form editor persistence** check selects only the
+synthetic Form widget, changes its Form Name through Elementor's normal editor
+panel, uses the actual Publish/Update UI control, then independently checks
+the saved WordPress Elementor data and rendered form markup. It requires an
+internal Docker test site and a disposable WordPress database; it does not
+send mail or edit real content.
+
+    python3 tools/run_manual_checks.py --source-wordpress /path/to/wordpress --web-server nginx-fpm --focus editor --editor-playwright-image haven-browser-qa:1.62.1 --verify-editor-form-save
+
+This complements the Heading test but does not certify other Form settings,
+repeaters, field validation and action integrations, popup editing, visual
+fidelity, checkout or external payment functionality. No production site is
+modified. All containers and their private Docker network are removed by
+the harness.
 
 **Theme Builder / Popup regression:** a disposable Elementor Header and Popup
 each use a real saved template and a display condition targeting only one
