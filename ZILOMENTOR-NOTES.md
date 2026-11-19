@@ -67,6 +67,11 @@ Form Name appears in rendered markup.
 
 - **40/40** focused editor/runtime/integration checks passed against
   disposable WordPress, Fiore and ZiloMentor Pro on Nginx/PHP 8.4-FPM.
+- A further **42/42** combined regression passed: the synthetic Heading and
+  Pro Form were both changed using Elementor's real Publish/Update buttons
+  and their new values independently confirmed in WordPress, within the
+  same isolated WordPress installation. The Form's new name also rendered
+  over HTTP. Zero genuine local request, HTTP or JavaScript page errors.
 - The initial run saved and rendered the Form correctly but reported one
   browser request failure and therefore exited nonzero.
 - Instrumentation identified the request as `/index.php`,
