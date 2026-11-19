@@ -9,6 +9,58 @@ Preserve Elementor Pro's PHP classes, widgets, template data, hook identifiers
 and standard WordPress plugin basename elementor-pro/elementor-pro.php for
 third-party WordPress themes, without modifying those themes.
 
+## Controlled live beta and post-swap QA (19 November 2026, afternoon)
+
+With explicit site-owner authorisation, ZiloMentor Pro 0.1.0 replaced original
+Elementor Pro 4.4.0 at the existing compatible plugin basename on
+itzybitzyworkshop.co.uk. Free Elementor 4.4.1 remained active. A private,
+owner-only offline database snapshot and original plugin files were preserved
+outside the publicly served tree. The exact release archive was SHA256-checked
+and plugin swapping was performed as the cPanel account owner with an immediate
+WordPress health check and file-only rollback on bootstrap failure.
+
+Production site post-swap WordPress bootstrap showed Elementor loaded, Pro API
+namespace/classes loaded, WooCommerce loaded, and 213 registered widgets,
+including Forms, Nav Menu, WooCommerce Products, Menu Cart, Posts and Animated
+Headline. The new `elementor-pro` entry reports ZiloMentor 0.1.0 active.
+
+The public read-only Chromium homepage test was run before and after the swap
+with fixed desktop 1366×768 and mobile 390×844 viewports. **Both screenshots
+were pixel-identical** (mean RGB difference exactly 0.0), same 85 desktop /
+89 mobile Elementor widgets, same widget type sets, zero first-party HTTP
+errors and unchanged JavaScript error counts (2 desktop, 0 mobile). A previously
+broken image remained broken; it was not caused by the swap. Public Shop,
+Cart, Checkout and one product page each returned HTTP 200 with WooCommerce
+markup and no observed PHP fatal errors. No live checkout, payment,
+customer data edit or real form submission occurred.
+
+The newer `tools/manual_live_swap.py` supports SHA256-pinned dry-run and
+release, strict ZIP member validation, plugin header/version checks, filesystem
+owner verification, an offline original-plugin backup, versioned prior-release
+rollbacks, downgrade refusal, and PHP/WordPress bootstrap health. Database
+restoration is **never** part of automatic rollback to avoid erasing orders
+placed after the backup. Three fake-filesystem tests verified initial deploy,
+update, prior-release and official-plugin rollback, bad hash/traversal
+rejection and downgrade refusal.
+
+New isolated developer checks completed:
+- **40/40** full Theme Builder Header editor QA: open synthetic Header template,
+  edit heading, click Publish, independently check saved post meta and
+  page-scoped render, with no unrelated-page leakage.
+- **38/38** responsive editor QA: real Desktop/Tablet/Mobile toolbar click
+  sequence resized preview 1140px → 768px → 360px → 1140px, retained heading
+  and Pro Form, zero genuine browser/HTTP errors.
+- Automatic staging ZIP pipeline runs the manual-release synthetic tests
+  without GitHub Actions. General availability remains blocked.
+
+**Important outstanding security issue:** official Elementor Pro 4.4.1,
+published 16 November 2026, includes improved security enforcement around
+attributes. Our open-source PRO Elements-derived code is still 4.4.0; no
+equivalent reviewed patch has yet been demonstrated. Do not claim this is a
+fully patched or production-certified drop-in replacement. The signed online
+updater and a trusted release-key process also remain unfinished. The
+authorised live beta and this audit do not waive those release blockers.
+
 ## Current QA position (19 November 2026)
 
 - The **synthetic Heading edit -> Publish -> database persistence** test
@@ -26,8 +78,9 @@ third-party WordPress themes, without modifying those themes.
   Exit Intent passed in real Chromium against disposable pages: **61/61**
   integrated HTTP/browser/WooCommerce checks and no page JavaScript or
   local HTTP request errors. Theme Builder editing, other trigger types,
-  visual fidelity and secure independent updating remain outstanding.
-  **No production deployment.**
+  broad visual fidelity and fully independent signed online updating
+  remain outstanding. **This paragraph records the earlier pre-deployment
+  QA position; see the controlled live beta section above for current status.**
 
 ## Popup On Scroll and Exit Intent browser regression (19 November 2026)
 
