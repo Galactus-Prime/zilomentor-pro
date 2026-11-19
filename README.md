@@ -29,7 +29,7 @@ plugin version and must be tested.
 | Area | Status |
 | --- | --- |
 | Original Elementor Pro PHP namespace and hooks | Retained from upstream; static check passes |
-| Theme Builder, dynamic tags and product widgets | 196 widgets registered; ACF text renders in a real Elementor Heading; synthetic Header conditions and Popup rendering/automatic page-load triggers passed in isolated Fiore; other template/trigger combinations pending |
+| Theme Builder, dynamic tags and product widgets | 196 widgets registered; ACF text renders in a real Elementor Heading; synthetic Header conditions and Popup Page Load, On Scroll and Exit Intent browser triggers passed in isolated Fiore; other template/trigger combinations pending |
 | Vamtam Fiore integration on ItzyBitzyWorkshop | Isolated plugin activation passed on PHP 8.4/8.5; visual tests pending |
 | WordPress plugin path elementor-pro/elementor-pro.php | Provided when staging ZIP is installed |
 | WordPress editing and responsive layouts | Browser DOM passed at two sizes; Nginx/PHP-FPM editor panel populated (156 ZiloMentor controls vs 81 free); synthetic Heading title edited with the real Publish button and independently verified in WordPress post meta; pixel fidelity and more editor workflows pending |
@@ -97,15 +97,16 @@ each use a real saved template and a display condition targeting only one
 synthetic page. Both render on that page and are excluded from unrelated
 pages. Playwright verifies the Popup opens automatically on page load at
 desktop **1366x768** and mobile **390x844**, contains the expected Heading,
-and closes successfully. The integrated **59/59** isolated checks passed.
+and closes successfully. Additional dedicated synthetic pages verify that On Scroll and desktop Exit Intent triggers open their own popups only after the corresponding user interaction, without cross-page leakage. The integrated **61/61** isolated checks passed.
 
 Run the optional no-Actions frontend trigger test with an already-cached
 Playwright image:
 
     python3 tools/run_manual_checks.py --source-wordpress /path/to/wordpress --web-server nginx-fpm --frontend-playwright-image haven-browser-qa:1.62.1
 
-This confirms conditional Header rendering, popup open/close and page-load
-triggers. Other display conditions, triggers, Theme Builder visual accuracy,
+This confirms conditional Header rendering, popup open/close, Page Load,
+On Scroll and desktop Exit Intent triggers. Other trigger types (click,
+inactivity, scroll-to-element and adblock detection), Theme Builder visual accuracy,
 editing popup templates, and accessibility are not yet certified.
 The temporary editor token is randomly generated per QA invocation and
 does not provide access to the production website.
