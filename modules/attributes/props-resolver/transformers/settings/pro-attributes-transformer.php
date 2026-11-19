@@ -29,7 +29,7 @@ class Pro_Attributes_Transformer extends Transformer_Base {
 			// Event handlers, srcdoc and inline style are deliberately excluded:
 			// they require separate, context-specific security validation.
 			if ( ! preg_match( '/^[a-z][a-z0-9_:-]*$/D', $key )
-				|| str_starts_with( $key, 'on' )
+				|| 0 === strpos( $key, 'on' )
 				|| in_array( $key, [ 'srcdoc', 'style' ], true ) ) {
 				continue;
 			}
