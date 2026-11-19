@@ -3,9 +3,15 @@ from pathlib import Path
 import hashlib
 import zipfile
 import sys
+import re
 
 root = Path(__file__).resolve().parents[1]
-dest = root / "dist" / "zilomentor-pro-compat-0.1.0-staging-only.zip"
+header = (root / "elementor-pro.php").read_text(encoding="utf-8")
+match = re.search(r"^\\s*\\*\\s*Version:\\s*(\\d+\\.\\d+\\.\\d+)\\s*$", header, re.M)
+if not match:
+    raise SystemExit("Invalid ZiloMentor Pro release version")
+version = match.group(1)
+dest = root / "dist" / f"zilomentor-pro-compat-{version}-staging-only.zip"
 dest.parent.mkdir(exist_ok=True)
 if not (root / "elementor-pro.php").is_file():
     raise SystemExit("Missing ZiloMentor Pro entrypoint")
