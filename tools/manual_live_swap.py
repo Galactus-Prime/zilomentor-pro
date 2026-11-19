@@ -228,6 +228,8 @@ def main():
                 fail("Rollback refused: unrecognised current or original plugin")
             chosen = original
             expected = EXPECTED_CURRENT
+            if args.rollback and not marker.is_file():
+                fail("No previous ZiloMentor release recorded; use --rollback-to-official explicitly")
             if args.rollback and marker.is_file():
                 name = marker.read_text(encoding="utf-8").strip()
                 if not re.fullmatch(r"elementor-pro-previous-zilomentor-[\w.-]+", name):
@@ -236,6 +238,9 @@ def main():
                 expected = EXPECTED_NEW
             if not chosen.is_dir() or chosen.is_symlink() or plugin_name(chosen) != expected:
                 fail("Verified previous release is not present")
+            if (args.rollback and version_parts(plugin_version(chosen))
+                    >= version_parts(plugin_version(current))):
+                fail("Previous release marker does not identify an older ZiloMentor version")
             rejected = backup / ("zilomentor-rejected-" + uuid.uuid4().hex[:8])
             os.rename(current, rejected)
             try:
