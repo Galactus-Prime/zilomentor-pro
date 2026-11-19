@@ -233,7 +233,15 @@ check("legacy custom attribute XSS hardening and synthetic frontend coverage",
       and "Legacy custom HTML attributes reject executable injection" in qa_script)
 check("Posts widget null-post pagination protection",
       "if ( ! $post instanceof \\WP_Post )" in
-          (ROOT / "modules/posts/widgets/posts-base.php").read_text())
+          (ROOT / "modules/posts/widgets/posts-base.php").read_text()
+      and (ROOT / "tests/runtime_posts_null.php").is_file()
+      and "runtime_posts_null.php" in qa_script)
+check("signed manifest generator has offline schema/integrity tests",
+      (ROOT / "tests/test_create_release_manifest.py").is_file()
+      and "tests/test_create_release_manifest.py" in
+          (ROOT / "tools/run_manual_checks.py").read_text()
+      and "expires_at" in
+          (ROOT / "tools/create_release_manifest.py").read_text())
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
