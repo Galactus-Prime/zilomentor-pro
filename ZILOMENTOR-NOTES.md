@@ -1,4 +1,4 @@
-# ZiloMentor Pro (pre-release 0.1.0)
+# ZiloMentor Pro (limited live beta 0.1.1)
 
 Independent GPLv3-or-later derivative of PRO Elements v4.4.0.
 Upstream: https://github.com/proelements/proelements
@@ -8,6 +8,46 @@ Upstream pinned commit: 58d52e0f10640088aa179e28b40b161c33c57de4
 Preserve Elementor Pro's PHP classes, widgets, template data, hook identifiers
 and standard WordPress plugin basename elementor-pro/elementor-pro.php for
 third-party WordPress themes, without modifying those themes.
+
+## 0.1.1 targeted security hardening and guarded live upgrade (19 November 2026)
+
+The 0.1.1 fork patches an identified direct string-concatenation path in
+`modules/attributes/props-resolver/transformers/settings/pro-attributes-transformer.php`.
+Atomic attributes now validate names and reject event handler attributes,
+`srcdoc`, inline `style`, and suspicious URL protocols; attribute values are
+escaped using WordPress output APIs, preserving safe ordinary `data-*` and
+`aria-*` values. The 10-case adversarial and compatibility runtime test
+passed in a disposable, real WordPress/Elementor environment. This is an
+independently implemented narrow hardening, **not an official or comprehensive
+Elementor Pro 4.4.1 security backport**.
+
+Version 0.1.1 released through the checksum-pinned, filesystem-owner manual
+updater using a release ZIP of **1423 files**, SHA256
+`cf0c74b92eea39e41b839544b8174d28902e81f3ed6189ef4d7433668ee6e67f`.
+Before upgrading, a new private WordPress DB snapshot was preserved. The
+updater verified source/destination plugin identities, incrementing release
+version and archive path safety, moved the previous 0.1.0 code to the private
+rollback directory and verified WordPress Elementor/Pro/WooCommerce startup
+with ZiloMentor 0.1.1. The original Elementor Pro code remains available as
+a second recovery choice. No live database restoration happened.
+
+Verification:
+- **37/37 static checks** and **3/3 synthetic manual release/rollback tests**.
+- **933/933 PHP syntax files** passed on PHP 8.4 and on PHP 8.5.
+- **47/47 combined isolated editor/Theme Builder/responsive/security checks**
+  passed; runtime security tests covered 10 hostile/valid attribute cases.
+- Prior full frontend/popup/cart/offline checkout run passed **61/61** before
+  the narrow security code change; the plugin has not processed real checkout
+  or payment traffic for QA.
+- Read-only live desktop/mobile homepage canary after the 0.1.1 upgrade
+  returned HTTP 200 with unchanged 85/89 Elementor widgets, unchanged
+  JS/HTTP error counts, and **0.0 mean RGB difference** from the original
+  Elementor Pro screenshots at 1366×768 and 390×844.
+
+The current beta remains limited. Investigate other possible source vulnerabilities
+and current upstream release differences before publishing a general production
+release. Signed update feed, security review, and production payment workflow
+certification remain outstanding.
 
 ## Controlled live beta and post-swap QA (19 November 2026, afternoon)
 
