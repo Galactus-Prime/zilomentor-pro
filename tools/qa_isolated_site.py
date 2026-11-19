@@ -51,6 +51,10 @@ def main():
         "--verify-editor-save", action="store_true",
         help="Opt-in synthetic Heading edit/save on the disposable WordPress database only; requires --focus editor and Playwright.",
     )
+    argp.add_argument(
+        "--verify-editor-form-save", action="store_true",
+        help="Opt-in synthetic Pro Form editor save with independent WordPress database/HTTP verification.",
+    )
     argp.add_argument("--php-image", default="zc0140-php84-fpm-redis63-mysqli:local")
     argp.add_argument(
         "--web-server", choices=("php", "nginx-fpm"), default="php",
@@ -79,10 +83,10 @@ def main():
         help="Optional cached image with Playwright available for bounded editor JS checks.",
     )
     args = argp.parse_args()
-    if args.verify_editor_save:
+    if args.verify_editor_save or args.verify_editor_form_save:
         require(args.focus == "editor" and args.editor_playwright_image is not None
                 and args.web_server == "nginx-fpm",
-                "--verify-editor-save needs --focus editor, --web-server nginx-fpm and --editor-playwright-image")
+                "Editor save verification needs --focus editor, --web-server nginx-fpm and --editor-playwright-image")
 
     source = args.source_wordpress.resolve(strict=True)
     require(source.is_dir() and (source / "wp-admin").is_dir()
@@ -1111,6 +1115,91 @@ add_action( 'init', function () {
             record("Synthetic Heading title persisted to WordPress database",
                    result.returncode == 0 and verify_data.get("saved") is True,
                    {"wpcli_exit": result.returncode, "verification": verify_data})
+
+        if args.verify_editor_form_save:
+            # Separate opt-in real editor interaction. It changes only the
+            # hard-coded Form widget in this disposable WordPress database.
+            form_js = plugins_path / "elementor-pro/tests/browser_editor_form_save.js"
+            require(form_js.is_file(), "Missing isolated Pro Form editor QA")
+            form_browser_name = "zmp-qa-form-save-" + tag
+            form_cmd = [
+                "run", "--rm", "--name", form_browser_name,
+                "--network", network, "--memory=1600m", "--cpus=2",
+                "--shm-size=128m",
+                "-e", "NODE_PATH=/usr/lib/node_modules",
+                "-e", "ZMP_QA_EDITOR_TOKEN=" + editor_login_token,
+                "-e", "ZMP_QA_PAGE_ID=" + str(fixtures["page"]),
+                "-e", "ZMP_QA_FORM_SAVE=yes",
+                "-v", str(form_js) + ":/qa/editor_form_save.js:ro",
+                "--entrypoint", "timeout", args.editor_playwright_image,
+                "--signal=TERM", "--kill-after=5s", "80s",
+                "node", "/qa/editor_form_save.js",
+            ]
+            form_state = {}
+            try:
+                form_run = docker(form_cmd, timeout=100)
+                form_line = next((
+                    line[len("ZMP_FORM_SAVE_JSON="):]
+                    for line in form_run.stdout.splitlines()
+                    if line.startswith("ZMP_FORM_SAVE_JSON=")
+                ), None)
+                try:
+                    form_state = json.loads(form_line) if form_line else {}
+                except ValueError:
+                    form_state = {}
+                record("Synthetic Elementor Pro Form changed using editor Publish",
+                       form_run.returncode == 0
+                       and all(form_state.get(k) is True for k in (
+                           "authenticated", "proFormFound", "proFormSelected",
+                           "initialFormNameMatched", "editedFormNameMatched",
+                           "actualSaveButtonClicked",
+                       ))
+                       and form_state.get("pageErrors") == 0
+                       and form_state.get("failedLocalRequests") == 0
+                       and form_state.get("localHttpErrors") == 0,
+                       {"exit_code": form_run.returncode, "state": form_state})
+            except subprocess.TimeoutExpired:
+                record("Synthetic Elementor Pro Form changed using editor Publish",
+                       False, {"hard_timeout": True})
+            finally:
+                docker(["rm", "-f", form_browser_name], 20)
+
+            # A separate WP-CLI process validates the actual serialized
+            # Elementor model, widget type and unchanged synthetic submit text.
+            form_verify = (
+                '$d=json_decode(get_post_meta(' + str(fixtures["page"]) +
+                ', "_elementor_data", true), true);'
+                '$found=false;$saved=false;$unchanged=false;'
+                '$scan=function($n)use(&$scan,&$found,&$saved,&$unchanged){'
+                'foreach((array)$n as $item){if(!is_array($item))continue;'
+                'if(($item["id"]??"")==="1a2b3c4d"){$found=true;'
+                '$saved=(($item["widgetType"]??"")==="form"&&'
+                '($item["settings"]["form_name"]??"")==="ZiloMentor QA Saved Form");'
+                '$unchanged=($item["settings"]["button_text"]??"")==="Submit";}'
+                'if(!empty($item["elements"]))$scan($item["elements"]);}};'
+                '$scan($d);echo wp_json_encode(["found"=>$found,'
+                '"saved"=>$saved,"button_unchanged"=>$unchanged]);'
+            )
+            form_result = wp("eval", form_verify)
+            try:
+                form_db = json.loads(form_result.stdout.strip())
+            except ValueError:
+                form_db = {}
+            record("Synthetic Pro Form editor value persisted in WordPress database",
+                   form_result.returncode == 0
+                   and form_db.get("found") is True
+                   and form_db.get("saved") is True
+                   and form_db.get("button_unchanged") is True,
+                   {"wpcli_exit": form_result.returncode, "verification": form_db})
+            form_status, form_html, form_err = request(
+                "?page_id=" + str(fixtures["page"])
+            )
+            record("Saved Pro Form name rendered on isolated frontend",
+                   form_status == 200 and
+                   'name="ZiloMentor QA Saved Form"' in form_html,
+                   {"status": form_status, "error": form_err,
+                    "rendered_name_present":
+                        'name="ZiloMentor QA Saved Form"' in form_html})
 
         if args.focus == "editor":
             print("QA_RESULTS_JSON=" + json.dumps(observations), flush=True)
