@@ -708,7 +708,7 @@ abstract class Posts_Base extends Base_Widget {
 
 		// A REST/editor preview can have no global post, or refer to a
 		// deleted post. Never dereference null when choosing a page URL.
-		if ( ! $post instanceof \\WP_Post ) {
+		if ( ! $post instanceof \WP_Post ) {
 			return esc_url( get_pagenum_link( $i ) );
 		}
 
