@@ -18,7 +18,7 @@ plugin = PLUGIN.read_text()
 check("honest independent plugin branding", "Plugin Name: ZiloMentor Pro" in main)
 check("safe exact plugin basename at install path", "define( 'ELEMENTOR_PRO_PLUGIN_BASE', plugin_basename( ELEMENTOR_PRO__FILE__ ) );" in main)
 check("Elementor Pro API version retained", "define( 'ELEMENTOR_PRO_VERSION', '4.4.0' )" in main)
-check("independent fork release version", "define( 'ZILOMENTOR_VERSION', '0.1.1' )" in main)
+check("independent fork release version", "define( 'ZILOMENTOR_VERSION', '0.1.2' )" in main)
 check("ElementorPro PHP namespace preserved", "namespace ElementorPro;" in plugin)
 check("original Elementor Pro bootstrap symbol available", "function elementor_pro_load_plugin()" in main)
 check("ZiloMentor Pro user-facing interface labels",
@@ -214,6 +214,26 @@ check("release archive uses tracked source only, excludes runtime logs",
       and (ROOT / "tests/test_build_zip.py").is_file()
       and "tests/test_build_zip.py" in
           (ROOT / "tools/run_manual_checks.py").read_text())
+check("0.1.2 requires authentic Ed25519 release manifest and private trust root",
+      (ROOT / "tools/release_signature.php").is_file()
+      and (ROOT / "tools/create_release_manifest.py").is_file()
+      and "sodium_crypto_sign_verify_detached" in
+          (ROOT / "tools/release_signature.php").read_text()
+      and "verify_signed_release(" in
+          (ROOT / "tools/manual_live_swap.py").read_text()
+      and 'version_parts(target_version) >= (0, 1, 2)' in
+          (ROOT / "tools/manual_live_swap.py").read_text()
+      and "test_offline_ed25519_manifest_and_tamper_rejection" in
+          (ROOT / "tests/test_manual_live_swap.py").read_text())
+check("legacy custom attribute XSS hardening and synthetic frontend coverage",
+      "esc_url_raw( $value )" in
+          (ROOT / "modules/custom-attributes/module.php").read_text()
+      and "onmouseover" in
+          (ROOT / "tests/fixtures/seed_synthetic.php").read_text()
+      and "Legacy custom HTML attributes reject executable injection" in qa_script)
+check("Posts widget null-post pagination protection",
+      "if ( ! $post instanceof \\WP_Post )" in
+          (ROOT / "modules/posts/widgets/posts-base.php").read_text())
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
