@@ -32,7 +32,7 @@ plugin version and must be tested.
 | Theme Builder, dynamic tags and product widgets | 196 widgets registered; ACF text renders in a real Elementor Heading; synthetic Header conditions and Popup Page Load, On Scroll and Exit Intent browser triggers passed in isolated Fiore; other template/trigger combinations pending |
 | Vamtam Fiore integration on ItzyBitzyWorkshop | Isolated plugin activation passed on PHP 8.4/8.5; visual tests pending |
 | WordPress plugin path elementor-pro/elementor-pro.php | Provided when staging ZIP is installed |
-| WordPress editing and responsive layouts | Browser DOM passed at two sizes; Nginx/PHP-FPM editor panel populated (156 ZiloMentor controls vs 81 free); synthetic Heading title edited with the real Publish button and independently verified in WordPress post meta; pixel fidelity and more editor workflows pending |
+| WordPress editing and responsive layouts | Browser DOM passed at two sizes; Nginx/PHP-FPM editor panel populated (156 ZiloMentor controls vs 81 free); synthetic Heading and Pro Form settings edited with real editor Publish/Update controls and independently verified in WordPress post meta (Form Name also verified over HTTP); pixel fidelity and more editor workflows pending |
 | WooCommerce cart, checkout and payments | 55/55 isolated HTTP/integration checks passed; registered Cart, AJAX mini-cart, guest checkout and synthetic offline bank-transfer order creation verified; card gateways, shipping and tax scenarios remain untested |
 | Automated updates | Upstream updater disabled; independent signed updater pending |
 
@@ -87,6 +87,12 @@ actual **Publish** button, and WP-CLI independently verified the new title
 persisted in the disposable database.
 
     python3 tools/run_manual_checks.py --source-wordpress /path/to/wordpress --web-server nginx-fpm --focus editor --editor-playwright-image haven-browser-qa:1.62.1 --verify-editor-save
+
+A focused **40/40** isolated test run verified a real Form Name edit, editor
+Publish/Update click, persisted Elementor document data and rendered frontend.
+Chromium reported one benign `net::ERR_ABORTED` request cancellation, tracked
+separately from network and HTTP failures; there were no real local request
+failures, page JS errors or HTTP errors.
 
 The separate opt-in **Pro Form editor persistence** check selects only the
 synthetic Form widget, changes its Form Name through Elementor's normal editor
