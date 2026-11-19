@@ -54,6 +54,36 @@ This validates tested front-end behaviours, not the Popup editor UI,
 additional popup triggers, real messages, checkout gateway payments, or
 cross-theme visual fidelity.
 
+## Real Pro Form editor save and browser cancellation diagnosis (19 November 2026)
+
+The `--verify-editor-form-save` test exercises a **Pro-only widget** through
+the actual Elementor editor, not direct WordPress writes. Playwright selects
+the known synthetic Form widget, confirms its initial Form Name, changes the
+text in Elementor's panel, observes the name change in the preview and clicks
+the real Publish/Update button. Independently, WP-CLI confirms the correct
+Form widget's `form_name` persisted in `_elementor_data` without changing
+its Submit button text. A separate anonymous HTTP request confirms the new
+Form Name appears in rendered markup.
+
+- **40/40** focused editor/runtime/integration checks passed against
+  disposable WordPress, Fiore and ZiloMentor Pro on Nginx/PHP 8.4-FPM.
+- The initial run saved and rendered the Form correctly but reported one
+  browser request failure and therefore exited nonzero.
+- Instrumentation identified the request as `/index.php`,
+  `net::ERR_ABORTED`, an intentional Chromium request cancellation. The
+  runner counts it separately from actual local request failures and from
+  HTTP 4xx/5xx responses. The second run passed with zero JS errors, zero
+  genuine local request failures and zero local HTTP errors.
+- Free Elementor-only editor baseline still populated correctly; the
+  ZiloMentor editor's Heading selection and Pro widget accessibility passed.
+- Both the disposable WordPress database and internal Docker resources
+  were cleaned up. No production administrator, user, Form or customer data
+  was used. No outbound form mail or actual payment was sent.
+
+This is not certification of Form field repeaters, integrations,
+transactional delivery, responsive layouts, undo/redo, Theme Builder editing
+or pixel-level design fidelity. Release remains blocked.
+
 ## Critical limitations
 - Prototype only. Static checks are not full WordPress/theme runtime tests.
 - Free Elementor must be installed and compatible.
