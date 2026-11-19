@@ -84,6 +84,24 @@ class ManualSwapTests(unittest.TestCase):
                 swap.main()
             return stdout.getvalue()
 
+    def test_signing_private_key_never_generated_in_repository(self):
+        sodium_php = Path("/opt/cpanel/ea-php84/root/usr/bin/php")
+        if not sodium_php.is_file():
+            self.skipTest("No PHP CLI with Sodium")
+        repository = self.root / "synthetic-git-checkout"
+        (repository / ".git").mkdir(parents=True)
+        priv = repository / "forbidden-private.key"
+        pub = repository / "forbidden-public.key"
+        verifier = SOURCE.with_name("release_signature.php")
+        result = subprocess.run(
+            [str(sodium_php), str(verifier), "generate",
+             str(priv), str(pub)],
+            capture_output=True, text=True,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(priv.exists())
+        self.assertFalse(pub.exists())
+
     def test_unsigned_release_012_fails_closed(self):
         package, digest = self.zip("0.1.2")
         with self.assertRaisesRegex(RuntimeError, "requires an independently signed"):
