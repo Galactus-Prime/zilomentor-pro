@@ -198,6 +198,15 @@ check("manual SHA256-checked installation supports safe prior/official rollback"
       and "DATABASE_NOT_RESTORED=YES" in (ROOT / "tools/manual_live_swap.py").read_text()
       and "tests/test_manual_live_swap.py" in
           (ROOT / "tools/run_manual_checks.py").read_text())
+check("atomic attributes security escapes output and excludes event handlers",
+      (ROOT / "tests/runtime_atomic_attributes_security.php").is_file()
+      and "runtime_atomic_attributes_security.php" in qa_script
+      and "ZMP_ISOLATED_QA" in
+          (ROOT / "tests/runtime_atomic_attributes_security.php").read_text()
+      and all(token in
+          (ROOT / "modules/attributes/props-resolver/transformers/settings/pro-attributes-transformer.php").read_text()
+          for token in ("esc_attr( $raw )", "esc_url( $raw )",
+                        "wp_kses_uri_attributes()", "srcdoc", "style")))
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
