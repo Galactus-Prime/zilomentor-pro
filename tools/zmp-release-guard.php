@@ -61,7 +61,12 @@ function zmp_release_guard_block( $result, $extra ) {
     return $result;
 }
 
-add_filter( 'upgrader_pre_download', 'zmp_release_guard_block', 10, 4 );
+function zmp_release_guard_pre_download( $reply, $package, $upgrader, $extra ) {
+    // upgrader_pre_download supplies $package before $hook_extra. Keep this
+    // wrapper distinct from upgrader_pre_install to avoid argument confusion.
+    return zmp_release_guard_block( $reply, $extra );
+}
+add_filter( 'upgrader_pre_download', 'zmp_release_guard_pre_download', 10, 4 );
 add_filter( 'upgrader_pre_install', 'zmp_release_guard_block', 10, 2 );
 
 function zmp_release_guard_source( $source, $remote_source, $upgrader, $extra ) {
