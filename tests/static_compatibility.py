@@ -18,7 +18,7 @@ plugin = PLUGIN.read_text()
 check("honest independent plugin branding", "Plugin Name: ZiloMentor Pro" in main)
 check("safe exact plugin basename at install path", "define( 'ELEMENTOR_PRO_PLUGIN_BASE', plugin_basename( ELEMENTOR_PRO__FILE__ ) );" in main)
 check("Elementor Pro API version retained", "define( 'ELEMENTOR_PRO_VERSION', '4.4.0' )" in main)
-check("independent fork release version", "define( 'ZILOMENTOR_VERSION', '0.1.0' )" in main)
+check("independent fork release version", "define( 'ZILOMENTOR_VERSION', '0.1.1' )" in main)
 check("ElementorPro PHP namespace preserved", "namespace ElementorPro;" in plugin)
 check("original Elementor Pro bootstrap symbol available", "function elementor_pro_load_plugin()" in main)
 check("ZiloMentor Pro user-facing interface labels",
