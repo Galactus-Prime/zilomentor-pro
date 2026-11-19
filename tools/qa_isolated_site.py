@@ -55,6 +55,10 @@ def main():
         "--verify-editor-form-save", action="store_true",
         help="Opt-in synthetic Pro Form editor save with independent WordPress database/HTTP verification.",
     )
+    argp.add_argument(
+        "--verify-theme-builder-save", action="store_true",
+        help="Opt-in isolated Theme Builder Header template editor save plus page-condition render verification.",
+    )
     argp.add_argument("--php-image", default="zc0140-php84-fpm-redis63-mysqli:local")
     argp.add_argument(
         "--web-server", choices=("php", "nginx-fpm"), default="php",
@@ -83,7 +87,8 @@ def main():
         help="Optional cached image with Playwright available for bounded editor JS checks.",
     )
     args = argp.parse_args()
-    if args.verify_editor_save or args.verify_editor_form_save:
+    if (args.verify_editor_save or args.verify_editor_form_save
+            or args.verify_theme_builder_save):
         require(args.focus == "editor" and args.editor_playwright_image is not None
                 and args.web_server == "nginx-fpm",
                 "Editor save verification needs --focus editor, --web-server nginx-fpm and --editor-playwright-image")
@@ -1208,6 +1213,103 @@ add_action( 'init', function () {
                    {"status": form_status, "error": form_err,
                     "rendered_name_present":
                         'name="ZiloMentor QA Saved Form"' in form_html})
+
+        if args.verify_theme_builder_save:
+            # This login token works only on web:8080, for the fixture
+            # named exactly ZMP Synthetic Header (elementor_library/header).
+            header_id = theme_fixtures["documents"]["header"]["id"]
+            theme_js = plugins_path / "elementor-pro/tests/browser_theme_editor_save.js"
+            require(theme_js.is_file(), "Missing Theme Builder editor regression")
+            theme_browser_name = "zmp-qa-theme-save-" + tag
+            theme_cmd = [
+                "run", "--rm", "--name", theme_browser_name,
+                "--network", network, "--memory=1600m", "--cpus=2",
+                "--shm-size=128m",
+                "-e", "NODE_PATH=/usr/lib/node_modules",
+                "-e", "ZMP_QA_EDITOR_TOKEN=" + editor_login_token,
+                "-e", "ZMP_QA_HEADER_ID=" + str(header_id),
+                "-e", "ZMP_QA_THEME_SAVE=yes",
+                "-v", str(theme_js) + ":/qa/theme_save.js:ro",
+                "--entrypoint", "timeout", args.editor_playwright_image,
+                "--signal=TERM", "--kill-after=5s", "90s",
+                "node", "/qa/theme_save.js",
+            ]
+            theme_state = {}
+            try:
+                theme_run = docker(theme_cmd, timeout=110)
+                theme_line = next((
+                    line[len("ZMP_THEME_SAVE_JSON="):]
+                    for line in theme_run.stdout.splitlines()
+                    if line.startswith("ZMP_THEME_SAVE_JSON=")
+                ), None)
+                try:
+                    theme_state = json.loads(theme_line) if theme_line else {}
+                except ValueError:
+                    theme_state = {}
+                record("Synthetic Theme Builder Header changed and published in editor",
+                       theme_run.returncode == 0 and
+                       all(theme_state.get(k) is True for k in (
+                           "authenticated", "headerWidgetFound", "headingSelected",
+                           "originalMatched", "editedMatched", "saveClicked",
+                       )) and
+                       all(theme_state.get(k) == 0 for k in (
+                           "pageErrors", "httpErrors", "requestFailures",
+                       )),
+                       {"exit_code": theme_run.returncode, "state": theme_state})
+            except subprocess.TimeoutExpired:
+                record("Synthetic Theme Builder Header changed and published in editor",
+                       False, {"hard_timeout": True})
+            finally:
+                docker(["rm", "-f", theme_browser_name], 20)
+
+            header_verify = (
+                '$id=' + str(header_id) + ';'
+                '$type=get_post_meta($id,"_elementor_template_type",true);'
+                '$d=json_decode(get_post_meta($id,"_elementor_data",true),true);'
+                '$saved=false;'
+                '$scan=function($n)use(&$scan,&$saved){'
+                'foreach((array)$n as $item){if(!is_array($item))continue;'
+                'if(($item["id"]??"")==="7a0b1c01"){'
+                '$saved=(($item["widgetType"]??"")==="heading"&&'
+                '($item["settings"]["title"]??"")==="ZiloMentor QA Saved Header");}'
+                'if(!empty($item["elements"]))$scan($item["elements"]);}};'
+                '$scan($d);echo wp_json_encode(["type"=>$type,"saved"=>$saved]);'
+            )
+            header_result = wp("eval", header_verify)
+            try:
+                header_db = json.loads(header_result.stdout.strip())
+            except ValueError:
+                header_db = {}
+            record("Theme Builder Header title persisted to WordPress database",
+                   header_result.returncode == 0
+                   and header_db.get("type") == "header"
+                   and header_db.get("saved") is True,
+                   {"wpcli_exit": header_result.returncode,
+                    "verification": header_db})
+            target_status, target_body, target_err = request(
+                "?page_id=" + str(theme_fixtures["target"])
+                + "&zmp_qa_theme_popup=1"
+            )
+            unrelated_status, unrelated_body, unrelated_err = request(
+                "?page_id=" + str(fixtures["plain"])
+                + "&zmp_qa_theme_popup=1"
+            )
+            try:
+                target_data = json.loads(target_body)
+                unrelated_data = json.loads(unrelated_body)
+            except ValueError:
+                target_data = {}
+                unrelated_data = {}
+            record("Edited Header renders only on its intended synthetic page",
+                   target_status == 200 and unrelated_status == 200
+                   and target_data.get("header_saved_marker") is True
+                   and target_data.get("header_marker") is False
+                   and unrelated_data.get("header_saved_marker") is False,
+                   {"target_status": target_status,
+                    "unrelated_status": unrelated_status,
+                    "target_saved": target_data.get("header_saved_marker"),
+                    "unrelated_saved": unrelated_data.get("header_saved_marker"),
+                    "errors": [target_err, unrelated_err]})
 
         if args.focus == "editor":
             print("QA_RESULTS_JSON=" + json.dumps(observations), flush=True)
