@@ -4,8 +4,11 @@ from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
 import hashlib
+from datetime import datetime, timedelta, timezone
+import json
 import importlib.util
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -80,6 +83,74 @@ class ManualSwapTests(unittest.TestCase):
             with redirect_stdout(stdout):
                 swap.main()
             return stdout.getvalue()
+
+    def test_unsigned_release_012_fails_closed(self):
+        package, digest = self.zip("0.1.2")
+        with self.assertRaisesRegex(RuntimeError, "requires an independently signed"):
+            self.run_command("--zip", str(package), "--sha256", digest, "--apply")
+        self.assertEqual(swap.plugin_name(self.plugin), "Elementor Pro")
+
+    def test_offline_ed25519_manifest_and_tamper_rejection(self):
+        sodium_php = Path("/opt/cpanel/ea-php84/root/usr/bin/php")
+        if not sodium_php.is_file():
+            self.skipTest("No PHP CLI with Sodium")
+        verifier = SOURCE.with_name("release_signature.php")
+        package, digest = self.zip("0.1.2")
+        private = self.backup / "synthetic-private-only-in-test.b64"
+        public = self.backup / "trusted-release-public.b64"
+        signature = self.root / "release.sig"
+        manifest_path = self.root / "release.json"
+        subprocess.run([str(sodium_php), str(verifier), "generate",
+                        str(private), str(public)], check=True,
+                       capture_output=True, text=True)
+        now = datetime.now(timezone.utc).replace(microsecond=0)
+        manifest = {
+            "schema": 1, "plugin": "elementor-pro/elementor-pro.php",
+            "version": "0.1.2", "filename": package.name,
+            "sha256": digest, "size_bytes": package.stat().st_size,
+            "issued_at": now.isoformat().replace("+00:00", "Z"),
+            "expires_at": (now + timedelta(days=30)).isoformat().replace("+00:00", "Z"),
+        }
+        manifest_path.write_text(json.dumps(manifest, sort_keys=True) + "\\n")
+        subprocess.run([str(sodium_php), str(verifier), "sign",
+                        str(manifest_path), str(private), str(signature)],
+                       check=True, capture_output=True, text=True)
+        signed = ("--zip", str(package), "--sha256", digest,
+                  "--signed-manifest", str(manifest_path),
+                  "--signature", str(signature),
+                  "--trusted-public-key", str(public))
+        with patch.object(swap, "PHP_CLI", sodium_php):
+            preflight = self.run_command(*signed, "--require-signature")
+            self.assertIn('"signed": true', preflight)
+            self.assertIn("DRY_RUN=YES", preflight)
+            installed = self.run_command(*signed, "--apply")
+            self.assertIn("DEPLOYED=YES", installed)
+            self.assertEqual(swap.plugin_version(self.plugin), "0.1.2")
+            # The signature covers the EXACT manifest bytes, so a single
+            # character modification must fail before touching installed files.
+            manifest_path.write_text(json.dumps({**manifest, "size_bytes": 1}) + "\\n")
+            with self.assertRaisesRegex(RuntimeError, "Ed25519 signature is invalid"):
+                swap.verify_signed_release(
+                    package, digest, "0.1.2", manifest_path,
+                    signature, public, self.backup,
+                )
+            self.assertEqual(swap.plugin_version(self.plugin), "0.1.2")
+            # Restore valid signature and independently reject an expired
+            # manifest even if it was signed by the trusted key.
+            expired = dict(manifest)
+            expired["issued_at"] = (now - timedelta(days=32)).isoformat().replace("+00:00", "Z")
+            expired["expires_at"] = (now - timedelta(days=1)).isoformat().replace("+00:00", "Z")
+            expired_path = self.root / "expired.json"
+            expired_sig = self.root / "expired.sig"
+            expired_path.write_text(json.dumps(expired) + "\\n")
+            subprocess.run([str(sodium_php), str(verifier), "sign",
+                            str(expired_path), str(private), str(expired_sig)],
+                           check=True, capture_output=True, text=True)
+            with self.assertRaisesRegex(RuntimeError, "expired or has invalid"):
+                swap.verify_signed_release(
+                    package, digest, "0.1.2", expired_path,
+                    expired_sig, public, self.backup,
+                )
 
     def test_verified_first_deploy_update_and_both_rollbacks(self):
         package_010, hash_010 = self.zip("0.1.0")
