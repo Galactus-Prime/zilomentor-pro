@@ -90,6 +90,9 @@ persisted in the disposable database.
 
 A focused **40/40** isolated test run verified a real Form Name edit, editor
 Publish/Update click, persisted Elementor document data and rendered frontend.
+A combined **42/42** isolated run also confirmed the Heading and Pro Form can
+both be edited and published within one disposable WordPress installation,
+with the two saves independently checked through WP-CLI.
 Chromium reported one benign `net::ERR_ABORTED` request cancellation, tracked
 separately from network and HTTP failures; there were no real local request
 failures, page JS errors or HTTP errors.
