@@ -501,7 +501,7 @@ add_action( 'init', function () {
                 "Fiore activation failed")
         for filename in ("runtime_bootstrap.php", "runtime_widgets.php",
                          "runtime_atomic_attributes_security.php",
-                         "runtime_posts_null.php"):
+                         "runtime_posts_null.php", "runtime_release_guard.php"):
             p = wp("eval-file",
                    "wp-content/plugins/elementor-pro/tests/" + filename,
                    environment={"ZMP_ISOLATED_QA": "yes"})
@@ -510,7 +510,7 @@ add_action( 'init', function () {
                             "security_checks": p.stdout.strip().splitlines()[:15]
                             if filename == "runtime_atomic_attributes_security.php" else
                             (p.stdout.strip().splitlines()[:6]
-                             if filename == "runtime_posts_null.php" else [])}),
+                             if filename in ("runtime_posts_null.php", "runtime_release_guard.php") else [])}),
                     "Runtime check failed: " + (p.stdout + p.stderr)[-500:])
 
         p = wp(
