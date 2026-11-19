@@ -149,6 +149,16 @@ check("frontend Popup QA blocks external requests and verifies automatic trigger
       and "popupAutoOpened" in qa_script
       and "--frontend-playwright-image" in
       (ROOT / "tools/run_manual_checks.py").read_text())
+check("scroll and exit-intent popups are isolated in browser QA",
+      all(key in (ROOT / "tests/fixtures/seed_theme_popup.php").read_text()
+          for key in ("scrolling_offset", "exit_intent", "scroll_target", "exit_target"))
+      and all(key in (ROOT / "tests/browser_theme_popup.js").read_text()
+              for key in ("scrollPopupAbsentBeforeScroll", "scrollPopupOpenedByScroll",
+                          "exitPopupAbsentBeforeIntent", "exitPopupOpenedByIntent"))
+      and "Popup page-specific condition:" in qa_script)
+check("staging ZIP excludes transient cPanel CLI cache",
+      '.ea-php-cli' in (ROOT / "tools/build_zip.py").read_text()
+      and '.ea-php-cli' in qa_script)
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
