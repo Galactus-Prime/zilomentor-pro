@@ -152,10 +152,20 @@ These protections are checked in synthetic installer/security tests.
    retained privately for file-only rollback.
 
 The signer refuses to overwrite existing key/signature files and enforces
-0600 permissions for private signing keys. This is a **signed, owner-operated
-manual update pathway**, not yet a self-hosted automatic update service or
-public one-click WordPress updater. There is deliberately **no live signing
-key and no 0.1.2 production deployment** at this stage.
+0600 permissions for private signing keys, refusing to create one in a Git
+working tree. This is a **signed, owner-operated manual update pathway**,
+not yet a self-hosted automatic update service or public one-click WordPress
+updater. There is deliberately **no operational live signing key and no 0.1.2
+production deployment** at this stage.
+
+**0.1.2 isolated evidence:** 64/64 frontend/Popup/WooCommerce checks passed
+(including a synthetic offline on-hold order). A separate 49/49 authenticated
+editor suite passed Heading/Form/conditional Header save/publish and responsive
+breakpoint switching. The Posts REST-preview guard was actually exercised,
+with zero PHP warnings, and the legacy custom attribute injection regression
+passed on rendered HTML. The manual release tests prove unsigned/expired/
+modified signatures and unsafe packages are rejected; additional review
+of real payment gateways and full official 4.4.1 patch equivalence remains.
 
 ## Build and test (development only)
 
