@@ -59,6 +59,10 @@ def main():
         "--verify-theme-builder-save", action="store_true",
         help="Opt-in isolated Theme Builder Header template editor save plus page-condition render verification.",
     )
+    argp.add_argument(
+        "--verify-editor-responsive", action="store_true",
+        help="Opt-in isolated real Elementor tablet, mobile and desktop editor switching checks.",
+    )
     argp.add_argument("--php-image", default="zc0140-php84-fpm-redis63-mysqli:local")
     argp.add_argument(
         "--web-server", choices=("php", "nginx-fpm"), default="php",
@@ -88,7 +92,7 @@ def main():
     )
     args = argp.parse_args()
     if (args.verify_editor_save or args.verify_editor_form_save
-            or args.verify_theme_builder_save):
+            or args.verify_theme_builder_save or args.verify_editor_responsive):
         require(args.focus == "editor" and args.editor_playwright_image is not None
                 and args.web_server == "nginx-fpm",
                 "Editor save verification needs --focus editor, --web-server nginx-fpm and --editor-playwright-image")
@@ -1310,6 +1314,55 @@ add_action( 'init', function () {
                     "target_saved": target_data.get("header_saved_marker"),
                     "unrelated_saved": unrelated_data.get("header_saved_marker"),
                     "errors": [target_err, unrelated_err]})
+
+        if args.verify_editor_responsive:
+            responsive_js = plugins_path / "elementor-pro/tests/browser_editor_responsive.js"
+            require(responsive_js.is_file(), "Missing responsive Elementor editor QA")
+            responsive_browser_name = "zmp-qa-responsive-" + tag
+            responsive_cmd = [
+                "run", "--rm", "--name", responsive_browser_name,
+                "--network", network, "--memory=1600m", "--cpus=2",
+                "--shm-size=128m",
+                "-e", "NODE_PATH=/usr/lib/node_modules",
+                "-e", "ZMP_QA_EDITOR_TOKEN=" + editor_login_token,
+                "-e", "ZMP_QA_PAGE_ID=" + str(fixtures["page"]),
+                "-e", "ZMP_QA_RESPONSIVE=yes",
+                "-v", str(responsive_js) + ":/qa/responsive.js:ro",
+                "--entrypoint", "timeout", args.editor_playwright_image,
+                "--signal=TERM", "--kill-after=5s", "85s",
+                "node", "/qa/responsive.js",
+            ]
+            responsive_state = {}
+            try:
+                responsive_run = docker(responsive_cmd, timeout=105)
+                responsive_line = next((
+                    line[len("ZMP_RESPONSIVE_JSON="):]
+                    for line in responsive_run.stdout.splitlines()
+                    if line.startswith("ZMP_RESPONSIVE_JSON=")
+                ), None)
+                try:
+                    responsive_state = json.loads(responsive_line) if responsive_line else {}
+                except ValueError:
+                    responsive_state = {}
+                record("Real Elementor editor responsive Desktop Tablet Mobile switching",
+                       responsive_run.returncode == 0 and
+                       all(responsive_state.get(k) is True for k in (
+                           "authenticated", "controlsPresent", "desktopInitiallySelected",
+                           "tabletSelected", "mobileSelected", "desktopRestored",
+                           "tabletWidthValid", "mobileWidthValid",
+                           "desktopWidthRestored", "headingStillPresent",
+                           "formStillPresent",
+                       )) and
+                       all(responsive_state.get(k) == 0 for k in (
+                           "pageErrors", "httpErrors", "failedLocalRequests",
+                       )),
+                       {"exit_code": responsive_run.returncode,
+                        "state": responsive_state})
+            except subprocess.TimeoutExpired:
+                record("Real Elementor editor responsive Desktop Tablet Mobile switching",
+                       False, {"hard_timeout": True})
+            finally:
+                docker(["rm", "-f", responsive_browser_name], 20)
 
         if args.focus == "editor":
             print("QA_RESULTS_JSON=" + json.dumps(observations), flush=True)
