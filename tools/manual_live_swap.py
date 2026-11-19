@@ -23,6 +23,7 @@ orders and payments created after the snapshot.
 """
 from __future__ import annotations
 import argparse
+from datetime import datetime, timedelta, timezone
 import fcntl
 import hashlib
 import json
@@ -112,12 +113,85 @@ def wp_health(site: Path, expected_zmp: bool, expected_version: str | None = Non
     return state
 
 
+
+def verify_signed_release(package: Path, digest: str, version: str,
+                          manifest_path: Path, signature_path: Path,
+                          public_key_path: Path, backup: Path):
+    """Enforce an independently pinned offline Ed25519 trust anchor."""
+    if (public_key_path.is_symlink()
+            or not inside(public_key_path, backup)
+            or not public_key_path.is_file()
+            or public_key_path.stat().st_uid != os.geteuid()):
+        fail("Trusted public key must be owner-owned in private backup directory")
+    if public_key_path.stat().st_mode & 0o022:
+        fail("Trusted public key is group/world writable")
+    if manifest_path.is_symlink() or signature_path.is_symlink():
+        fail("Signature and manifest must be regular files")
+    if (not manifest_path.is_file() or not signature_path.is_file()
+            or manifest_path.stat().st_size > 4096):
+        fail("Signed release manifest or signature unavailable")
+    signature_tool = Path(__file__).resolve().with_name("release_signature.php")
+    if not signature_tool.is_file():
+        fail("Trusted local Ed25519 verifier is missing")
+    p = subprocess.run(
+        [str(PHP_CLI), str(signature_tool), "verify",
+         str(manifest_path), str(public_key_path), str(signature_path)],
+        capture_output=True, text=True, timeout=25,
+    )
+    if p.returncode != 0 or "VALID_ED25519_RELEASE_SIGNATURE" not in p.stdout:
+        fail("Release manifest Ed25519 signature is invalid")
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (ValueError, UnicodeError):
+        fail("Signed manifest is not valid JSON")
+    expected_fields = {
+        "schema", "plugin", "version", "filename", "sha256",
+        "size_bytes", "issued_at", "expires_at",
+    }
+    if not isinstance(manifest, dict) or set(manifest) != expected_fields:
+        fail("Signed manifest schema contains missing or unknown fields")
+    if (
+        type(manifest["schema"]) is not int or manifest["schema"] != 1
+        or manifest["plugin"] != "elementor-pro/elementor-pro.php"
+        or manifest["version"] != version
+        or manifest["filename"] != package.name
+        or manifest["sha256"] != digest
+        or type(manifest["size_bytes"]) is not int
+        or manifest["size_bytes"] != package.stat().st_size
+    ):
+        fail("Signed release manifest does not describe the exact ZIP")
+    try:
+        issued = datetime.fromisoformat(manifest["issued_at"].replace("Z", "+00:00"))
+        expires = datetime.fromisoformat(manifest["expires_at"].replace("Z", "+00:00"))
+        now = datetime.now(timezone.utc)
+        valid_window = (timedelta(0) < expires - issued <= timedelta(days=180))
+        if (issued.tzinfo is None or expires.tzinfo is None
+                or issued > now + timedelta(minutes=5) or expires <= now
+                or not valid_window):
+            fail("Signed release manifest expired or has invalid timestamps")
+    except (ValueError, AttributeError, TypeError):
+        fail("Signed release manifest has invalid timestamps")
+    return {
+        "signed": True,
+        "public_key_sha256": hashlib.sha256(public_key_path.read_bytes()).hexdigest(),
+        "expires_at": manifest["expires_at"],
+    }
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--site", type=Path, required=True)
     ap.add_argument("--backup-dir", type=Path, required=True)
     ap.add_argument("--zip", type=Path)
     ap.add_argument("--sha256")
+    ap.add_argument("--signed-manifest", type=Path,
+                    help="Detached-signed JSON describing this exact ZIP")
+    ap.add_argument("--signature", type=Path,
+                    help="Ed25519 signature file generated on an offline machine")
+    ap.add_argument("--trusted-public-key", type=Path,
+                    help="Previously approved public key inside private backup directory")
+    ap.add_argument("--require-signature", action="store_true",
+                    help="Refuse unsigned packages; required for updates from 0.1.2 onward")
     mode = ap.add_mutually_exclusive_group()
     mode.add_argument("--apply", action="store_true")
     mode.add_argument("--rollback", action="store_true")
@@ -200,6 +274,7 @@ def main():
         if digest != args.sha256:
             fail("Staging ZIP SHA256 mismatch")
         file_count = 0
+        expanded_bytes = 0
         with zipfile.ZipFile(source_zip) as z:
             bad = z.testzip()
             if bad is not None:
@@ -216,6 +291,13 @@ def main():
                     fail("Symlink in release archive")
                 if not info.is_dir():
                     file_count += 1
+                    expanded_bytes += info.file_size
+                    if expanded_bytes > 90 * 1024 * 1024:
+                        fail("Release archive uncompressed size exceeds cap")
+                    if (Path(n).name.lower() in ("error_log", "debug.log", ".env",
+                                                   "wp-config.php")
+                            or Path(n).suffix.lower() in (".log", ".sql", ".pem", ".key")):
+                        fail("Runtime log, credentials or database file in ZIP")
                     if info.file_size > 15 * 1024 * 1024:
                         fail("Unreasonably large release archive member")
                 names.add(n)
@@ -230,11 +312,32 @@ def main():
             target_version = match.group(1)
             if is_update and version_parts(target_version) <= version_parts(plugin_version(current)):
                 fail("Refusing non-increasing ZiloMentor version")
+        signature_parts = (
+            args.signed_manifest, args.signature, args.trusted_public_key,
+        )
+        if any(part is not None for part in signature_parts) and not all(
+            part is not None for part in signature_parts
+        ):
+            fail("Must provide manifest, signature and trusted public key together")
+        # New signed-release series must never fall back to the legacy
+        # caller-supplied SHA256 alone. Existing earlier deployments retain
+        # the explicit legacy mode to allow emergency rollback.
+        signature_required = args.require_signature or version_parts(target_version) >= (0, 1, 2)
+        if signature_required and not all(part is not None for part in signature_parts):
+            fail("This release requires an independently signed manifest")
+        signature_info = {"signed": False}
+        if all(part is not None for part in signature_parts):
+            signature_info = verify_signed_release(
+                source_zip, digest, target_version,
+                args.signed_manifest, args.signature,
+                args.trusted_public_key, backup,
+            )
         print("PREFLIGHT_OK=" + json.dumps({
             "current":installed, "next":EXPECTED_NEW,
             "target_version":target_version,"is_update":is_update,
             "sha256":digest, "files":file_count,
             "siteOwner":os.geteuid(), "privateBackup":True,
+            "release_signature": signature_info,
         }, sort_keys=True))
         if not args.apply:
             print("DRY_RUN=YES; no WordPress files changed")
