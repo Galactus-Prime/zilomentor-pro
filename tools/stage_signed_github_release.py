@@ -68,9 +68,14 @@ def version_parts(version):
 
 
 def safe_url(url, allow_hosts=ALLOWED_HOSTS):
-    parts = urlsplit(url)
+    require(isinstance(url, str), "Release URL must be a string")
+    try:
+        parts = urlsplit(url)
+        port = parts.port
+    except ValueError as exc:
+        raise ReleaseError("Malformed Release download URL") from exc
     require(parts.scheme == "https" and parts.hostname in allow_hosts
-            and parts.port in (None, 443)
+            and port in (None, 443)
             and parts.username is None and parts.password is None
             and not parts.fragment,
             "Untrusted Release download URL or redirect")
