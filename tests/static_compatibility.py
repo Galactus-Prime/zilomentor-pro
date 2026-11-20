@@ -250,6 +250,19 @@ check("external MU guard rejects accidental official plugin overwrite",
               for h in ("upgrader_pre_download", "upgrader_pre_install",
                         "upgrader_source_selection", "auto_update_plugin"))
       and "get_file_data" in (ROOT / "tools/zmp-release-guard.php").read_text())
+check("independent ZiloMentor folder gets full isolated editor and storefront QA",
+      '--plugin-folder' in qa_script
+      and 'zilomentor-pro' in qa_script
+      and (ROOT / "tools/migrate_independent_identity.py").is_file()
+      and (ROOT / "tests/test_migrate_independent_identity.py").is_file()
+      and "tests/test_migrate_independent_identity.py" in
+          (ROOT / "tools/run_manual_checks.py").read_text())
+check("migration validates exact files, recent SQL backup and guarded rollback",
+      all(t in (ROOT / "tools/migrate_independent_identity.py").read_text()
+              for t in ("verify_archive(", "FRESH_PRIVATE_DATABASE_BACKUP_VERIFIED",
+                        "database-backup", "require_identity(", "IDENTITY_ROLLBACK=YES"))
+      and "zilomentor-pro/elementor-pro.php" in
+          (ROOT / "tools/zmp-release-guard.php").read_text())
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
