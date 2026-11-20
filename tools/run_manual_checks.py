@@ -112,6 +112,7 @@ def main():
     # Offline synthetic HTTPS-feed checks use temporary Ed25519 keys, never a
     # real publishing key. No GitHub releases or CI network calls are made.
     execute([sys.executable, "tests/test_stage_signed_github_release.py"])
+    execute([sys.executable, "tests/test_motion_fx_reduced_motion.py"])
     execute([sys.executable, "tools/build_zip.py"])
     if args.skip_php:
         print("PHP matrix SKIPPED (explicit --skip-php); not a full QA pass.")
