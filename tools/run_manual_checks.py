@@ -68,6 +68,10 @@ def main():
         help="Opt-in Pro Form name edit, real editor Publish/Update click and independent DB/HTTP verification in disposable WordPress.",
     )
     parser.add_argument(
+        "--verify-editor-form-fields", action="store_true",
+        help="Opt-in Pro Form field repeater edit/Publish with saved WordPress data and frontend verification.",
+    )
+    parser.add_argument(
         "--verify-theme-builder-save", action="store_true",
         help="Opt-in Theme Builder Header edit, Publish and independent database + scoped render verification in disposable WordPress.",
     )
@@ -89,7 +93,7 @@ def main():
         parser.error("--focus editor requires --editor-playwright-image.")
     if args.web_server == "nginx-fpm" and args.source_wordpress is None:
         parser.error("--web-server nginx-fpm requires --source-wordpress.")
-    if (args.verify_editor_save or args.verify_editor_form_save or args.verify_theme_builder_save or args.verify_popup_editor_save or args.verify_editor_responsive) and not (
+    if (args.verify_editor_save or args.verify_editor_form_save or args.verify_editor_form_fields or args.verify_theme_builder_save or args.verify_popup_editor_save or args.verify_editor_responsive) and not (
         args.focus == "editor" and args.web_server == "nginx-fpm"
         and args.editor_playwright_image and args.source_wordpress
     ):
@@ -145,6 +149,8 @@ def main():
             qa_cmd.append("--verify-editor-save")
         if args.verify_editor_form_save:
             qa_cmd.append("--verify-editor-form-save")
+        if args.verify_editor_form_fields:
+            qa_cmd.append("--verify-editor-form-fields")
         if args.verify_theme_builder_save:
             qa_cmd.append("--verify-theme-builder-save")
         if args.verify_popup_editor_save:
