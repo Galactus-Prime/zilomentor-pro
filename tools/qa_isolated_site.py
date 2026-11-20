@@ -610,6 +610,25 @@ add_action( 'init', function () {
                        {"exit": template_seed.returncode, "fixtures": theme_fixtures}),
                 "Cannot register isolated Theme Builder/Popup fixtures")
 
+        nav_seed = wp(
+            "eval-file",
+            f"wp-content/plugins/{plugin_folder}/tests/fixtures/seed_posts_nav.php",
+            environment={"ZMP_ISOLATED_QA": "yes"},
+        )
+        try:
+            nav_fixtures = json.loads(nav_seed.stdout.strip())
+        except ValueError:
+            nav_fixtures = {}
+        require(record("seed isolated Posts and WordPress Menu widget fixtures",
+                       nav_seed.returncode == 0
+                       and nav_fixtures.get("page", 0) > 0
+                       and nav_fixtures.get("menu", 0) > 0
+                       and nav_fixtures.get("nav_id") == "9a0c1d01"
+                       and nav_fixtures.get("posts_id") == "9a0c1d02",
+                       {"exit": nav_seed.returncode, "fixtures": nav_fixtures}),
+                "Cannot create isolated Posts/Nav Menu widgets: " +
+                (nav_seed.stderr or nav_seed.stdout)[-500:])
+
         # The offline BACS method permits a complete synthetic order flow
         # without contacting a payment processor, sending money, or email.
         # These options exist ONLY in the fresh disposable QA WordPress DB.
@@ -849,6 +868,25 @@ add_action( 'init', function () {
                 "unsafe_protocol_present": "javascript:" in wrapper})
 
         record("Elementor Form widget rendered", 'elementor-form' in html and '<form' in html)
+        widget_status, widget_body, widget_err = request(
+            "?page_id=" + str(nav_fixtures["page"])
+        )
+        record("Pro WordPress Navigation Menu renders synthetic WP link",
+               widget_status == 200
+               and nav_fixtures["menu_label"] in widget_body
+               and 'elementor-widget-nav-menu' in widget_body,
+               {"status": widget_status,
+                "menu_link_present": nav_fixtures["menu_label"] in widget_body,
+                "nav_widget_present": 'elementor-widget-nav-menu' in widget_body,
+                "error": widget_err})
+        record("Pro Posts widget renders synthetic published post",
+               widget_status == 200
+               and nav_fixtures["posts_label"] in widget_body
+               and 'elementor-widget-posts' in widget_body,
+               {"status": widget_status,
+                "post_marker_present": nav_fixtures["posts_label"] in widget_body,
+                "posts_widget_present": 'elementor-widget-posts' in widget_body,
+                "error": widget_err})
         plain_status, plain_html, plain_err = request(
             "?page_id=" + str(fixtures["plain"])
         )
