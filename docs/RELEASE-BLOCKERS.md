@@ -166,6 +166,13 @@ conditions do not allow a real provider sandbox checkout.
   limited heuristic, not a complete historical secret scan or proof that
   no key was ever exposed. Owner's real signing key must still be created
   offline and never committed.
+- [x] Research confirmed Stripe's new **no-registration, no-subscription
+  claimable sandbox** can provide genuine test keys through `stripe
+  sandbox create --email OWNER_APPROVED_EMAIL`. It expires after seven
+  days unless claimed. Setup requires an explicit owner-approved email;
+  no external Stripe account/sandbox/key was created. Acceptance plan:
+  [STRIPE-CLAIMABLE-SANDBOX-QA.md](STRIPE-CLAIMABLE-SANDBOX-QA.md).
+  **The real provider-backed payment test remains unchecked.**
 - [x] **0.1.2 development** adds a shared published/document-editor
   authorization check for anonymous classic and Atomic Form target IDs,
   restricting classic Form dynamic `queried_id` context and embedded
