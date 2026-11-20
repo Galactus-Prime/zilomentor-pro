@@ -56,7 +56,7 @@ class ManualSwapTests(unittest.TestCase):
 
         self.health_patch = patch.object(
             swap, "wp_health",
-            side_effect=lambda site, expected_zmp, version=None: {
+            side_effect=lambda site, expected_zmp, version=None, folder=None: {
                 "zmp":expected_zmp, "version":version,
                 "pro":True,"core":True,"class":True,"wc":True,
             })
