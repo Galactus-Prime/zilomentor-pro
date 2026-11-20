@@ -114,6 +114,22 @@ duplicate-charge recovery or real card-gateway test is **not currently
 possible** with the available site configuration. An offline synthetic
 BACS checkout is not interchangeable with a genuine provider sandbox.
 
+The last clean disposable browser and WP-CLI release pass on
+the audited development code succeeded:
+
+- **77/77** independent frontend, popup, Form and WooCommerce checks
+- **62/62** authenticated Elementor Heading/Form/Theme Header Publish,
+  persisted DB and responsive device checks
+- **46/46** targeted security/runtime/Nginx/REST-role checks
+- **55/55** static security assertions and **944 PHP files** parsed on
+  each of PHP 8.4 and 8.5
+- **8/8** signed-updater, **3/3** migration/rollback,
+  **1/1** packaging and **2/2** release-manifest tests
+
+All tests used synthetic files and a disposable private WordPress
+instance; no GitHub Actions, real order, payment provider, live user
+database, operational signing key or code deployment was involved.
+
 The upstream `PRO Elements 4.4.0` fork is not formally certified as
 equivalent to official Elementor Pro **4.4.1**. The high-impact vulnerability
 regression and these targeted mitigations do not establish universal CVE
