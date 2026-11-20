@@ -3,8 +3,10 @@
 from datetime import datetime, timedelta, timezone
 import importlib.util
 from pathlib import Path
+import struct
 import tempfile
 import unittest
+from unittest.mock import patch
 import zipfile
 
 SOURCE = Path(__file__).resolve().parents[1] / "tools" / "create_release_manifest.py"
@@ -40,6 +42,36 @@ class ManifestTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "filename/version mismatch"):
                 mod.create_manifest(other, now=instant)
 
+
+    def test_manifest_rejects_zip_expansion_bomb_before_decompression(self):
+        with tempfile.TemporaryDirectory(prefix="zmp-manifest-bomb-") as tmp:
+            package = Path(tmp) / "zilomentor-pro-independent-0.1.2-staging-only.zip"
+            with zipfile.ZipFile(package, "w", compression=zipfile.ZIP_DEFLATED) as z:
+                z.writestr("zilomentor-pro/elementor-pro.php",
+                           "<?php\\n/**\\n * Plugin Name: ZiloMentor Pro\\n"
+                           " * Version: 0.1.2\\n */\\n")
+                z.writestr("zilomentor-pro/assets/synthetic.txt", "tiny")
+            blob = bytearray(package.read_bytes())
+            first = blob.find(b"PK\\x01\\x02")
+            second = blob.find(b"PK\\x01\\x02", first + 4)
+            self.assertGreater(second, first)
+            struct.pack_into("<I", blob, second + 24, 600 * 1024 * 1024)
+            package.write_bytes(blob)
+            with patch.object(zipfile.ZipFile, "testzip",
+                              side_effect=AssertionError("decompressed before size check")):
+                with self.assertRaisesRegex(ValueError, "expanded size"):
+                    mod.create_manifest(package)
+
+    def test_manifest_refuses_unsafe_or_repeated_zip_paths(self):
+        with tempfile.TemporaryDirectory(prefix="zmp-manifest-unsafe-") as tmp:
+            package = Path(tmp) / "zilomentor-pro-independent-0.1.2-staging-only.zip"
+            with zipfile.ZipFile(package, "w") as z:
+                z.writestr("zilomentor-pro/elementor-pro.php",
+                           "<?php\\n/**\\n * Plugin Name: ZiloMentor Pro\\n"
+                           " * Version: 0.1.2\\n */\\n")
+                z.writestr("zilomentor-pro/../escape.php", "<?php")
+            with self.assertRaisesRegex(ValueError, "Unsafe"):
+                mod.create_manifest(package)
 
     def test_independent_plugin_manifest_never_claims_vendor_slug(self):
         with tempfile.TemporaryDirectory(prefix="zmp-independent-manifest-") as temp:
