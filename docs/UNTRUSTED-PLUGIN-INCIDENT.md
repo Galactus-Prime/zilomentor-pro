@@ -53,6 +53,9 @@ outbound call or that customer data was accessed.
   `elementor/elementor.php` free-core update record, from
   `downloads.wordpress.org`, and no entry for the removed
   `elementor-pro/` vendor basename.
+- A read-only WordPress user-role check found exactly **one**
+  administrator and **zero administrators registered since
+  19 November 2026**; open self-registration is disabled.
 - The live homepage and admin WP-CLI continued to respond normally.
   The site remains on 0.1.1 and no untrusted package is accessible
   through the WordPress plugins directory.
