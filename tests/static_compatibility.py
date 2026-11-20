@@ -313,6 +313,11 @@ check("public Posts preview denies private documents and arbitrary widgets",
       and "'posts', 'portfolio'" in
           (ROOT / "modules/posts/data/controller.php").read_text()
       and "runtime_posts_visibility.php" in qa_script)
+check("classic Form attachment URLs are cryptographically random",
+      "bin2hex( random_bytes( 16 ) )" in
+          (ROOT / "modules/forms/fields/upload.php").read_text()
+      and "uniqid()" not in
+          (ROOT / "modules/forms/fields/upload.php").read_text().split("$filename =")[-1])
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
