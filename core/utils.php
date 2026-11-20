@@ -222,6 +222,25 @@ class Utils {
 		return false;
 	}
 
+	/**
+	 * Anonymous visitors may submit only forms belonging to published,
+	 * non-password-protected documents. Editors can test unpublished forms
+	 * they are authorised to edit. Never allow a caller-supplied post ID to
+	 * expose draft/private template settings or their submit actions.
+	 */
+	public static function is_form_submission_document_accessible( $post_id ): bool {
+		$post_id = absint( $post_id );
+		if ( ! $post_id || ! get_post( $post_id ) ) {
+			return false;
+		}
+
+		if ( 'publish' === get_post_status( $post_id ) && ! post_password_required( $post_id ) ) {
+			return true;
+		}
+
+		return current_user_can( 'edit_post', $post_id );
+	}
+
 	public static function get_public_post_types( $args = [] ) {
 		$post_type_args = [
 			// Default is the value $public.
