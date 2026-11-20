@@ -27,9 +27,9 @@ import subprocess
 import sys
 import tempfile
 from urllib.parse import urlsplit
+from urllib.error import HTTPError
 from urllib.request import (
-    HTTPError, HTTPSHandler, HTTPRedirectHandler, ProxyHandler,
-    Request, build_opener,
+    HTTPSHandler, HTTPRedirectHandler, ProxyHandler, Request, build_opener,
 )
 import zipfile
 
