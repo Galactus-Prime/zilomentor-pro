@@ -255,8 +255,18 @@ class Module extends Module_Base {
 			return 0;
 		}
 		$zero_decimal = [ 'BIF', 'CLP', 'DJF', 'GNF', 'JPY', 'KMF', 'KRW', 'MGA', 'PYG', 'RWF', 'UGX', 'VND', 'VUV', 'XAF', 'XOF', 'XPF' ];
-		$multiplier = in_array( strtoupper( (string) $currency ), $zero_decimal, true ) ? 1 : 100;
-		return (int) floor( (float) $product_price * $multiplier );
+		$is_zero_decimal = in_array( strtoupper( (string) $currency ), $zero_decimal, true );
+		$amount = (float) $product_price * ( $is_zero_decimal ? 1 : 100 );
+		if ( ! is_finite( $amount ) || $amount > PHP_INT_MAX ) {
+			return 0;
+		}
+		// floor(19.99 * 100) can charge 1998 instead of 1999 because of
+		// binary floating-point representation. Round to the nearest minor
+		// unit for two-decimal currencies; retain whole-unit truncation for
+		// the historical zero-decimal currency behavior.
+		return $is_zero_decimal
+			? (int) floor( $amount )
+			: (int) round( $amount, 0, PHP_ROUND_HALF_UP );
 	}
 
 	/**
@@ -322,7 +332,8 @@ class Module extends Module_Base {
 			&& is_int( $args['quantity'] )
 			&& $args['quantity'] >= 1 && $args['quantity'] <= 99
 			&& is_int( $args['unit_amount'] )
-			&& $args['unit_amount'] >= 1 && $args['unit_amount'] <= 99999999;
+			&& $args['unit_amount'] >= 1 && $args['unit_amount'] <= 99999999
+			&& $args['unit_amount'] * $args['quantity'] <= 99999999;
 	}
 
 	public function submit_stripe_form() {
