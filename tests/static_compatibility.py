@@ -334,6 +334,14 @@ check("sensitive submissions and global template REST roles tested",
           (ROOT / "tests/runtime_rest_sensitive_controllers.php").read_text()
       and "subscriber" in
           (ROOT / "tests/runtime_rest_sensitive_controllers.php").read_text())
+check("Popup edit Publish has real browser and persistent scoped render QA",
+      "--verify-popup-editor-save" in qa_script
+      and "--verify-popup-editor-save" in
+          (ROOT / "tools/run_manual_checks.py").read_text()
+      and "ZMP_QA_TEMPLATE_KIND=popup" in qa_script
+      and "Edited Popup renders only on its intended synthetic page" in qa_script
+      and "ZMP_QA_TEMPLATE_KIND" in
+          (ROOT / "tests/browser_theme_editor_save.js").read_text())
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
