@@ -3,6 +3,34 @@
 **Scope:** draft 0.1.2 versus deployed 0.1.1; independent GPL fork based on
 PRO Elements 4.4.0. No live customer/order/payment data was used for this audit.
 
+## 20 November further review: anonymous Form document authorization
+
+The classic Form `wp_ajax_nopriv_elementor_pro_forms_send_form` handler
+accepted a caller-selected `post_id` and dynamic-tag `queried_id` and
+could read the selected document's Form settings without first requiring
+the document to be public. The Atomic Form handler also resolved an
+arbitrary `post_id` after its nonce check. This **could permit a Form
+submission targeting unpublished document settings** depending on the
+Form's enabled actions and other access restrictions. No exploit or
+live data access is claimed.
+
+The unreleased candidate now shares
+`Core\Utils::is_form_submission_document_accessible()` between both
+generations. Visitors may resolve only real, published, unprotected posts.
+An authenticated editor with `edit_post` capability may use unpublished
+documents for legitimate previews. Classic Form also bounds the
+`queried_id` dynamic-content context and embedded Form `templateID`;
+malformed or unavailable document IDs are refused/fall back to the allowed
+submission document. Requests are still subject to each Form's normal
+fields/actions/anti-spam validation.
+
+`tests/runtime_form_document_visibility.php` runs role-based synthetic
+published/draft/private/password/trash access checks, plus Atomic
+pre-document-read denial, in disposable WordPress only. The normal
+isolated integration runner includes this test, and static checks require
+the guards in both handlers. This is not a statement that all Form
+actions, emails, webhooks or anti-spam scenarios are proven safe.
+
 ## 20 November additional review: Office ZIP bounds, Apache uploads and MCP abilities
 
 An additional review found that plausible OOXML/ODF file names and ZIP entries
