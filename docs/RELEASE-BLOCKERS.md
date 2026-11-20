@@ -2,19 +2,28 @@
 
 ### Latest comprehensive manual QA (20 November 2026)
 
-The **unreleased 0.1.2 source commit**
-`1ce553b9d010eb9f93e66bdec71225a8c6b029b4` completed the complete
-manual suite on the disposable WordPress/Fiore/WooCommerce/Nginx/PHP-FPM
-stack. **87 of 87 integration checks passed**, including all three real
-anonymous HTTP Form rejections (draft, private and password-protected
-documents), a valid published Form submission, browser popups,
-Nginx attachment/no-sniff and executable extension denial, PHP 8.4/8.5
-syntax matrices and local signed-manifest/manual-swap regressions.
-No GitHub Actions, customer payment, live database or live plugin change
-was involved. The branch gained only documentation after this test.
-This result is an acceptance *preview*, not proof of official Elementor
-Pro 4.4.1 patch parity, an independent security audit or live-vhost safety.
+The **unreleased ZiloMentor Pro 0.1.2 candidate, exact source SHA**
+`ef5564c9a84646369417de31073bc8c9fdbc0f8e`, successfully completed
+the manual full suite against a disposable WordPress/Fiore/WooCommerce/
+Nginx/PHP-FPM stack. **88/88 integration checks passed**, including the
+real `ZipArchive` Office/icon archive cases, symlink/traversal/compression
+ZIP rejection, source-level multi-upload filename sanitisation, Form privacy,
+Posts null-data regression, public page/browser Popup interactions, synthetic
+offline WooCommerce guest checkout and upload execution denial. Both PHP
+8.4 and PHP 8.5 syntax matrices passed; local signed-release simulation,
+manual rollback, static source and package-hygiene checks passed. The
+staging-only source-built ZIP was 1,429 files, 3,589,041 bytes, SHA256
+`feefc2e227be81c5f5a547c093095f8c99dab98b09254ee1e607528fca78489f`.
+This ZIP is **not signed, published, installed, or approved for production**.
 
+Earlier 87/87 coverage at source SHA
+`1ce553b9d010eb9f93e66bdec71225a8c6b029b4` was superseded by this
+new run with an additional real custom-icon ZIP runtime test and a
+ZIP-enabled PHP image; it must not be presented as the latest result.
+No GitHub Actions, subscription, customer payment, live database or live
+plugin change was involved. This is an acceptance *preview*, **not** proof
+of genuine Elementor Pro 4.4.1 patch parity, independent security audit,
+actual payment-provider QA or live-vhost upload execution safety.
 
 **Audit date: 20 November 2026**  
 **Production:** Itzy Bitzy Workshop runs ZiloMentor Pro 0.1.1, independently
