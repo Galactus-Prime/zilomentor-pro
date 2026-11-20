@@ -40,8 +40,12 @@ before enabling the candidate on production.
 Disposable testing generated valid PDF/Office/image/text fixtures and
 mislabeled PHP, arbitrary ZIP and script-content fixtures. Legacy and
 Atomic checks rejected spoofed types and verified cleanup constraints.
-**44/44 focused runtime/editor checks** and **68/68 full storefront,
-popup, form and offline WooCommerce checkout checks** passed. The
+**44/44 initial focused runtime/editor checks**, **68/68 full
+storefront/popup/offline WooCommerce checks**, **53/53 full
+editing/publishing/responsive checks**, and a further **38/38 REST
+authorization focused runtime checks** passed. Also **49/49 static
+checks** and **941 PHP files under each of PHP 8.4 and 8.5** passed.
+The
 tests used a disposable WordPress/MariaDB instance and did not submit
 an actual production Form. A complete malware scan, all file formats,
 proxy-specific `.htaccess` behaviour, payment gateways and full
@@ -54,6 +58,11 @@ and lower roles, and protected icon reads are denied to guests and
 subscribers while editor reads remain available. This test passed in the
 isolated runtime; it deliberately does **not** dispatch writes, send
 network requests, or claim a complete REST authentication/nonce audit.
+
+The signed-manual-release, migration and ZIP hygiene tests also
+passed with zero failures, without GitHub Actions. An operational signing
+key and a safe signed online update channel are **not** provisioned; see
+`docs/OFFLINE-RELEASE-SIGNING.md`.
 
 The deployed live version remains **0.1.1** and has **not** received
 these unreleased changes.
