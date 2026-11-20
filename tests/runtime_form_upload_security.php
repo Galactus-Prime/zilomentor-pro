@@ -71,6 +71,32 @@ try {
             $zip->close();
             $valid( 'word.docx', $office_file, true );
 
+            // Even a structurally valid Office ZIP must not hide a huge
+            // expanded XML stream, decompression bomb or traversal entry.
+            // These fixtures live entirely inside disposable WordPress QA.
+            $compressed_bomb = $root . '/compressed.docx';
+            $bomb_archive = new \ZipArchive();
+            $checks['office_bomb_fixture_created'] =
+                true === $bomb_archive->open( $compressed_bomb, \ZipArchive::CREATE );
+            if ( $checks['office_bomb_fixture_created'] ) {
+                $bomb_archive->addFromString( '[Content_Types].xml', '<Types/>' );
+                $bomb_archive->addFromString( 'word/document.xml', str_repeat( 'A', 4 * 1024 * 1024 ) );
+                $bomb_archive->close();
+                $valid( 'compressed.docx', $compressed_bomb, false );
+            }
+
+            $traversal_doc = $root . '/traversal.docx';
+            $traversal_archive = new \ZipArchive();
+            $checks['office_traversal_fixture_created'] =
+                true === $traversal_archive->open( $traversal_doc, \ZipArchive::CREATE );
+            if ( $checks['office_traversal_fixture_created'] ) {
+                $traversal_archive->addFromString( '[Content_Types].xml', '<Types/>' );
+                $traversal_archive->addFromString( 'word/document.xml', '<w:document/>' );
+                $traversal_archive->addFromString( '../escape.php', '<?php echo 1;' );
+                $traversal_archive->close();
+                $valid( 'traversal.docx', $traversal_doc, false );
+            }
+
             // Minimal OOXML part/package structure, including
             // presentation/spreadsheet relationships (not empty ZIPs).
             foreach ( [
