@@ -80,6 +80,10 @@ def main():
         help="Opt-in real Popup template edit/Publish and scoped frontend/WordPress verification.",
     )
     parser.add_argument(
+        "--verify-posts-nav-editor", action="store_true",
+        help="Opt-in real Nav Menu editing/Publish and Posts widget selection.",
+    )
+    parser.add_argument(
         "--verify-editor-responsive", action="store_true",
         help="Opt-in real Elementor editor Desktop Tablet Mobile breakpoint switching on a disposable page.",
     )
@@ -93,7 +97,7 @@ def main():
         parser.error("--focus editor requires --editor-playwright-image.")
     if args.web_server == "nginx-fpm" and args.source_wordpress is None:
         parser.error("--web-server nginx-fpm requires --source-wordpress.")
-    if (args.verify_editor_save or args.verify_editor_form_save or args.verify_editor_form_fields or args.verify_theme_builder_save or args.verify_popup_editor_save or args.verify_editor_responsive) and not (
+    if (args.verify_editor_save or args.verify_editor_form_save or args.verify_editor_form_fields or args.verify_theme_builder_save or args.verify_popup_editor_save or args.verify_posts_nav_editor or args.verify_editor_responsive) and not (
         args.focus == "editor" and args.web_server == "nginx-fpm"
         and args.editor_playwright_image and args.source_wordpress
     ):
@@ -155,6 +159,8 @@ def main():
             qa_cmd.append("--verify-theme-builder-save")
         if args.verify_popup_editor_save:
             qa_cmd.append("--verify-popup-editor-save")
+        if args.verify_posts_nav_editor:
+            qa_cmd.append("--verify-posts-nav-editor")
         if args.verify_editor_responsive:
             qa_cmd.append("--verify-editor-responsive")
         execute(qa_cmd)
