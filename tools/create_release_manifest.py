@@ -34,7 +34,7 @@ def create_manifest(package: Path, valid_days: int = 90, now=None):
             path = info.filename
             parts = PurePosixPath(path).parts
             if (not parts or parts[0] not in ("zilomentor-pro", "elementor-pro")
-                    or path.startswith("/") or "\\\\" in path or ".." in parts
+                    or path.startswith("/") or "\\" in path or ".." in parts
                     or path in names or stat.S_ISLNK(info.external_attr >> 16)):
                 raise ValueError("Unsafe, linked or repeated release archive entry")
             names.add(path)
