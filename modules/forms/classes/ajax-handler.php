@@ -60,20 +60,29 @@ class Ajax_Handler {
 
 	public function ajax_send_form() {
 		$post_data = $_POST; // phpcs:ignore WordPress.Security.NonceVerification.Missing
-		// $post_id that holds the form settings.
-		$post_id = $post_data['post_id'];
+		$post_id = isset( $post_data['post_id'] ) && is_scalar( $post_data['post_id'] )
+			? absint( $post_data['post_id'] ) : 0;
+		$form_id = isset( $post_data['form_id'] ) && is_string( $post_data['form_id'] )
+			? sanitize_text_field( $post_data['form_id'] ) : '';
 
-		// $queried_id the post for dynamic values data.
-		if ( isset( $post_data['queried_id'] ) ) {
-			$queried_id = $post_data['queried_id'];
-		} else {
+		// Anonymous requests must never execute forms or actions defined by
+		// unpublished/private Elementor documents. Editors can test their own
+		// drafts; no client-supplied document ID grants additional access.
+		if ( ! Utils::is_form_submission_document_accessible( $post_id ) || '' === $form_id ) {
+			$this->add_error_message( self::get_default_message( self::INVALID_FORM, [] ) )->send();
+			return;
+		}
+
+		// queried_id selects dynamic-tag post context. Restrict it too, or an
+		// attacker can ask a public Form to resolve private post values.
+		$queried_id = isset( $post_data['queried_id'] ) && is_scalar( $post_data['queried_id'] )
+			? absint( $post_data['queried_id'] ) : $post_id;
+		if ( ! Utils::is_form_submission_document_accessible( $queried_id ) ) {
 			$queried_id = $post_id;
 		}
 
 		// Make the post as global post for dynamic values.
 		Plugin::elementor()->db->switch_to_post( $queried_id );
-
-		$form_id = $post_data['form_id'];
 
 		$elementor = Plugin::elementor();
 		$document = $elementor->documents->get( $post_id );
@@ -85,6 +94,10 @@ class Ajax_Handler {
 		}
 
 		if ( ! empty( $form['templateID'] ) ) {
+			if ( ! Utils::is_form_submission_document_accessible( $form['templateID'] ) ) {
+				$this->add_error_message( self::get_default_message( self::INVALID_FORM, [] ) )->send();
+				return;
+			}
 			$template = Plugin::elementor()->documents->get( $form['templateID'] );
 
 			if ( ! $template ) {
