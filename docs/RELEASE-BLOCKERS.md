@@ -108,12 +108,21 @@ conditions do not allow a real provider sandbox checkout.
 - [x] 0.1.2 development has tests for upload type/content validation,
   private Posts-widget visibility, role permissions and Stripe request
   validation with no live payment transaction.
-- [x] Signed GitHub Releases *staging-only* client passes 12 synthetic
+- [x] Signed GitHub Releases *staging-only* client passes 13 synthetic
   signature/tamper/expiry/host/permission tests; it never enables
   WordPress automatic updates or installs anything.
 - [x] Staging signed-manifest format, SHA256-locked manual installer and
   migration rollback covered by synthetic tests.
 - [x] Manual isolated browser, WordPress and PHP suites use no GitHub Actions.
+- [x] Removed the inherited tag-triggered GitHub Actions publisher from
+  `master` in commit `f3d80e4`; the development branch has no workflows.
+  This removes the automatic release job, independently of account settings.
+- [x] 0.1.2 manual deployment and manifest builder reject ZIP central-directory
+  expansion bombs and unsafe paths **before** archive decompression.
+  New regression tests proved that `testzip()` is not reached for forged
+  600 MiB entries. On a disposable QA host with PHP 8.4/Sodium,
+  13/13 signed staging, 9/9 manual swap and 4/4 manifest tests passed.
+  No production plugin, payment, customer or database record was changed.
 - [x] Stable private backups of the live 0.1.1 beta retained outside webroot.
 
 Full source evidence: `docs/SECURITY-REVIEW-2026-11-19.md` and
