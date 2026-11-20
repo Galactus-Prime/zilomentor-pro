@@ -179,6 +179,10 @@ def main():
     argp.add_argument("--site", required=True, type=Path)
     argp.add_argument("--backup-dir", required=True, type=Path)
     argp.add_argument("--zip", type=Path)
+    argp.add_argument(
+        "--database-backup", type=Path,
+        help="Fresh private pre-migration SQL snapshot, less than two hours old.",
+    )
     argp.add_argument("--sha256")
     operation = argp.add_mutually_exclusive_group()
     operation.add_argument("--apply", action="store_true")
@@ -200,8 +204,18 @@ def main():
         abort("Backups must be outside the WordPress tree")
     if not (site / "wp-config.php").is_file() or not WP_CLI.is_file() or not PHP_CLI.is_file():
         abort("WordPress installation or required CLI is missing")
-    if not (backup / "wordpress-post-untrusted-plugin-20261119.sql").is_file():
-        abort("A private, verified pre-migration database backup is required")
+    if args.database_backup is None:
+        abort("An explicitly selected fresh private database snapshot is required")
+    db_snapshot = args.database_backup.resolve(strict=True)
+    if (args.database_backup.is_symlink() or db_snapshot.parent != backup
+            or not db_snapshot.name.startswith("wordpress-before-identity-")
+            or db_snapshot.suffix != ".sql"
+            or not db_snapshot.is_file()
+            or db_snapshot.stat().st_uid != os.geteuid()
+            or db_snapshot.stat().st_mode & 0o077
+            or db_snapshot.stat().st_size == 0
+            or not 0 <= datetime.now(timezone.utc).timestamp() - db_snapshot.stat().st_mtime < 7200):
+        abort("A private, owner-only SQL snapshot newer than two hours is required")
     guard = site / "wp-content" / "mu-plugins" / "zmp-release-guard.php"
     if not guard.is_file() or "Version: 0.2.0" not in guard.read_text()[:600]:
         abort("Independent-compatible external must-use release guard must be installed first")
@@ -227,6 +241,7 @@ def main():
                     or initial.get("independent") is not True or initial.get("legacy") is not False):
                 abort("Cannot safely restore legacy identity")
             os.rename(saved, legacy)
+            legacy.chmod(0o755)
             try:
                 switch_active_plugin(site, INDEPENDENT, LEGACY)
                 require_identity(site, LEGACY)
@@ -255,6 +270,7 @@ def main():
         archive = args.zip.resolve(strict=True)
         count = verify_archive(archive, legacy, args.sha256)
         require_identity(site, LEGACY)
+        print("FRESH_PRIVATE_DATABASE_BACKUP_VERIFIED=YES")
         print("IDENTITY_PREFLIGHT_OK=" + json.dumps({
             "source": LEGACY + "/" + ENTRY, "destination": INDEPENDENT + "/" + ENTRY,
             "version": EXPECTED_VERSION, "files_verified": count,
@@ -285,22 +301,31 @@ def main():
                     (Path(root) / name).chmod(0o644)
             unpacked.chmod(0o755)
             os.rename(unpacked, independent)
+            original_backed_up = False
             try:
                 switch_active_plugin(site, LEGACY, INDEPENDENT)
                 require_identity(site, INDEPENDENT)
+                os.rename(legacy, backup / archived_name)
+                original_backed_up = True
+                (backup / archived_name).chmod(0o700)
+                state["status"] = "migrated"
+                store_state(state_file, state)
             except Exception:
+                # Roll back even if moving the legacy files or recording
+                # migration state failed *after* the WordPress switch.
+                if original_backed_up and not legacy.exists():
+                    os.rename(backup / archived_name, legacy)
+                    legacy.chmod(0o755)
                 try:
                     present = wp_state(site)
                     if present.get("independent") is True:
                         switch_active_plugin(site, INDEPENDENT, LEGACY)
                 finally:
-                    if independent.exists():
+                    # Do not delete a plugin still recorded as active if the
+                    # WordPress rollback itself encountered a failure.
+                    if wp_state(site).get("independent") is False and independent.exists():
                         shutil.rmtree(independent)
                 raise
-            os.rename(legacy, backup / archived_name)
-            (backup / archived_name).chmod(0o700)
-            state["status"] = "migrated"
-            store_state(state_file, state)
             print("MIGRATION_SUCCEEDED=YES")
             print("PLUGIN_BASE=" + INDEPENDENT + "/" + ENTRY)
             print("SOURCE_PLUGIN_FILES_PRIVATE=YES")
