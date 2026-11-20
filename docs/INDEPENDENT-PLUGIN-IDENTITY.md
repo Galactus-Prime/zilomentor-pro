@@ -67,6 +67,63 @@ The migration utility refuses any live switch without both the MU update
 guard and the early bootstrap adapter, validated owner-only backups and
 exact known-good release archive hash.
 
+## Final controlled live migration: accepted (20 November 2026)
+
+After adding the verified independent early-bootstrap MU loader and extending
+the isolated coverage, the corrected build passed **52/52 combined editor**
+and **67/67 complete frontend, popup and WooCommerce** checks. The MU guard
+protects both plugin basenames. The independent signed-release and
+rollback unit tests passed.
+
+The second guarded live trial showed a **pixel-identical desktop header**,
+but the first mobile screenshot comparison failed (mean RGB 12.87666) because
+the hero illustration was at a different vertical position. The migration
+was immediately rolled back again, without a database restore. Crucially,
+the *migrated* screenshot and *subsequent legacy rollback* screenshot were
+pixel-identical **on both viewports**. Thus the mobile image offset persisted
+after restoring legacy code and was not caused by plugin identity. No
+visual difference was ignored, and the comparator continued to fail against
+the stale earlier baseline.
+
+A new baseline was captured from the visually correct, legacy 0.1.1 site,
+and another read-only preflight verified **all 1,419 source files**, a
+recent private **0600** WordPress SQL export, the independent bootstrap and
+external release guard. A final, owner-approved migration used the *same
+trusted 0.1.1 code* (SHA256
+`1d626aadee1bc281717ca326da22884a8a9f1515586f849e438a7bdda1fd4144`)
+and changed only the WordPress active plugin basename and installed
+directory. Zilo Rocket, ZiloCache and Elementor CSS caches were cleared.
+
+**Final public Chromium visual gate: PASS**
+- Desktop **1366x768**: **0.00350** mean RGB difference across full
+  screenshot; **0.01922** in the top 133px header (0–255 scale).
+- Mobile **390x844**: **0.00000** difference; pixel-identical.
+- Elementor widgets unchanged: **85 desktop**, **89 mobile**; the same
+  widget types and zero additional JS, HTTP or network errors.
+- Public homepage, shop, cart, checkout, and an ordinary product page
+  each returned HTTP **200** and contained **zero old
+  `/wp-content/plugins/elementor-pro/` references**. The independent
+  navigation menu stylesheet returned HTTP **200**.
+- WordPress reported **ZiloMentor 0.1.1** active at
+  `zilomentor-pro/elementor-pro.php`, Elementor core and WooCommerce
+  loaded, MU early bootstrap active, original folder absent. The original
+  verified 0.1.1 directory remains in the **private, owner-only**
+  rollback store, and no historical WooCommerce data was restored.
+- Refreshed cPanel WP Toolkit inventory identified
+  **`zilomentor-pro` / ZiloMentor Pro 0.1.1**, with **no official vendor
+  Elementor Pro update offer**. Core Elementor remains 4.4.1.
+- Read-only guards confirmed vendor and independent plugin updates are
+  blocked through WordPress upgrader hooks; WooCommerce updates are allowed.
+  WP Toolkit's root-level direct file operations could bypass WP hooks,
+  so periodic verification remains prudent.
+
+The production **beta** has a separate WordPress plugin identity.
+The **underlying code remains 0.1.1 / PRO Elements 4.4.0** and is
+**not guaranteed equivalent to official Elementor Pro 4.4.1**. The offline
+Ed25519 signing key and signed 0.1.2 release have NOT been deployed.
+Continue security reviews and nonpayment regression tests before promoting
+the plugin for general distribution.
+
 ## Independent deployment acceptance checklist
 
 - [x] Exact trusted 0.1.1 file match and fresh private WordPress database snapshot
@@ -75,10 +132,10 @@ exact known-good release archive hash.
 - [x] First independent-folder editor tests and full storefront/offline checkout passed
 - [x] Initial styling regression detected; original live appearance restored exactly
 - [x] Early MU adapter implemented with explicit callback-order isolated regression
-- [ ] Run combined editor, full frontend and WooCommerce regressions with the adapter
-- [ ] Reattempt only with fresh snapshot and explicit after-migration desktop/mobile pixel comparison
-- [ ] Verify no old asset URLs, current WP Toolkit inventory and zero new HTTP errors
-- [ ] If visual equivalence fails, roll back immediately and retain incident evidence
+- [x] Run combined editor (52/52), full frontend and WooCommerce (67/67) regressions with the adapter
+- [x] Reattempt only with a fresh private snapshot and an explicit two-viewport pixel comparison; final visual gate passed
+- [x] Verify zero old asset URLs, independent WP Toolkit identity, five HTTP 200 public pages and zero new HTTP errors
+- [x] Roll back on the original desktop and second trial mobile gate failures; preserve evidence and accept only the later passing visual gate
 
 **Do not declare independent plugin migration production-ready until the
 desktop header is visually equivalent.** WordPress/WP Toolkit slug identity
