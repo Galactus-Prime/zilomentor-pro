@@ -557,6 +557,7 @@ add_action( 'init', function () {
                          "runtime_posts_null.php", "runtime_release_guard.php",
                          "runtime_bootstrap_order.php",
                          "runtime_form_upload_security.php",
+                         "runtime_icon_zip_security.php",
                          "runtime_form_document_visibility.php",
                          "runtime_rest_auth_security.php",
                          "runtime_stripe_security.php",
