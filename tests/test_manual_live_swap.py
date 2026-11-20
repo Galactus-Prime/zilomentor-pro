@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 import json
 import importlib.util
 import os
+import struct
 import subprocess
 import sys
 import tempfile
@@ -276,6 +277,24 @@ class ManualSwapTests(unittest.TestCase):
         evil, evil_digest = self.zip("0.1.0", unsafe=True)
         with self.assertRaisesRegex(RuntimeError, "Unsafe"):
             self.run_command("--zip", str(evil), "--sha256", evil_digest, "--apply")
+        self.assertEqual(swap.plugin_name(self.plugin), "Elementor Pro")
+
+    def test_zip_bomb_metadata_is_rejected_before_decompression(self):
+        # Forge a 600 MiB expanded entry in a tiny valid synthetic ZIP.
+        # Its central-directory metadata must be rejected before testzip().
+        package, _ = self.zip("0.1.0")
+        blob = bytearray(package.read_bytes())
+        first = blob.find(b"PK\\x01\\x02")
+        second = blob.find(b"PK\\x01\\x02", first + 4)
+        self.assertGreaterEqual(first, 0)
+        self.assertGreater(second, first)
+        struct.pack_into("<I", blob, second + 24, 600 * 1024 * 1024)
+        package.write_bytes(blob)
+        digest = hashlib.sha256(blob).hexdigest()
+        with patch.object(zipfile.ZipFile, "testzip",
+                          side_effect=AssertionError("decompressed before size validation")):
+            with self.assertRaisesRegex(RuntimeError, "uncompressed size exceeds cap"):
+                self.run_command("--zip", str(package), "--sha256", digest)
         self.assertEqual(swap.plugin_name(self.plugin), "Elementor Pro")
 
     def test_downgrade_rejected_before_any_files_move(self):
