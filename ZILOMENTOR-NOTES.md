@@ -11,6 +11,47 @@ identified `zilomentor-pro/elementor-pro.php` WordPress plugin basename to
 avoid WP Toolkit incorrectly treating this GPL fork as official Elementor Pro.
 A conditional must-use bootstrap preserves Fiore's historical init order.
 
+## Final additional hardening (20 November 2026, later test pass)
+
+The development-only 0.1.2 branch additionally hardens **Stripe Checkout
+session initiation** by validating the authenticated nonce, requiring a
+published and unprotected document and actual saved Stripe Button widget,
+constraining cancel/success redirect URLs to WordPress-approved hosts, and
+deriving product pricing, quantity, shipping, tax and currency from saved
+server-side controls only. It fixes floating-point minor-unit truncation
+which could produce 1998 instead of **1999** for a 19.99 price and limits
+the combined checkout total. Synthetic tests never contacted Stripe.
+
+Public Posts-widget REST pagination now excludes drafts, private/password
+documents and arbitrary widget types for unauthorised visitors. Valid
+published Global Widget compatibility remains, with private template
+read protection. New tests cover guest/subscriber/admin document access,
+the Elementor Pro Form-submissions admin-only controller and low-privilege
+Notes/Global Widget permission callbacks, without dispatching writes.
+
+File uploads now use 128-bit cryptographically random filenames,
+reject non-HTTP local-file promotion and PDF/Office/image MIME forgeries,
+scan images for appended ZIP/PHAR polyglots, and test the known
+**CVE-2026-32475** first-empty/second-executable multi-file bypass.
+The private Nginx/PHP-FPM QA additionally denies four executable upload
+extensions with HTTP 403 and requires **Content-Disposition attachment**,
+**X-Content-Type-Options nosniff** and private no-store headers for a
+benign disposable Form upload file.
+
+Initial full candidate testing passed **71/71 frontend/WooCommerce** and
+**56/56 editor/publish/responsive** checks. The more recent isolated
+Nginx and sensitive endpoint test passed **46/46** checks. The current
+source is undergoing one final complete frontend/editor run; do not
+claim that final run passed until verified. Security parity with paid
+Elementor Pro 4.4.1, provider sandbox payments, optional editor workflows,
+real-world upload samples and offline signing remain external blockers
+recorded in `docs/RELEASE-BLOCKERS.md`.
+
+**No change was made to live ZiloMentor 0.1.1.** The independent staging
+ZIP still requires final SHA256 verification and an owner-held offline
+Ed25519 signature before any deployment approval. GitHub Actions are
+not required.
+
 ## 0.1.2 follow-up: file-upload and REST security gates (20 November 2026)
 
 **Development only.** The existing public Itzy Bitzy Workshop site still runs
