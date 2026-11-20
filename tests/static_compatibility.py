@@ -287,6 +287,15 @@ check("atomic form cleanup cannot delete outside its upload directory",
           (ROOT / "modules/atomic-form/file-upload/file-storage.php").read_text()
       and "atomic_cleanup_refuses_external_paths" in
           (ROOT / "tests/runtime_form_upload_security.php").read_text())
+check("privileged Elementor Pro REST endpoint permission callbacks are probed",
+      (ROOT / "tests/runtime_rest_auth_security.php").is_file()
+      and "runtime_rest_auth_security.php" in qa_script
+      and "subscriber" in
+          (ROOT / "tests/runtime_rest_auth_security.php").read_text()
+      and "contributor" in
+          (ROOT / "tests/runtime_rest_auth_security.php").read_text()
+      and "custom-icon-svg" in
+          (ROOT / "tests/runtime_rest_auth_security.php").read_text())
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
