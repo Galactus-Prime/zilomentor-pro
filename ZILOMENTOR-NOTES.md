@@ -65,8 +65,8 @@ lawfully available; test additional authenticated REST and nonce
 boundaries; end-to-end uploads for real media and document formats;
 provider sandbox card/refund workflows; offline key custody, signed
 artifact hosting and an owner-approved update channel. Never claim
-0.1.2 is production-ready or automagically fix the broader vendor
-changelog from these targeted patches.
+0.1.2 is production-ready or that these targeted patches implement
+all of the broader official vendor security changelog.
 
 ## Independent plugin identity live acceptance (20 November 2026)
 
