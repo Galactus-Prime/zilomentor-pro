@@ -34,6 +34,7 @@ class IdentityTests(unittest.TestCase):
         self.backup.chmod(0o700)
         (self.backup / "wordpress-before-identity-synthetic.sql").write_text(
             "-- synthetic fixture; contains NO real site data\n")
+        (self.backup / "wordpress-before-identity-synthetic.sql").chmod(0o600)
         (self.site / "wp-config.php").write_text("<?php // synthetic")
         mu = self.site / "wp-content" / "mu-plugins"
         mu.mkdir()
