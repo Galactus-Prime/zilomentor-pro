@@ -49,8 +49,8 @@ def main():
         help="Exercise legacy compatibility layout or independent ZiloMentor folder using disposable WordPress only.",
     )
     argp.add_argument(
-        "--focus", choices=("all", "editor"), default="all",
-        help="Run the full integration suite, or stop after isolated Elementor editor comparison.",
+        "--focus", choices=("all", "editor", "runtime"), default="all",
+        help="Full integration, editor-focused browser checks, or only synthetic runtime/security checks.",
     )
     argp.add_argument(
         "--verify-editor-save", action="store_true",
@@ -565,6 +565,12 @@ add_action( 'init', function () {
                                              "runtime_posts_visibility.php",
                                              "runtime_rest_sensitive_controllers.php") else [])}),
                     "Runtime check failed: " + (p.stdout + p.stderr)[-500:])
+
+        if args.focus == "runtime":
+            # Lightweight fast feedback for file format/security regression
+            # tests. No front-end HTTP server, mail, checkout or browser.
+            print("QA_RESULTS_JSON=" + json.dumps(observations), flush=True)
+            return 0 if all(item["passed"] for item in observations) else 1
 
         p = wp(
             "eval-file",
