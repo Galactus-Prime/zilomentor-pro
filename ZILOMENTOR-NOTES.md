@@ -38,14 +38,32 @@ extensions with HTTP 403 and requires **Content-Disposition attachment**,
 **X-Content-Type-Options nosniff** and private no-store headers for a
 benign disposable Form upload file.
 
-Initial full candidate testing passed **71/71 frontend/WooCommerce** and
-**56/56 editor/publish/responsive** checks. The more recent isolated
-Nginx and sensitive endpoint test passed **46/46** checks. The current
-source is undergoing one final complete frontend/editor run; do not
-claim that final run passed until verified. Security parity with paid
-Elementor Pro 4.4.1, provider sandbox payments, optional editor workflows,
-real-world upload samples and offline signing remain external blockers
-recorded in `docs/RELEASE-BLOCKERS.md`.
+Final source-code QA passed **77/77 isolated frontend/WooCommerce/
+Popup/Form checks** and **62/62 authenticated editor/publish/responsive
+checks**, exercising the real browser against the disposable Fiore
+installation. Focused Nginx and sensitive endpoint verification also
+passed **46/46**, including HTTP 403 on .php, .php8, .phtml, and .phar,
+plus Form download-only, no-sniff and no-store headers.
+The full no-Actions source release gate passed **55/55 structural
+assertions** and syntax-checks of **944/944 PHP files under PHP 8.4
+and 8.5**, alongside 8 signed/manual updater, 3 migration/rollback,
+1 ZIP hygiene and 2 signed-manifest Python tests. All source trees and
+browser tests were disposable and cleaned up afterward.
+
+Security parity with paid Elementor Pro 4.4.1, provider sandbox
+payments, optional editor workflows, real-world upload samples, an
+offline owner-held signing key and signed online releases remain external
+blockers recorded in `docs/RELEASE-BLOCKERS.md`.
+
+An untrusted ZIP claiming to be official Elementor Pro 4.4.1
+was also inspected in private quarantine and found to contain an
+unauthorised licence bypass and external insecure template endpoint.
+It is not suitable for source comparison or distribution. Read-only
+live checks found no suspect code, licence-cache values, matching post
+or option strings, cron jobs or newly registered administrator
+accounts, but they cannot establish whether the old code briefly
+executed prior to quarantine. See
+`docs/UNTRUSTED-PLUGIN-INCIDENT.md`.
 
 **No change was made to live ZiloMentor 0.1.1.** The independent staging
 ZIP still requires final SHA256 verification and an owner-held offline
