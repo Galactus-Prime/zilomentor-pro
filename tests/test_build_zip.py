@@ -35,24 +35,33 @@ class TrackedArchiveTests(unittest.TestCase):
             (root / "wp-config.php").write_text("<?php // synthetic")
             (root / "id_ed25519").write_text("SYNTHETIC_KEY_NOT_A_REAL_KEY")
             (root / "assets" / "untracked.txt").write_text("never package")
-            output = subprocess.run(
-                [sys.executable, str(root / "tools" / "build_zip.py")],
-                cwd=root, capture_output=True, text=True, check=True,
-            )
-            self.assertIn("SIZE_BYTES", output.stdout)
-            zips = list((root / "dist").glob("*.zip"))
-            self.assertEqual(len(zips), 1)
-            with zipfile.ZipFile(zips[0]) as archive:
-                names = set(archive.namelist())
-                self.assertIn("elementor-pro/license.txt", names)
-                self.assertIn("elementor-pro/assets/asset-0000.txt", names)
-                for forbidden in (
-                    "error_log", "debug.log", ".env", "wp-config.php",
-                    "id_ed25519", "assets/untracked.txt",
-                    "tools/build_zip.py",
-                ):
-                    self.assertNotIn("elementor-pro/" + forbidden, names, forbidden)
-                self.assertIsNone(archive.testzip())
+            for folder, layout in (
+                ("zilomentor-pro", "independent"),
+                ("elementor-pro", "compat"),
+            ):
+                output = subprocess.run(
+                    [sys.executable, str(root / "tools" / "build_zip.py"),
+                     "--folder", folder],
+                    cwd=root, capture_output=True, text=True, check=True,
+                )
+                self.assertIn("SIZE_BYTES", output.stdout)
+                package = root / "dist" / (
+                    "zilomentor-pro-" + layout + "-0.1.1-staging-only.zip"
+                )
+                self.assertTrue(package.is_file())
+                with zipfile.ZipFile(package) as archive:
+                    names = set(archive.namelist())
+                    self.assertIn(folder + "/elementor-pro.php", names)
+                    self.assertIn(folder + "/license.txt", names)
+                    self.assertIn(folder + "/assets/asset-0000.txt", names)
+                    for forbidden in (
+                        "error_log", "debug.log", ".env", "wp-config.php",
+                        "id_ed25519", "assets/untracked.txt",
+                        "tools/build_zip.py",
+                    ):
+                        self.assertNotIn(folder + "/" + forbidden, names, forbidden)
+                    self.assertIsNone(archive.testzip())
+            self.assertEqual(len(list((root / "dist").glob("*.zip"))), 2)
 
 
 if __name__ == "__main__":
