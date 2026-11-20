@@ -534,7 +534,8 @@ add_action( 'init', function () {
                          "runtime_atomic_attributes_security.php",
                          "runtime_posts_null.php", "runtime_release_guard.php",
                          "runtime_bootstrap_order.php",
-                         "runtime_form_upload_security.php"):
+                         "runtime_form_upload_security.php",
+                         "runtime_rest_auth_security.php"):
             p = wp("eval-file",
                    f"wp-content/plugins/{plugin_folder}/tests/" + filename,
                    environment={"ZMP_ISOLATED_QA": "yes"})
@@ -545,7 +546,8 @@ add_action( 'init', function () {
                             (p.stdout.strip().splitlines()[:6]
                              if filename in ("runtime_posts_null.php", "runtime_release_guard.php",
                                              "runtime_bootstrap_order.php",
-                                             "runtime_form_upload_security.php") else [])}),
+                                             "runtime_form_upload_security.php",
+                                             "runtime_rest_auth_security.php") else [])}),
                     "Runtime check failed: " + (p.stdout + p.stderr)[-500:])
 
         p = wp(
