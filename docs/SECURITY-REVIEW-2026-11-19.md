@@ -3,6 +3,47 @@
 **Scope:** draft 0.1.2 versus deployed 0.1.1; independent GPL fork based on
 PRO Elements 4.4.0. No live customer/order/payment data was used for this audit.
 
+## 20 November additional review: Office ZIP bounds, Apache uploads and MCP abilities
+
+An additional review found that plausible OOXML/ODF file names and ZIP entries
+are insufficient to bound the work involved in processing compressed Office
+attachments. The **unreleased 0.1.2** upload validator now refuses archive
+entry counts over 4,096, expanded individual entries over 64 MiB, combined
+advertised expanded data over 128 MiB, compression ratios exceeding 500:1 on
+entries over 1 MiB, and absolute/traversal/backslash ZIP paths. It uses
+central-directory metadata without expanding user files. These are practical
+resource limits, **not** formal Office document verification or malware
+scanning; some highly compressible legitimate documents will be rejected.
+Disposable regression fixtures include a real archive with >4 MiB compressed
+down to a few kilobytes and an archive containing an `../` entry.
+
+The classic and Atomic Form storage handlers now generate stronger Apache
+`.htaccess` policies for **new** upload directories: executable extension
+denial, download-only delivery, no MIME sniffing and private/no-store caching.
+Both generated configurations are checked in disposable WordPress runtime;
+the earlier isolated Nginx HTTP suite already checked static delivery headers
+and executable-extension denial. The handlers do **not** silently overwrite
+an existing owner's `.htaccess`, and Nginx does not read this file.
+
+Read-only inspection of the actual Itzy Bitzy Workshop server shows Apache
+2.4.71 (cPanel), no Form upload directory at the inspected WordPress path,
+and HTTP 404 with nosniff for a nonexistent `.php` Form URL. That does
+**not** verify protection of an actual created upload. No live Form file or
+server configuration was changed. See [UPLOAD-HARDENING.md](UPLOAD-HARDENING.md).
+
+A separate code-path review noticed the Form-submission read/manage and
+WooCommerce settings MCP abilities declare permissions in their Abilities
+registration, but did not check permission when `execute()` was called
+directly. Development code now also requires `manage_options` for Form
+submission reads/edits, or `manage_options` / `manage_woocommerce` for
+WooCommerce settings, at the execution boundary. The real production MCP
+route and external integrations still require an independent review. No
+production submissions or WooCommerce store settings were read or altered
+during this change.
+
+Sources: https://developer.wordpress.org/advanced-administration/server/web-server/nginx/
+and https://httpd.apache.org/docs/2.4/sections.html.
+
 ## 20 November follow-up: anonymous Form upload hardening (0.1.2 candidate)
 
 An actual code-path audit of the upstream-derived V3 Form Upload and V4
