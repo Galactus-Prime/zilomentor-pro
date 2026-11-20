@@ -152,6 +152,20 @@ try {
         } else {
             $checks['fake_zip_fixture_created'] = false;
         }
+
+        $overfull_office = $root . '/too-many-entries.docx';
+        $many = new \ZipArchive();
+        $checks['office_entry_limit_fixture_created'] =
+            true === $many->open( $overfull_office, \ZipArchive::CREATE );
+        if ( $checks['office_entry_limit_fixture_created'] ) {
+            $many->addFromString( '[Content_Types].xml', '<Types/>' );
+            $many->addFromString( 'word/document.xml', '<w:document/>' );
+            for ( $i = 0; $i < 4096; $i++ ) {
+                $many->addFromString( sprintf( 'word/metadata/zmp-qa-%04d.xml', $i ), '<m/>' );
+            }
+            $many->close();
+            $valid( 'too-many-entries.docx', $overfull_office, false );
+        }
     }
 
     if ( function_exists( 'imagecreatetruecolor' ) ) {
