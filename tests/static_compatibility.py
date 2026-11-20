@@ -263,6 +263,15 @@ check("migration validates exact files, recent SQL backup and guarded rollback",
                         "database-backup", "require_identity(", "IDENTITY_ROLLBACK=YES"))
       and "zilomentor-pro/elementor-pro.php" in
           (ROOT / "tools/zmp-release-guard.php").read_text())
+check("independent Fiore layout must retain original plugin initialization order",
+      (ROOT / "tools/zmp-early-bootstrap.php").is_file()
+      and (ROOT / "tests/runtime_bootstrap_order.php").is_file()
+      and "ZMP_EARLY_COMPAT_BOOTSTRAP" in
+          (ROOT / "tools/zmp-early-bootstrap.php").read_text()
+      and "runtime_bootstrap_order.php" in qa_script
+      and "zmp-early-bootstrap.php" in qa_script
+      and "zmp-early-bootstrap.php" in
+          (ROOT / "tools/migrate_independent_identity.py").read_text())
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
