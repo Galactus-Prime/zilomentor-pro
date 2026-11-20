@@ -407,10 +407,14 @@ add_action( 'init', function () {
     $page_id = absint( $_GET['zmp_qa_page'] ?? 0 );
     $post_type = get_post_type( $page_id );
     $allowed_page = 'page' === $post_type;
+    $template_type = get_post_meta( $page_id, '_elementor_template_type', true );
+    $title = get_the_title( $page_id );
     $allowed_theme_fixture = (
         'elementor_library' === $post_type
-        && 'header' === get_post_meta( $page_id, '_elementor_template_type', true )
-        && 'ZMP Synthetic Header' === get_the_title( $page_id )
+        && (
+            ( 'header' === $template_type && 'ZMP Synthetic Header' === $title )
+            || ( 'popup' === $template_type && 'ZMP Synthetic Popup' === $title )
+        )
     );
     if ( ! $user || ! user_can( $user, 'manage_options' ) ||
          ( ! $allowed_page && ! $allowed_theme_fixture ) ) {
