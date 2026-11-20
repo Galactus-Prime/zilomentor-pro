@@ -81,12 +81,14 @@ def inside(child: Path, parent: Path):
         return False
 
 
-def wp_health(site: Path, expected_zmp: bool, expected_version: str | None = None):
+def wp_health(site: Path, expected_zmp: bool, expected_version: str | None = None,
+              folder: str = FOLDER):
     php = str(PHP_CLI)
     cli = str(WP_CLI)
     code = (
         '$r=["zmp"=>defined("ZILOMENTOR_VERSION"),'
         '"zmp_version"=>defined("ZILOMENTOR_VERSION")?ZILOMENTOR_VERSION:null,'
+        '"base"=>defined("ELEMENTOR_PRO_PLUGIN_BASE")?ELEMENTOR_PRO_PLUGIN_BASE:null,'
         '"pro"=>defined("ELEMENTOR_PRO_VERSION"),'
         '"core"=>did_action("elementor/loaded")>0,'
         '"class"=>class_exists("ElementorPro\\\\Plugin"),'
@@ -110,13 +112,16 @@ def wp_health(site: Path, expected_zmp: bool, expected_version: str | None = Non
         fail("WordPress bootstrap plugin identity is incorrect")
     if expected_zmp and expected_version and state.get("zmp_version") != expected_version:
         fail("WordPress bootstrap ZiloMentor version does not match installed ZIP")
+    if expected_zmp and state.get("base") != folder + "/" + ENTRY:
+        fail("WordPress bootstrap registered the wrong ZiloMentor plugin basename")
     return state
 
 
 
 def verify_signed_release(package: Path, digest: str, version: str,
                           manifest_path: Path, signature_path: Path,
-                          public_key_path: Path, backup: Path):
+                          public_key_path: Path, backup: Path,
+                          folder: str = FOLDER):
     """Enforce an independently pinned offline Ed25519 trust anchor."""
     if (public_key_path.is_symlink()
             or not inside(public_key_path, backup)
@@ -152,7 +157,7 @@ def verify_signed_release(package: Path, digest: str, version: str,
         fail("Signed manifest schema contains missing or unknown fields")
     if (
         type(manifest["schema"]) is not int or manifest["schema"] != 1
-        or manifest["plugin"] != "elementor-pro/elementor-pro.php"
+        or manifest["plugin"] != folder + "/" + ENTRY
         or manifest["version"] != version
         or manifest["filename"] != package.name
         or manifest["sha256"] != digest
@@ -184,6 +189,9 @@ def main():
     ap.add_argument("--backup-dir", type=Path, required=True)
     ap.add_argument("--zip", type=Path)
     ap.add_argument("--sha256")
+    ap.add_argument("--folder", choices=("elementor-pro", "zilomentor-pro"),
+                    default=FOLDER,
+                    help="Explicit installation identity. Use zilomentor-pro for independent signed updates.")
     ap.add_argument("--signed-manifest", type=Path,
                     help="Detached-signed JSON describing this exact ZIP")
     ap.add_argument("--signature", type=Path,
@@ -200,7 +208,7 @@ def main():
     site = args.site.resolve(strict=True)
     backup = args.backup_dir.resolve(strict=True)
     plugins = site / "wp-content" / "plugins"
-    current = plugins / FOLDER
+    current = plugins / args.folder
     original = backup / "elementor-pro-official-original"
     if not all(x.exists() for x in (site / "wp-admin", site / "wp-includes",
                                    site / "wp-config.php", plugins)):
@@ -222,7 +230,12 @@ def main():
 
     with (backup / ".zilomentor-deployment.lock").open("a+") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        marker = backup / ".zilomentor-last-previous"
+        if args.folder == "zilomentor-pro" and args.rollback_to_official:
+            fail("Independent plugin cannot be replaced with vendor files; roll back identity separately")
+        marker = backup / (
+            ".zilomentor-independent-last-previous"
+            if args.folder == "zilomentor-pro" else ".zilomentor-last-previous"
+        )
         if args.rollback or args.rollback_to_official:
             if plugin_name(current) != EXPECTED_NEW or plugin_name(original) != EXPECTED_CURRENT:
                 fail("Rollback refused: unrecognised current or original plugin")
@@ -232,7 +245,7 @@ def main():
                 fail("No previous ZiloMentor release recorded; use --rollback-to-official explicitly")
             if args.rollback and marker.is_file():
                 name = marker.read_text(encoding="utf-8").strip()
-                if not re.fullmatch(r"elementor-pro-previous-zilomentor-[\w.-]+", name):
+                if not re.fullmatch(re.escape(args.folder) + r"-previous-zilomentor-[\w.-]+", name):
                     fail("Invalid recorded rollback target")
                 chosen = backup / name
                 expected = EXPECTED_NEW
@@ -246,7 +259,8 @@ def main():
             try:
                 os.rename(chosen, current)
                 state = wp_health(site, expected == EXPECTED_NEW,
-                                  plugin_version(current) if expected == EXPECTED_NEW else None)
+                                  plugin_version(current) if expected == EXPECTED_NEW else None,
+                                  folder=args.folder)
             except Exception:
                 if current.exists():
                     os.rename(current, chosen)
@@ -268,6 +282,8 @@ def main():
         installed = plugin_name(current)
         if installed not in (EXPECTED_CURRENT, EXPECTED_NEW):
             fail("Refusing to overwrite an unrecognised plugin")
+        if args.folder == "zilomentor-pro" and installed != EXPECTED_NEW:
+            fail("Independent folder may only contain ZiloMentor Pro")
         is_update = installed == EXPECTED_NEW
         if is_update and plugin_name(original) != EXPECTED_CURRENT:
             fail("Private original Elementor Pro backup missing")
@@ -289,7 +305,7 @@ def main():
                 n = info.filename
                 parts = PurePosixPath(n).parts
                 if (n.startswith("/") or "\\" in n or
-                    not parts or parts[0] != FOLDER or
+                    not parts or parts[0] != args.folder or
                     ".." in parts or n in names):
                     fail("Unsafe or duplicate archive entry")
                 if stat.S_ISLNK(info.external_attr >> 16):
@@ -306,9 +322,9 @@ def main():
                     if info.file_size > 15 * 1024 * 1024:
                         fail("Unreasonably large release archive member")
                 names.add(n)
-            if FOLDER + "/" + ENTRY not in names or file_count < 1000:
+            if args.folder + "/" + ENTRY not in names or file_count < 1000:
                 fail("Staging archive missing expected Elementor Pro-compatible layout")
-            entry = z.read(FOLDER + "/" + ENTRY).decode("utf-8")
+            entry = z.read(args.folder + "/" + ENTRY).decode("utf-8")
             if "Plugin Name: " + EXPECTED_NEW not in entry:
                 fail("Plugin release identity mismatch")
             match = re.search(r"^\s*\*?\s*Version:\s*(\d+\.\d+\.\d+)\s*$", entry, re.M)
@@ -327,7 +343,9 @@ def main():
         # New signed-release series must never fall back to the legacy
         # caller-supplied SHA256 alone. Existing earlier deployments retain
         # the explicit legacy mode to allow emergency rollback.
-        signature_required = args.require_signature or version_parts(target_version) >= (0, 1, 2)
+        signature_required = (args.require_signature
+                              or args.folder == "zilomentor-pro"
+                              or version_parts(target_version) >= (0, 1, 2))
         if signature_required and not all(part is not None for part in signature_parts):
             fail("This release requires an independently signed manifest")
         signature_info = {"signed": False}
@@ -336,10 +354,12 @@ def main():
                 source_zip, digest, target_version,
                 args.signed_manifest, args.signature,
                 args.trusted_public_key, backup,
+                folder=args.folder,
             )
         print("PREFLIGHT_OK=" + json.dumps({
             "current":installed, "next":EXPECTED_NEW,
             "target_version":target_version,"is_update":is_update,
+            "plugin_basename": args.folder + "/" + ENTRY,
             "sha256":digest, "files":file_count,
             "siteOwner":os.geteuid(), "privateBackup":True,
             "release_signature": signature_info,
@@ -353,18 +373,18 @@ def main():
         try:
             with zipfile.ZipFile(source_zip) as z:
                 z.extractall(stage_parent)
-            stage_plugin = stage_parent / FOLDER
+            stage_plugin = stage_parent / args.folder
             if plugin_name(stage_plugin) != EXPECTED_NEW:
                 fail("Extracted plugin header mismatch")
             if not (stage_plugin / "plugin.php").is_file():
                 fail("Extracted plugin internals are missing")
-            prior_dest = (backup / ("elementor-pro-previous-zilomentor-"
+            prior_dest = (backup / (args.folder + "-previous-zilomentor-"
                           + plugin_version(current) + "-" + uuid.uuid4().hex[:8])
                           if is_update else original)
             os.rename(current, prior_dest)
             try:
                 os.rename(stage_plugin, current)
-                state = wp_health(site, True, target_version)
+                state = wp_health(site, True, target_version, folder=args.folder)
             except Exception:
                 rejected = backup / ("zilomentor-failed-" + uuid.uuid4().hex[:8])
                 if current.exists():
