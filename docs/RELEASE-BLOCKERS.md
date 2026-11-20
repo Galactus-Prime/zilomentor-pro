@@ -149,6 +149,17 @@ conditions do not allow a real provider sandbox checkout.
   600 MiB entries. On a disposable QA host with PHP 8.4/Sodium,
   13/13 signed staging, 9/9 manual swap and 4/4 manifest tests passed.
   No production plugin, payment, customer or database record was changed.
+- [x] Fresh **0.1.2 development** isolated WordPress/Fiore/WooCommerce
+  integration test on 20 November 2026 passed **80/80** assertions in
+  disposable private Nginx/PHP-FPM + MariaDB with no live database,
+  customers or payment provider. Includes independent plugin identity,
+  theme/Popup conditions, read-only popup browser interactions,
+  Form/REST/Stripe security, ACF, custom attributes, menu, Posts,
+  WooCommerce cart/AJAX/guest checkout with **offline synthetic BACS**
+  and upload execution restrictions. Run used `--plugin-folder zilomentor-pro`
+  and `--frontend-playwright-image haven-browser-qa:1.62.1`.
+  Both PHP 8.4/8.5 syntax matrices passed. This is **not** a live paid
+  transaction or a replacement for 4.4.1 vendor security parity.
 - [x] Stable private backups of the live 0.1.1 beta retained outside webroot.
 
 Full source evidence: `docs/SECURITY-REVIEW-2026-11-19.md` and
