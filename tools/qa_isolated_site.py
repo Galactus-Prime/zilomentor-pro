@@ -706,7 +706,7 @@ add_action( 'init', function () {
     }
     # Explicitly model the no-executable-upload policy. Nginx ignores
     # Apache .htaccess files, so PHP-FPM must never receive uploaded scripts.
-    location ~* ^/wp-content/uploads/.*\.(?:php[0-9]*|phtml|pht|phtm|phar|cgi|pl|py|rb|shtml|asp|aspx)$ {
+    location ~* ^/wp-content/uploads/.*\.(?:php[0-9]*|phtml|pht|phtm|phar|cgi|pl|py|rb|shtml|asp|aspx)(?:\.|$) {
         return 403;
     }
     # Serve saved Form attachments as downloads, never as renderable
@@ -820,7 +820,8 @@ add_action( 'init', function () {
             return int(status.strip()), body, ""
 
         if args.web_server == "nginx-fpm":
-            for blocked_extension in ("php", "php8", "phtml", "phar"):
+            for blocked_extension in ("php", "php8", "phtml", "phar",
+                                      "php.jpg", "phtml.png", "phar.webp"):
                 denied, denied_body, denied_err = request(
                     "wp-content/uploads/elementor/forms/"
                     "__zmp_nonexistent_private_qa_probe__." + blocked_extension
