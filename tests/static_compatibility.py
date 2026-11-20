@@ -342,6 +342,17 @@ check("Popup edit Publish has real browser and persistent scoped render QA",
       and "Edited Popup renders only on its intended synthetic page" in qa_script
       and "ZMP_QA_TEMPLATE_KIND" in
           (ROOT / "tests/browser_theme_editor_save.js").read_text())
+check("signed GitHub Release feed staging is offline-key verified and never installs",
+      (ROOT / "tools/stage_signed_github_release.py").is_file()
+      and "verify_signature(" in
+          (ROOT / "tools/stage_signed_github_release.py").read_text()
+      and "inspect_zip(" in
+          (ROOT / "tools/stage_signed_github_release.py").read_text()
+      and "automatic_update_enabled" in
+          (ROOT / "tools/stage_signed_github_release.py").read_text()
+      and (ROOT / "tests/test_stage_signed_github_release.py").is_file()
+      and "tests/test_stage_signed_github_release.py" in
+          (ROOT / "tools/run_manual_checks.py").read_text())
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
