@@ -98,16 +98,21 @@ conditions do not allow a real provider sandbox checkout.
 - [ ] Repeat desktop/mobile pixel-level comparisons, browser JS and asset
   checks, WooCommerce cart/checkout, PHP8.4/8.5 and synthetic online test
   before any controlled production update.
-- [ ] Investigate the **two inherited desktop Motion Effects JavaScript errors**
-  seen on the live homepage. Read-only 1366×768 Chromium reports twice:
-  `Cannot read properties of undefined (reading 'translateX')`, with a stack
-  in `zilomentor-pro/assets/js/frontend.min.js` under
-  `prepareOptions()`. Mobile 390×844 reports zero. Historical live baseline
-  already showed the same **counts**, so do not attribute the regression to
-  the fork without an A/B comparison. Motion Effects data are present on
-  12 page elements; diagnostic-only browser instrumentation changed timing
-  and reproduced **zero** errors, suggesting a timing-sensitive condition
-  but not proving the root cause. Do not ship a speculative JS patch.
+- [x] **0.1.2 development fix** for inherited Motion Effects crash with
+  Reduced Motion enabled. The handler deliberately skips `initEffects()`
+  when `prefers-reduced-motion: reduce` matches, but later resize callbacks
+  still entered `toggle()` and dereferenced uninitialized `this.effects`.
+  Both readable and shipped minified frontend assets now guard `toggle()`
+  and `onElementChange()` when initialization was skipped. A read-only
+  live-site browser prepatch reproduced two desktop `translateX` errors
+  with Reduced Motion and zero under normal motion. The exact patched
+  development bundle, substituted **only inside private browser contexts**,
+  passed 4/4 desktop/mobile × reduced/normal cases: zero JS errors, existing
+  85/89 widgets intact, and the normal desktop's 12 motion effects present.
+  Two source regression tests and JS syntax checks passed. Similar upstream
+  report: https://github.com/elementor/elementor/issues/34257.
+  **Live 0.1.1 remains unchanged**: repeat normal browser QA after a later
+  authorised, signed promotion.
 - [ ] The same live read-only homepage canary finds one image element with
   no `src` and no failed image HTTP request at both widths
   (`<img alt="" width="900" height="600" decoding="async">`). Determine
