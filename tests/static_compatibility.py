@@ -318,6 +318,10 @@ check("classic Form attachment URLs are cryptographically random",
           (ROOT / "modules/forms/fields/upload.php").read_text()
       and "uniqid()" not in
           (ROOT / "modules/forms/fields/upload.php").read_text().split("$filename =")[-1])
+check("disposable Nginx blocks executable uploads before PHP-FPM",
+      "Nginx synthetic upload execution denied" in qa_script
+      and "location ~* ^/wp-content/uploads/" in qa_script
+      and "phtml|pht|phtm|phar" in qa_script)
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
