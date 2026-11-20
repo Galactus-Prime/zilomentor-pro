@@ -306,6 +306,13 @@ check("anonymous Stripe Checkout requires published saved widget and local redir
       and "runtime_stripe_security.php" in qa_script
       and "tests/runtime_stripe_security.php" not in
           (ROOT / "tools/build_zip.py").read_text())
+check("public Posts preview denies private documents and arbitrary widgets",
+      "post_password_required" in (ROOT / "modules/posts/data/controller.php").read_text()
+      and "current_user_can( 'edit_post', $post_id )" in
+          (ROOT / "modules/posts/data/controller.php").read_text()
+      and "'posts', 'portfolio'" in
+          (ROOT / "modules/posts/data/controller.php").read_text()
+      and "runtime_posts_visibility.php" in qa_script)
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
