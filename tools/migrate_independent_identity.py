@@ -77,6 +77,7 @@ def wp_state(site):
         '"identity"=>defined("ZILOMENTOR_VERSION")?ZILOMENTOR_VERSION:null,'
         '"base"=>defined("ELEMENTOR_PRO_PLUGIN_BASE")?ELEMENTOR_PRO_PLUGIN_BASE:null,'
         '"elementor"=>did_action("elementor/loaded")>0,'
+        '"early_bootstrap"=>defined("ZMP_EARLY_COMPAT_BOOTSTRAP"),'
         '"woocommerce"=>class_exists("WooCommerce")]);'
     ))
 
@@ -168,6 +169,7 @@ def require_identity(site, folder):
         and s.get("identity") == EXPECTED_VERSION
         and s.get("base") == folder + "/" + ENTRY
         and s.get("elementor") is True
+        and s.get("early_bootstrap") is wanted
         and s.get("woocommerce") is True
     ):
         abort("WordPress / Elementor / WooCommerce did not bootstrap with expected plugin basename")
@@ -219,6 +221,11 @@ def main():
     guard = site / "wp-content" / "mu-plugins" / "zmp-release-guard.php"
     if not guard.is_file() or "Version: 0.2.0" not in guard.read_text()[:600]:
         abort("Independent-compatible external must-use release guard must be installed first")
+    early = site / "wp-content" / "mu-plugins" / "zmp-early-bootstrap.php"
+    if (not early.is_file() or early.is_symlink()
+            or early.stat().st_uid != os.geteuid()
+            or "Version: 0.1.0" not in early.read_text(encoding="utf-8")[:800]):
+        abort("Tested independent MU compatibility bootstrap must be installed first")
 
     with (backup / ".zilomentor-deployment.lock").open("a+") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
