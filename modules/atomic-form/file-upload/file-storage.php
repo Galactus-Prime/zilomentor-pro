@@ -16,6 +16,13 @@ class File_Storage {
 			return [ 'error' => $this->translate_php_upload_error( $file->error ) ];
 		}
 
+		// WordPress' nondefault wp_handle_upload action may not enforce
+		// is_uploaded_file() itself. Never promote an arbitrary readable
+		// server-local file to a publicly addressable attachment.
+		if ( ! is_uploaded_file( $file->tmp_name ) ) {
+			return [ 'error' => __( 'Could not upload the file.', 'elementor-pro' ) ];
+		}
+
 		// Validate the actual bytes BEFORE wp_handle_upload moves them.
 		// Filename/type metadata supplied by anonymous visitors is untrusted.
 		if ( ! Utils::is_form_upload_content_safe( $file->tmp_name, $file->name ) ) {
