@@ -193,26 +193,41 @@ class Custom_Icons extends  Assets_Base {
 
 	private function upload() {
 		$file = Utils::_unstable_get_super_global_value( $_FILES, 'zip_upload' );
-		$filename = $file['name'];
-		$ext = pathinfo( $filename, PATHINFO_EXTENSION );
+		if ( ! is_array( $file ) || ! isset( $file['name'], $file['tmp_name'], $file['error'] )
+			|| ! is_string( $file['name'] ) || ! is_string( $file['tmp_name'] )
+			|| UPLOAD_ERR_OK !== (int) $file['error'] ) {
+			return new \WP_Error( 'upload_error', esc_html__( 'Could not upload the ZIP file.', 'elementor-pro' ) );
+		}
+
+		$ext = strtolower( pathinfo( $file['name'], PATHINFO_EXTENSION ) );
 		if ( 'zip' !== $ext ) {
-			unlink( $filename );
+			// The client-provided name is NOT a server path: never unlink it.
 			return new \WP_Error( 'unsupported_file', esc_html__( 'Only zip files are allowed', 'elementor-pro' ) );
 		}
+
 		if ( ! function_exists( 'wp_handle_upload' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/file.php';
 		}
-		// Handler upload archive file.
+
 		$upload_result = wp_handle_upload( $file, [ 'test_form' => false ] );
-		if ( isset( $upload_result['error'] ) ) {
-			unlink( $filename );
-			return new \WP_Error( 'upload_error', $upload_result['error'] );
+		if ( ! is_array( $upload_result ) || isset( $upload_result['error'] ) ) {
+			// PHP/WordPress owns and cleans the temporary upload; never delete a submitted filename.
+			$message = is_array( $upload_result ) && isset( $upload_result['error'] )
+				? $upload_result['error']
+				: esc_html__( 'Could not upload the ZIP file.', 'elementor-pro' );
+			return new \WP_Error( 'upload_error', $message );
 		}
+
 		return $upload_result['file'];
 	}
 
 	private function extract_zip( $file, $to ) {
-		// TODO: Move to core as a util.
+		// Icon ZIPs are admin-provided but may still be corrupted or untrusted.
+		// Inspect the central directory before extracting any bytes to disk.
+		$max_archive_bytes = 32 * 1024 * 1024;
+		$max_expanded_bytes = 128 * 1024 * 1024;
+		$max_entry_bytes = 64 * 1024 * 1024;
+		$max_entries = 4096;
 		$valid_field_types = [
 			'css',
 			'eot',
@@ -226,46 +241,75 @@ class Custom_Icons extends  Assets_Base {
 			'woff2',
 		];
 
+		if ( ! class_exists( '\ZipArchive' ) || ! is_file( $file )
+			|| false === filesize( $file ) || filesize( $file ) > $max_archive_bytes ) {
+			@unlink( $file );
+			return new \WP_Error( 'invalid_icon_archive', esc_html__( 'Invalid or oversized icon ZIP file.', 'elementor-pro' ) );
+		}
+
 		$zip = new \ZipArchive();
-
-		$zip->open( $file );
-
-		$valid_entries = [];
-
-		// phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-		for ( $i = 0; $i < $zip->numFiles; $i++ ) {
-			$zipped_file_name = $zip->getNameIndex( $i );
-			$dirname = pathinfo( $zipped_file_name, PATHINFO_DIRNAME );
-
-			// Skip the OS X-created __MACOSX directory.
-			if ( '__MACOSX/' === substr( $dirname, 0, 9 ) ) {
-				continue;
-			}
-
-			$zipped_extension = pathinfo( $zipped_file_name, PATHINFO_EXTENSION );
-			// Skip files with transversal paths.
-			if ( strpos( $zipped_file_name, '..' ) !== false ) {
-				continue;
-			}
-
-			if ( in_array( $zipped_extension, $valid_field_types, true ) ) {
-				$valid_entries[] = $zipped_file_name;
-			}
+		if ( true !== $zip->open( $file, \ZipArchive::RDONLY ) ) {
+			@unlink( $file );
+			return new \WP_Error( 'invalid_icon_archive', esc_html__( 'Could not open the icon ZIP file.', 'elementor-pro' ) );
 		}
 
-		$unzip_result = false;
+		try {
+			if ( $zip->numFiles < 1 || $zip->numFiles > $max_entries ) {
+				return new \WP_Error( 'invalid_icon_archive', esc_html__( 'Icon ZIP contains too many entries.', 'elementor-pro' ) );
+			}
 
-		if ( ! empty( $valid_entries ) ) {
-			$unzip_result = $zip->extractTo( $to, $valid_entries );
+			$valid_entries = [];
+			$total_expanded = 0;
+
+			for ( $i = 0; $i < $zip->numFiles; $i++ ) {
+				$stat = $zip->statIndex( $i );
+				if ( ! is_array( $stat ) || ! isset( $stat['name'], $stat['size'], $stat['comp_size'] ) ) {
+					return new \WP_Error( 'invalid_icon_archive', esc_html__( 'Invalid icon ZIP entry.', 'elementor-pro' ) );
+				}
+
+				$name = $stat['name'];
+				$size = $stat['size'];
+				$compressed = $stat['comp_size'];
+				if ( ! is_string( $name ) || '' === $name || strlen( $name ) > 512
+					|| ! is_int( $size ) || ! is_int( $compressed ) || $size < 0 || $compressed < 0
+					|| $size > $max_entry_bytes || $total_expanded > $max_expanded_bytes - $size
+					|| ( $size > 1024 * 1024 && $size > 500 * max( 1, $compressed ) ) ) {
+					return new \WP_Error( 'invalid_icon_archive', esc_html__( 'Unsafe or oversized icon ZIP entry.', 'elementor-pro' ) );
+				}
+				$total_expanded += $size;
+
+				// Reject traversal, absolute paths, Windows paths and archive symlinks.
+				if ( '/' === $name[0] || false !== strpos( $name, '\\' )
+					|| preg_match( '~^[A-Za-z]:|(?:^|/)\.{1,2}(?:/|$)|//~', $name ) ) {
+					return new \WP_Error( 'invalid_icon_archive', esc_html__( 'Unsafe icon ZIP path.', 'elementor-pro' ) );
+				}
+				$opsys = 0;
+				$external_attributes = 0;
+				if ( $zip->getExternalAttributesIndex( $i, $opsys, $external_attributes )
+					&& 3 === $opsys && 0120000 === ( ( $external_attributes >> 16 ) & 0170000 ) ) {
+					return new \WP_Error( 'invalid_icon_archive', esc_html__( 'ZIP symlinks are not supported.', 'elementor-pro' ) );
+				}
+
+				// Ignore ancillary files that have no part in the icon set.
+				if ( 0 === strpos( $name, '__MACOSX/' ) || '/' === substr( $name, -1 ) ) {
+					continue;
+				}
+
+				$extension = strtolower( pathinfo( $name, PATHINFO_EXTENSION ) );
+				if ( in_array( $extension, $valid_field_types, true ) ) {
+					$valid_entries[] = $name;
+				}
+			}
+
+			if ( ! $valid_entries || ! $zip->extractTo( $to, $valid_entries ) ) {
+				return new \WP_Error( 'invalid_icon_archive', esc_html__( 'Could not unzip or empty archive.', 'elementor-pro' ) );
+			}
+
+			return true;
+		} finally {
+			$zip->close();
+			@unlink( $file );
 		}
-
-		if ( ! $unzip_result ) {
-			$unzip_result = new \WP_Error( 'error', esc_html__( 'Could not unzip or empty archive.', 'elementor-pro' ) );
-		}
-
-		@unlink( $file );
-
-		return $unzip_result; // TRUE | WP_Error instance.
 	}
 
 	private function upload_and_extract_zip() {
