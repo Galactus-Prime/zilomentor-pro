@@ -6,9 +6,9 @@ During the WP Toolkit plugin-name collision on Itzy Bitzy Workshop,
 a package describing itself as **Elementor Pro 4.4.1** overwrote the
 old `elementor-pro/` plugin folder. It was removed from the live web
 directory and placed in the owner-only private backup location
-`/home/zilofish/zilomentor-release-backups/20261119T132053Z/` under
-`quarantine-untrusted-elementor-pro-20261119T172211Z`
-(directory permissions **0700**). This was **not** ZiloMentor code.
+an owner-controlled, **non-web** backup directory, under a
+restricted quarantine folder (directory permissions **0700**).
+The exact private server path is intentionally not published. This was **not** ZiloMentor code.
 
 On **20 November 2026**, read-only examination of the quarantined
 `elementor-pro.php` entrypoint confirmed:
