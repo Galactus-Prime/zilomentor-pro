@@ -116,10 +116,13 @@ conditions do not allow a real provider sandbox checkout.
 - [x] Corrected a false-positive "broken image" count in the read-only
   public canary: the source-less `<img width="900" height="600">` is
   inside the custom `#ibw-unified-mega-menu`, whose computed visibility
-  was **hidden**. It generates **no failed HTTP image request**. The
-  canary now separately reports `brokenImages:0` and
-  `emptySourceImages:1` at desktop and mobile. This is a QA
-  classification correction, **not a change to live menu rendering**.
+  was **hidden**. It generates **no failed HTTP image request**. A
+  subsequent **read-only mouse hover on Shop** made the mega-menu visible,
+  populated its image source (`/wp-content/uploads/2026/09/ibw-menu/ibw-menu-shop-clean.webp`)
+  and revealed 12 menu links. The canary now separately reports
+  `brokenImages:0` and `emptySourceImages:1` before interaction at
+  desktop and mobile. This is a QA classification correction, **not
+  a change to live menu rendering**.
 
 
 ## What is already verified
