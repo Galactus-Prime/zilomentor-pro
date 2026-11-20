@@ -57,6 +57,12 @@ async function main() {
           const count = css => document.querySelectorAll(css).length;
           const widgets = [...document.querySelectorAll(".elementor-widget[data-widget_type]")];
           const imgs = [...document.images];
+          // Hidden menu placeholders can intentionally lack an image URL.
+          // Only an image with an actual source that fails decoding/loading
+          // should count as a broken network image.
+          const hasImageSource = image => Boolean(
+            image.currentSrc || image.getAttribute("src") || image.getAttribute("srcset")
+          );
           return {
             titlePresent:document.title.length>0,
             htmlBytes:document.documentElement.outerHTML.length,
@@ -67,7 +73,8 @@ async function main() {
             forms:count("form"),
             menuLinks:count("nav a, .elementor-nav-menu a"),
             images:imgs.length,
-            brokenImages:imgs.filter(i=>i.complete && i.naturalWidth===0).length,
+            brokenImages:imgs.filter(i=>hasImageSource(i) && i.complete && i.naturalWidth===0).length,
+            emptySourceImages:imgs.filter(i=>!hasImageSource(i)).length,
             horizontalOverflow:document.documentElement.scrollWidth>
               document.documentElement.clientWidth+2,
             hasBody:!!document.body && document.body.innerText.length>100,
