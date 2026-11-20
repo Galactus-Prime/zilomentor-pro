@@ -39,8 +39,8 @@ def main():
         help="Run synthetic WordPress with the original PHP development server, or private Nginx/PHP-FPM workers.",
     )
     parser.add_argument(
-        "--focus", choices=("all", "editor"), default="all",
-        help="Run the complete HTTP suite, or the isolated editor comparison only.",
+        "--focus", choices=("all", "editor", "runtime"), default="all",
+        help="Run complete HTTP, authenticated editor, or focused synthetic runtime-only security checks.",
     )
     parser.add_argument(
         "--plugin-folder", choices=("elementor-pro", "zilomentor-pro"),
