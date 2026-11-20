@@ -73,6 +73,10 @@ def main():
         help="Opt-in isolated Popup template Heading edit and Publish, with database/condition verification.",
     )
     argp.add_argument(
+        "--verify-posts-nav-editor", action="store_true",
+        help="Opt-in Posts widget selection and Nav Menu label edit/Publish in isolated Elementor.",
+    )
+    argp.add_argument(
         "--verify-editor-responsive", action="store_true",
         help="Opt-in isolated real Elementor tablet, mobile and desktop editor switching checks.",
     )
@@ -107,7 +111,7 @@ def main():
     plugin_folder = args.plugin_folder
     if (args.verify_editor_save or args.verify_editor_form_save
             or args.verify_editor_form_fields or args.verify_theme_builder_save or args.verify_popup_editor_save
-            or args.verify_editor_responsive):
+            or args.verify_post_nav_editor or args.verify_editor_responsive):
         require(args.focus == "editor" and args.editor_playwright_image is not None
                 and args.web_server == "nginx-fpm",
                 "Editor save verification needs --focus editor, --web-server nginx-fpm and --editor-playwright-image")
@@ -1610,6 +1614,92 @@ add_action( 'init', function () {
                     "target_saved": popup_target.get("popup_saved_marker"),
                     "unrelated_saved": popup_other.get("popup_saved_marker"),
                     "errors": [popup_target_err, popup_other_err]})
+
+        if args.verify_post_nav_editor:
+            nav_js = plugins_path / plugin_folder / "tests/browser_posts_nav_editor.js"
+            require(nav_js.is_file(), "Missing synthetic Posts/Nav editor QA")
+            nav_browser_name = "zmp-qa-posts-nav-" + tag
+            nav_cmd = [
+                "run", "--rm", "--name", nav_browser_name,
+                "--network", network, "--memory=1600m", "--cpus=2",
+                "--shm-size=128m",
+                "-e", "NODE_PATH=/usr/lib/node_modules",
+                "-e", "ZMP_QA_EDITOR_TOKEN=" + editor_login_token,
+                "-e", "ZMP_QA_PAGE_ID=" + str(nav_fixtures["page"]),
+                "-e", "ZMP_QA_POSTS_NAV_EDITOR=yes",
+                "-v", str(nav_js) + ":/qa/posts_nav.js:ro",
+                "--entrypoint", "timeout", args.editor_playwright_image,
+                "--signal=TERM", "--kill-after=5s", "90s",
+                "node", "/qa/posts_nav.js",
+            ]
+            nav_state = {}
+            try:
+                nav_run = docker(nav_cmd, timeout=110)
+                nav_line = next((
+                    line[len("ZMP_POSTS_NAV_EDITOR_JSON="):]
+                    for line in nav_run.stdout.splitlines()
+                    if line.startswith("ZMP_POSTS_NAV_EDITOR_JSON=")
+                ), None)
+                if nav_line:
+                    try:
+                        nav_state = json.loads(nav_line)
+                    except ValueError:
+                        nav_state = {}
+                record("Synthetic Pro Nav Menu editing and Posts widget selection",
+                       nav_run.returncode == 0
+                       and all(nav_state.get(key) is True for key in (
+                           "authenticated", "navFound", "postsFound",
+                           "navSelected", "oldMenuNameMatched",
+                           "newMenuNameMatched", "postsSelected", "saveClicked",
+                       ))
+                       and all(nav_state.get(key) == 0 for key in (
+                           "pageErrors", "httpErrors", "requestFailures",
+                       )),
+                       {"exit_code": nav_run.returncode, "state": nav_state})
+            except subprocess.TimeoutExpired:
+                record("Synthetic Pro Nav Menu editing and Posts widget selection",
+                       False, {"hard_timeout": True})
+            finally:
+                docker(["rm", "-f", nav_browser_name], 20)
+
+            nav_verify = (
+                '$id=' + str(nav_fixtures["page"]) + ';'
+                '$d=json_decode(get_post_meta($id,"_elementor_data",true),true);'
+                '$saved=false;$posts_preserved=false;'
+                '$scan=function($n)use(&$scan,&$saved,&$posts_preserved){'
+                'foreach((array)$n as $item){if(!is_array($item))continue;'
+                'if(($item["id"]??"")==="9a0c1d01"){'
+                '$saved=(($item["widgetType"]??"")==="nav-menu"&&'
+                '($item["settings"]["menu_name"]??"")==="ZiloMentor QA Saved Navigation Menu");}'
+                'if(($item["id"]??"")==="9a0c1d02"){'
+                '$posts_preserved=(($item["widgetType"]??"")==="posts");}'
+                'if(!empty($item["elements"]))$scan($item["elements"]);}};'
+                '$scan($d);echo wp_json_encode(["saved"=>$saved,'
+                '"posts_preserved"=>$posts_preserved]);'
+            )
+            nav_db_run = wp("eval", nav_verify)
+            try:
+                nav_db = json.loads(nav_db_run.stdout.strip())
+            except ValueError:
+                nav_db = {}
+            record("Nav Menu label persisted without losing Posts widget",
+                   nav_db_run.returncode == 0
+                   and nav_db.get("saved") is True
+                   and nav_db.get("posts_preserved") is True,
+                   {"exit": nav_db_run.returncode, "verification": nav_db})
+            nav_http, nav_html, nav_err = request(
+                "?page_id=" + str(nav_fixtures["page"])
+            )
+            record("Edited Nav Menu retains published link and Posts rendering",
+                   nav_http == 200
+                   and nav_fixtures["menu_label"] in nav_html
+                   and nav_fixtures["posts_label"] in nav_html
+                   and 'elementor-widget-nav-menu' in nav_html
+                   and 'elementor-widget-posts' in nav_html,
+                   {"status": nav_http,
+                    "link_present": nav_fixtures["menu_label"] in nav_html,
+                    "post_present": nav_fixtures["posts_label"] in nav_html,
+                    "error": nav_err})
 
         if args.verify_editor_responsive:
             responsive_js = plugins_path / plugin_folder / "tests/browser_editor_responsive.js"
