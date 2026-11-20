@@ -10,6 +10,133 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Utils {
 
+	/**
+	 * Reject forged form-upload MIME types before storing any uploaded file.
+	 *
+	 * WordPress validates image contents but may rely on filename mapping for
+	 * non-images. Form uploads are anonymous, so never trust the client-sent
+	 * MIME field or the configured extension alone. Only WordPress-registered
+	 * MIME types are accepted. Extra structure checks apply to PDF, Office
+	 * and common multimedia formats.
+	 *
+	 * Custom formats must first be registered with WordPress' upload_mimes
+	 * filter; unknown binary types and executable scripts fail closed.
+	 */
+	public static function is_form_upload_content_safe( string $path, string $original_name ): bool {
+		if ( ! is_file( $path ) || ! is_readable( $path ) || is_link( $path )
+			|| 0 === filesize( $path ) ) {
+			return false;
+		}
+
+		$extension = strtolower( (string) pathinfo( $original_name, PATHINFO_EXTENSION ) );
+		if ( ! preg_match( '/^[a-z0-9]{2,10}$/D', $extension )
+			|| preg_match( '/^(?:php\d*|pht\w*|phar|phps|shtml|[cj]sp|aspx?|cgi|sh|bash|pl|py|rb)$/D', $extension )
+			|| in_array( $extension, [ 'html', 'htm', 'js', 'mjs', 'svg', 'svgz', 'swf', 'exe', 'dll', 'com', 'bat', 'cmd', 'ps1', 'hta', 'jar', 'htaccess', 'htpasswd' ], true ) ) {
+			return false;
+		}
+
+		$registered = wp_check_filetype( $original_name, get_allowed_mime_types() );
+		$checked = wp_check_filetype_and_ext( $path, $original_name );
+		if ( strtolower( (string) ( $registered['ext'] ?? '' ) ) !== $extension
+			|| empty( $registered['type'] )
+			|| strtolower( (string) ( $checked['ext'] ?? '' ) ) !== $extension
+			|| empty( $checked['type'] ) ) {
+			return false;
+		}
+
+		if ( ! function_exists( 'finfo_open' ) ) {
+			return false;
+		}
+
+		$info = finfo_open( FILEINFO_MIME_TYPE );
+		if ( false === $info ) {
+			return false;
+		}
+		$mime = finfo_file( $info, $path );
+		finfo_close( $info );
+		if ( ! is_string( $mime ) || '' === $mime ) {
+			return false;
+		}
+
+		if ( preg_match( '~(?:x-php|x-executable|x-sharedlib|x-mach-binary|javascript|text/html)~i', $mime ) ) {
+			return false;
+		}
+
+		$head = file_get_contents( $path, false, null, 0, 16 );
+		if ( ! is_string( $head ) ) {
+			return false;
+		}
+
+		if ( 'pdf' === $extension ) {
+			return 'application/pdf' === $mime && str_starts_with( $head, '%PDF-' );
+		}
+
+		// A forged .docx/.pptx/.xlsx file must actually contain the expected
+		// Office Open XML entry, not just an arbitrary PK/ZIP archive.
+		$zip_folders = [
+			'docx' => 'word/document.xml',
+			'pptx' => 'ppt/presentation.xml',
+			'xlsx' => 'xl/workbook.xml',
+			'odt' => 'mimetype',
+			'ods' => 'mimetype',
+			'odp' => 'mimetype',
+		];
+		if ( isset( $zip_folders[ $extension ] ) ) {
+			if ( ! class_exists( '\ZipArchive' )
+				|| ! str_starts_with( $head, "PK\x03\x04" ) ) {
+				return false;
+			}
+
+			$archive = new \ZipArchive();
+			if ( true !== $archive->open( $path, \ZipArchive::RDONLY ) ) {
+				return false;
+			}
+			$valid = false !== $archive->locateName( '[Content_Types].xml' )
+				&& false !== $archive->locateName( $zip_folders[ $extension ] );
+			if ( in_array( $extension, [ 'odt', 'ods', 'odp' ], true ) ) {
+				$expected_odf = [
+					'odt' => 'application/vnd.oasis.opendocument.text',
+					'ods' => 'application/vnd.oasis.opendocument.spreadsheet',
+					'odp' => 'application/vnd.oasis.opendocument.presentation',
+				];
+				$valid = false !== $archive->locateName( 'META-INF/manifest.xml' )
+					&& $expected_odf[ $extension ] === $archive->getFromName( 'mimetype' );
+			}
+			$archive->close();
+			return $valid;
+		}
+
+		if ( in_array( $extension, [ 'doc', 'ppt', 'xls' ], true ) ) {
+			return str_starts_with( $head, "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1" );
+		}
+
+		if ( in_array( $extension, [ 'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'tif', 'tiff', 'ico' ], true ) ) {
+			return str_starts_with( $mime, 'image/' )
+				&& false !== @getimagesize( $path );
+		}
+
+		if ( in_array( $extension, [ 'mp3', 'mp4', 'm4a', 'mov', 'avi', 'ogg', 'wav', 'wmv', 'mpg', 'mpeg', 'webm' ], true ) ) {
+			return str_starts_with( $mime, 'audio/' ) || str_starts_with( $mime, 'video/' )
+				|| in_array( $mime, [ 'application/ogg', 'application/x-ogg' ], true );
+		}
+
+		if ( in_array( $extension, [ 'txt', 'csv', 'tsv', 'md', 'rtf' ], true ) ) {
+			if ( ! in_array( $mime, [ 'text/plain', 'text/csv', 'text/tab-separated-values', 'application/rtf', 'text/rtf' ], true ) ) {
+				return false;
+			}
+			$prefix = file_get_contents( $path, false, null, 0, 4096 );
+			return is_string( $prefix )
+				&& ! preg_match( '/<\?(?:php|=)|<script\b/i', $prefix );
+		}
+
+		// Unknown or custom registered types require an exact server MIME match.
+		// Never treat arbitrary "application/octet-stream" as safe merely
+		// because an administrator put its extension on a form field.
+		return 'application/octet-stream' !== $mime
+			&& $mime === (string) $registered['type'];
+	}
+
+
 	public static function get_public_post_types( $args = [] ) {
 		$post_type_args = [
 			// Default is the value $public.
