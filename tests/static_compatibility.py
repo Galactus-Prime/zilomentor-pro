@@ -354,6 +354,17 @@ check("signed GitHub Release feed staging is offline-key verified and never inst
       and (ROOT / "tests/test_stage_signed_github_release.py").is_file()
       and "tests/test_stage_signed_github_release.py" in
           (ROOT / "tools/run_manual_checks.py").read_text())
+check("upload compatibility suite covers Office OpenDocument media and text formats",
+      all(ext in (ROOT / "tests/runtime_form_upload_security.php").read_text()
+          for ext in ("spreadsheet.xlsx", "presentation.pptx", "text.odt",
+                      "sheet.ods", "slides.odp", "silence.wav",
+                      "inventory.csv", "note.rtf"))
+      and "runtime_form_upload_security.php" in qa_script)
+check("manual isolated QA supports fast runtime-only security testing",
+      'choices=("all", "editor", "runtime")' in qa_script
+      and 'args.focus == "runtime"' in qa_script
+      and 'choices=("all", "editor", "runtime")' in
+          (ROOT / "tools/run_manual_checks.py").read_text())
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
