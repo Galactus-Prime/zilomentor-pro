@@ -69,6 +69,27 @@ attributes fixes; this identity migration is not an automatic 4.4.1 patch.
 See [independent migration evidence](docs/INDEPENDENT-PLUGIN-IDENTITY.md)
 and [WP Toolkit collision investigation](docs/WPTOOLKIT-UPDATE-COLLISION.md).
 
+## Signed GitHub Releases: no-cost independent staging (20 November 2026)
+
+The unreleased candidate now includes an independent **read-only GitHub
+Release client** that can download future public ZIP/manifest/signature
+assets without a GitHub Actions workflow or subscription. It validates
+the publisher's offline Ed25519 signature against an independently
+approved public key, exact signed ZIP hash, plugin basename, version,
+expiry and archive safety before staging files privately outside webroot.
+It never directly installs a WordPress plugin or registers a one-click
+unverified update path.
+
+**12/12 synthetic release tests passed** using throwaway local signing
+keys, including altered signatures/ZIPs, unsafe URLs, expired manifests,
+downgrades, duplicate assets, wrong keys and insecure permissions. A
+genuine signed public release has **not yet been published**, and no
+owner-held operational private signing key has been provisioned. The
+working live site remains on 0.1.1.
+
+See [signed release feed instructions](docs/SIGNED-GITHUB-RELEASE-FEED.md)
+and [offline signing procedures](docs/OFFLINE-RELEASE-SIGNING.md).
+
 ## Security warning: quarantined vendor-labelled ZIP was modified
 
 A package which previously overwrote the old `elementor-pro` folder
