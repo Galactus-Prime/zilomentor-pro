@@ -128,6 +128,34 @@ try {
 		is_wp_error( $result ) && file_exists( $sentinel )
 		&& 'keep this isolated file' === file_get_contents( $sentinel );
 
+	// A real PHP multiple-file shape uses nested arrays only in name/tmp_name.
+	// Sanitize string filenames without changing the matching upload indices.
+	$_FILES['zip_upload'] = [
+		'name' => [ 'first' => 'invoice sample.pdf', 'second' => 'photo image.png' ],
+		'tmp_name' => [ 'first' => '/tmp/fake-1', 'second' => '/tmp/fake-2' ],
+		'error' => [ 'first' => UPLOAD_ERR_OK, 'second' => UPLOAD_ERR_OK ],
+	];
+	$clean_multi = \ElementorPro\Core\Utils::_unstable_get_super_global_value( $_FILES, 'zip_upload' );
+	$checks['sanitize_multi_upload_preserves_file_indices'] =
+		is_array( $clean_multi )
+		&& 'invoice-sample.pdf' === ( $clean_multi['name']['first'] ?? null )
+		&& 'photo-image.png' === ( $clean_multi['name']['second'] ?? null )
+		&& '/tmp/fake-2' === ( $clean_multi['tmp_name']['second'] ?? null );
+
+	// Non-string nested names may originate in malicious form-data shapes:
+	// they must never reach sanitize_file_name() as an array or number.
+	$_FILES['zip_upload'] = [
+		'name' => [ 'one' => [ 'nested file.pdf', false ], 'two' => 123 ],
+		'tmp_name' => [ 'one' => [ '/tmp/fake-3', '/tmp/fake-4' ], 'two' => '/tmp/fake-5' ],
+		'error' => UPLOAD_ERR_OK,
+	];
+	$malformed = \ElementorPro\Core\Utils::_unstable_get_super_global_value( $_FILES, 'zip_upload' );
+	$checks['malformed_upload_names_cannot_trigger_type_error'] =
+		is_array( $malformed )
+		&& 'nested-file.pdf' === ( $malformed['name']['one'][0] ?? null )
+		&& '' === ( $malformed['name']['one'][1] ?? null )
+		&& '' === ( $malformed['name']['two'] ?? null );
+
 	$_FILES['zip_upload'] = [
 		'name' => [ 'fake.zip' ],
 		'tmp_name' => [ '/tmp/none' ],
