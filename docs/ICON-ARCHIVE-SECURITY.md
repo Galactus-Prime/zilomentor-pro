@@ -63,6 +63,17 @@ python3 tools/qa_isolated_site.py --source-wordpress /path/to/read-only-wordpres
 No GitHub Actions, commercial QA service, customer payments, real email,
 production database or production WordPress files are required.
 
+## Full-suite verification (20 November 2026)
+
+The complete manual suite passed on code SHA
+`ef5564c9a84646369417de31073bc8c9fdbc0f8e` with the cached
+ZIP-enabled PHP-FPM image: **88/88 disposable WordPress integrations**
+passed, including `runtime_icon_zip_security.php`,
+`runtime_form_upload_security.php`, nested filename validation, and
+PHP 8.4/8.5 parsing. The staging-only release ZIP checksum is recorded
+in `docs/RELEASE-BLOCKERS.md`. The test does not include a live
+customer upload or paid-processor transaction.
+
 ## Remaining caveats
 
 - Validate against genuine Fontello, IcoMoon and Fontastic export archives,
