@@ -141,6 +141,42 @@ conditions do not allow a real provider sandbox checkout.
   a change to live menu rendering**.
 
 
+## Targeted icon archive, import cleanup and PHP upload-shape hardening (20 November 2026)
+
+The **unreleased 0.1.2 development branch** adds further controls beyond the
+previous 87/87 acceptance preview. The inherited custom-icon uploader no longer
+attempts to unlink a path supplied as a client filename; it requires a valid ZIP,
+limits archive and extracted sizes/entry count/compression ratio, rejects unsafe
+and executable multi-extension entries (including symlinks), and removes the
+server-side ZIP in its cleanup path. Its import rollback and normal delete
+handlers now require the saved icon directory to be a real, non-symlink direct
+child of the configured icon storage root. Details and caveats:
+[ICON-ARCHIVE-SECURITY.md](ICON-ARCHIVE-SECURITY.md).
+
+A disposable WordPress runtime identified a PHP fatal from malformed
+nested `$_FILES` names reaching WordPress's string filename sanitiser. The
+shared helper now validates and recursively sanitises multi-upload filenames
+without changing the matching temporary-file indices. Regressions also cover
+valid multi-file structure and malformed arrays. A missing global WP_Post now
+safely short-circuits the Posts Full Content skin.
+
+**QA environment correction:** the previously cached PHP-FPM images lacked
+`ZipArchive`. Real Office/icon ZIP tests were therefore incomplete despite
+earlier green results. A new QA-only `zmp-php84-zip-qa:local` image has been
+manually built with the tracked `tools/docker/Dockerfile.qa-php84-zip`;
+the isolated runner now refuses to start when its PHP image lacks ZipArchive.
+The focused isolated runtime check at source SHA
+`011f72b46d3ff971f5fa5e2d6b5e0b340c4d64b6` passed with the
+ZIP-enabled image. Later test-only additions for multi-file names, archive
+symlinks, and preflight assertions must be covered by the final full-suite
+source-SHA check before promoting any release.
+
+**Live Apache read-only inspection:** both HTTP/HTTPS vhosts use the expected
+site document root and PHP-FPM; `httpd -t` reported `Syntax OK`, with
+`headers`, `authz_core` and `proxy_fcgi` modules loaded and general
+AllowOverride rules. This is not a physical upload-directory execution
+probe, and the Apache and Nginx live-policy gate remains unchecked.
+
 ## What is already verified
 
 - [x] Independent plugin basename deployed live with verified 1,419-file
