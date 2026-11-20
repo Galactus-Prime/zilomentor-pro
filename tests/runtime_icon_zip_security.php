@@ -66,6 +66,18 @@ try {
 			&& ! is_file( $base . '/outside.css' );
 	}
 
+	// POSIX ZIP symlink attributes should never become extracted filesystem links.
+	$symlink_archive = $zip_fixture( 'symlink.zip', [ 'icons/linked.css' => '../outside.css' ] );
+	$symlink_zip = new \ZipArchive();
+	if ( true !== $symlink_zip->open( $symlink_archive ) ) {
+		throw new \RuntimeException( 'Could not reopen ZIP symlink fixture' );
+	}
+	$symlink_zip->setExternalAttributesName( 'icons/linked.css', 3, 0120777 << 16 );
+	$symlink_zip->close();
+	$symlink_result = $extract->invoke( $icons, $symlink_archive, $base . '/extract-symlink' );
+	$checks['reject_symlink_archive_entry'] =
+		is_wp_error( $symlink_result ) && ! file_exists( $symlink_archive );
+
 	$too_many = [];
 	for ( $i = 0; $i < 4097; $i++ ) {
 		$too_many[ 'icons/' . $i . '.txt' ] = 'x';
