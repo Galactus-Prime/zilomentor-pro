@@ -41,5 +41,18 @@ class ManifestTests(unittest.TestCase):
                 mod.create_manifest(other, now=instant)
 
 
+    def test_independent_plugin_manifest_never_claims_vendor_slug(self):
+        with tempfile.TemporaryDirectory(prefix="zmp-independent-manifest-") as temp:
+            package = Path(temp) / "zilomentor-pro-independent-0.1.2-staging-only.zip"
+            with zipfile.ZipFile(package, "w") as z:
+                z.writestr("zilomentor-pro/elementor-pro.php",
+                           "<?php\n/**\n * Plugin Name: ZiloMentor Pro\n"
+                           " * Version: 0.1.2\n */\n")
+            manifest = mod.create_manifest(package, valid_days=21)
+            self.assertEqual(manifest["plugin"], "zilomentor-pro/elementor-pro.php")
+            self.assertEqual(manifest["filename"], package.name)
+            self.assertEqual(manifest["version"], "0.1.2")
+            self.assertNotIn("elementor-pro/elementor-pro.php", manifest["plugin"])
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
