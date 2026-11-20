@@ -252,6 +252,8 @@ try {
     $checks['legacy_apache_download_and_nosniff_headers'] =
         false !== strpos( $legacy_rules, 'Content-Disposition "attachment"' )
         && false !== strpos( $legacy_rules, 'X-Content-Type-Options "nosniff"' );
+    $checks['legacy_apache_multiextension_scripts_denied'] =
+        false !== strpos( $legacy_rules, '(?:\\.|$)' );
 
     $storage = new $atomic();
     $uploads_location = wp_upload_dir( null, false );
@@ -270,6 +272,8 @@ try {
         $checks['atomic_apache_download_and_nosniff_headers'] =
             false !== strpos( $atomic_rules, 'Content-Disposition "attachment"' )
             && false !== strpos( $atomic_rules, 'X-Content-Type-Options "nosniff"' );
+        $checks['atomic_apache_multiextension_scripts_denied'] =
+            false !== strpos( $atomic_rules, '(?:\\.|$)' );
         $checks['atomic_apache_uses_real_newline_separators'] =
             substr_count( $atomic_rules, "\n" ) >= 7;
 
@@ -285,6 +289,7 @@ try {
     } else {
         $checks['atomic_apache_executable_uploads_denied'] = false;
         $checks['atomic_apache_download_and_nosniff_headers'] = false;
+        $checks['atomic_apache_multiextension_scripts_denied'] = false;
         $checks['atomic_apache_uses_real_newline_separators'] = false;
         $checks['form_writers_preserve_existing_custom_htaccess'] = false;
     }
