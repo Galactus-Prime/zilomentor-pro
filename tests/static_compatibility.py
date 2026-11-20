@@ -406,6 +406,32 @@ check("Elementor History undo redo and save verified in real editor",
           (ROOT / "tests/browser_editor_history.js").read_text()
       and "--verify-editor-history" in
           (ROOT / "tools/run_manual_checks.py").read_text())
+icon_source = (ROOT / "modules/assets-manager/asset-types/icons/custom-icons.php").read_text()
+icon_fixture = (ROOT / "tests/runtime_icon_zip_security.php").read_text()
+check("custom icon ZIP archive refuses dangerous paths and resource exhaustion",
+      "getExternalAttributesIndex" in icon_source
+      and "max_expanded_bytes" in icon_source
+      and "icon.php.css" in icon_fixture
+      and "runtime_icon_zip_security.php" in qa_script
+      and "unlink( $filename )" not in icon_source)
+check("imported icon set deletion is scoped in all three code paths",
+      "function is_safe_icon_set_directory" in icon_source
+      and "self::is_safe_icon_set_directory( $icon_set_dir )" in icon_source
+      and all("Custom_Icons::is_safe_icon_set_directory" in
+              (ROOT / name).read_text() for name in (
+                  "modules/assets-manager/asset-types/icons/import-export/revert-runner.php",
+                  "modules/assets-manager/asset-types/icons/import-export-customization/revert-runner.php"))
+      and "delete_guard_rejects_icon_storage_root" in icon_fixture)
+check("disposable ZIP-enabled QA PHP image is reproducible without Actions",
+      'default="zmp-php84-zip-qa:local"' in qa_script
+      and (ROOT / "tools/docker/Dockerfile.qa-php84-zip").is_file()
+      and "docker-php-ext-install -j2 zip" in
+          (ROOT / "tools/docker/Dockerfile.qa-php84-zip").read_text())
+check("Posts Full Content skips absent global WP_Post",
+      "! $post instanceof \WP_Post" in
+          (ROOT / "modules/posts/skins/skin-content-base.php").read_text()
+      and "missing_post_full_content_empty" in
+          (ROOT / "tests/runtime_posts_null.php").read_text())
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
