@@ -69,6 +69,36 @@ attributes fixes; this identity migration is not an automatic 4.4.1 patch.
 See [independent migration evidence](docs/INDEPENDENT-PLUGIN-IDENTITY.md)
 and [WP Toolkit collision investigation](docs/WPTOOLKIT-UPDATE-COLLISION.md).
 
+## Unreleased 0.1.2: additional Form upload security checks
+
+The development branch now validates the **actual file contents** of
+anonymous uploads in both classic Elementor Form and Atomic Form widgets.
+Administrators cannot make an unsafe file acceptable simply by listing
+its extension. The shared implementation in `core/utils.php` requires a
+registered WordPress MIME, inspects content with FileInfo, applies PDF,
+Office, image and audio/video checks and denies disguised executable/script
+formats. Atomic Form failure cleanup is restricted to its own upload
+directory and cannot unlink arbitrary supplied paths.
+
+Disposable WordPress tests confirmed valid sample files and rejection of
+PHP disguised as PDF/Office, arbitrary Office ZIP files, scripts in text
+and `.php8` extensions. **44/44 focused editor/runtime checks** and
+**68/68 isolated frontend/popup/WooCommerce checks** passed before the
+separate role-based REST regression was added. The wider editing regression
+and additional REST authorization test require their own final checks.
+
+**Compatibility caution:** a special-purpose CAD or other unusual extension
+previously accepted via a Form field alone can now be rejected. Register
+custom types using WordPress's `upload_mimes` filter and test their actual
+MIME/content before enabling this unreleased candidate. File validation is
+not a replacement for malware scanning.
+
+The verified live site **still runs 0.1.1**, unchanged by this security
+development. Signing and independent updates remain manual; see the
+[offline signing and rollback procedure](docs/OFFLINE-RELEASE-SIGNING.md).
+**No automatic update service or operational private signing key has
+been installed.**
+
 ## Current beta deployment and limitations (19 November 2026)
 
 The owner explicitly authorised testing on `https://itzybitzyworkshop.co.uk/`.
