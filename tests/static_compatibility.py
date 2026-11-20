@@ -272,6 +272,21 @@ check("independent Fiore layout must retain original plugin initialization order
       and "zmp-early-bootstrap.php" in qa_script
       and "zmp-early-bootstrap.php" in
           (ROOT / "tools/migrate_independent_identity.py").read_text())
+check("anonymous Form uploads validate actual contents in both widget generations",
+      "is_form_upload_content_safe(" in (ROOT / "core/utils.php").read_text()
+      and "get_allowed_mime_types()" in (ROOT / "core/utils.php").read_text()
+      and "finfo_file(" in (ROOT / "core/utils.php").read_text()
+      and "word/document.xml" in (ROOT / "core/utils.php").read_text()
+      and "is_form_upload_content_safe(" in
+          (ROOT / "modules/forms/fields/upload.php").read_text()
+      and "is_form_upload_content_safe(" in
+          (ROOT / "modules/atomic-form/file-upload/file-storage.php").read_text()
+      and "runtime_form_upload_security.php" in qa_script)
+check("atomic form cleanup cannot delete outside its upload directory",
+      "dirname( $resolved ) === $root" in
+          (ROOT / "modules/atomic-form/file-upload/file-storage.php").read_text()
+      and "atomic_cleanup_refuses_external_paths" in
+          (ROOT / "tests/runtime_form_upload_security.php").read_text())
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
