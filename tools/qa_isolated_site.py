@@ -661,6 +661,15 @@ add_action( 'init', function () {
     location ~* ^/wp-content/uploads/.*\.(?:php[0-9]*|phtml|pht|phtm|phar|cgi|pl|py|rb|shtml|asp|aspx)$ {
         return 403;
     }
+    # Serve saved Form attachments as downloads, never as renderable
+    # HTML/scripts. This regex comes after the executable-extension deny
+    # above and therefore cannot override that deny.
+    location ~* ^/wp-content/uploads/elementor/forms/ {
+        add_header Content-Disposition "attachment" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Cache-Control "private, no-store" always;
+        try_files $uri =404;
+    }
     location ~ \.php$ {
         try_files $uri =404;
         include /etc/nginx/fastcgi_params;
@@ -772,6 +781,25 @@ add_action( 'init', function () {
                        denied == 403,
                        {"status": denied, "error": denied_err,
                         "test_scope": "Private disposable Nginx, no uploaded file"})
+
+        if args.web_server == "nginx-fpm":
+            attachment = docker([
+                "run", "--rm", "--network", network, "--memory=128m",
+                "--entrypoint", "curl", args.curl_image,
+                "-sS", "--max-time", "18", "--noproxy", "*",
+                "-D", "-", "-o", "/dev/null",
+                "http://web:8080/wp-content/uploads/elementor/forms/zmp-qa-header-fixture.txt",
+            ], 27)
+            response_headers = attachment.stdout.lower()
+            record("Nginx synthetic Form uploads require attachment and nosniff headers",
+                   attachment.returncode == 0
+                   and "http/1.1 200" in response_headers
+                   and "content-disposition: attachment" in response_headers
+                   and "x-content-type-options: nosniff" in response_headers
+                   and "cache-control: private, no-store" in response_headers,
+                   {"headers": response_headers[-700:],
+                    "exit": attachment.returncode,
+                    "test_scope": "Private disposable Nginx Form upload file"})
 
         for i in range(12):
             status, html, err = request("?page_id=" + str(fixtures["page"]))
