@@ -428,10 +428,14 @@ check("disposable ZIP-enabled QA PHP image is reproducible without Actions",
       and "docker-php-ext-install -j2 zip" in
           (ROOT / "tools/docker/Dockerfile.qa-php84-zip").read_text())
 check("Posts Full Content skips absent global WP_Post",
-      "! $post instanceof \WP_Post" in
+      r"! $post instanceof \WP_Post" in
           (ROOT / "modules/posts/skins/skin-content-base.php").read_text()
       and "missing_post_full_content_empty" in
           (ROOT / "tests/runtime_posts_null.php").read_text())
+check("malformed multi-upload arrays cannot trigger filename type errors",
+      "sanitize_upload_filename_values" in (ROOT / "core/utils.php").read_text()
+      and "malformed_upload_names_cannot_trigger_type_error" in icon_fixture
+      and "sanitize_multi_upload_preserves_file_indices" in icon_fixture)
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
