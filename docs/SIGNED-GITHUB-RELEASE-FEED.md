@@ -34,8 +34,10 @@ The opt-in tools/stage_signed_github_release.py script:
    tags, non-increasing versions, unsafe hosts/URLs and unrecognised redirects.
 3. Checks exact independent-plugin release asset names and their byte lengths
    and (when present) GitHub SHA256 digests.
-4. Uses the existing PHP Sodium verifier to validate the **literal manifest**
-   bytes against the offline-approved PUBLIC key, then enforces exact signed
+4. Refuses to contact GitHub until the locally pinned public-key file
+   matches an owner-provided SHA256 fingerprint verified out of band.
+   Uses the existing PHP Sodium verifier to validate the **literal manifest**
+   bytes against that offline-approved PUBLIC key, then enforces exact signed
    basename, version, timestamp, expiry, size and SHA256 ZIP identity.
 5. Rejects dangerous, incomplete, duplicated, symlinked and oversized ZIP
    entries; checks the independent plugin bootstrap and version.
@@ -90,6 +92,7 @@ Use only the already-approved PUBLIC verification key:
     python3 tools/stage_signed_github_release.py \
       --current-version 0.1.1 \
       --trusted-public-key /private/approved-keys/zmp-public.b64 \
+      --trusted-public-key-sha256 OWNER_VERIFIED_64_HEX_SHA256 \
       --stage-dir /private/staged-zilomentor-releases
 
 The script makes no WordPress changes; success reports the validated version,
@@ -104,7 +107,7 @@ with --apply may change plugin files. Keep the original code for file rollback.
 ## Tests and outstanding requirements
 
 The manual no-Actions release checks run
-tests/test_stage_signed_github_release.py. Its 13 no-network tests
+tests/test_stage_signed_github_release.py. Its 14 no-network tests
 use short-lived synthetic keys only in private temporary directories. They
 cover valid staging, tampering, signatures, unsafe origin/ports, rollback
 prevention, duplicate assets, expiry, invalid trust, world-readable staging, forged 600 MiB ZIP expansion metadata
