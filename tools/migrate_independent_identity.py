@@ -160,10 +160,6 @@ def store_state(path, state):
 
 def require_identity(site, folder):
     s = wp_state(site)
-    if (s.get("multisite") is not False
-            or s.get(folder.replace("-", "_")) is True):
-        # The keys are explicitly "legacy" and "independent", not folder.
-        pass
     wanted = folder == INDEPENDENT
     if not (
         s.get("multisite") is False
