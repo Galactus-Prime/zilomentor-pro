@@ -113,10 +113,13 @@ conditions do not allow a real provider sandbox checkout.
   report: https://github.com/elementor/elementor/issues/34257.
   **Live 0.1.1 remains unchanged**: repeat normal browser QA after a later
   authorised, signed promotion.
-- [ ] The same live read-only homepage canary finds one image element with
-  no `src` and no failed image HTTP request at both widths
-  (`<img alt="" width="900" height="600" decoding="async">`). Determine
-  whether it is an intentional placeholder/lazy element before fixing it.
+- [x] Corrected a false-positive "broken image" count in the read-only
+  public canary: the source-less `<img width="900" height="600">` is
+  inside the custom `#ibw-unified-mega-menu`, whose computed visibility
+  was **hidden**. It generates **no failed HTTP image request**. The
+  canary now separately reports `brokenImages:0` and
+  `emptySourceImages:1` at desktop and mobile. This is a QA
+  classification correction, **not a change to live menu rendering**.
 
 
 ## What is already verified
