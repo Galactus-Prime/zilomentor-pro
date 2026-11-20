@@ -115,6 +115,18 @@ class IdentityTests(unittest.TestCase):
             json.loads((self.backup / identity.STATE_FILENAME).read_text())["status"],
             "rolled_back",
         )
+        # A corrected build must permit a second, explicitly verified
+        # attempt after the first migration was safely rolled back.
+        second = self.run_migration(*flags)
+        self.assertIn("DRY_RUN=YES", second)
+        second_apply = self.run_migration(*flags, "--apply")
+        self.assertIn("MIGRATION_SUCCEEDED=YES", second_apply)
+        self.assertEqual(self.active, "zilomentor-pro")
+        self.assertEqual(
+            len(list(self.backup.glob("zilomentor-previous-rolled-back-state-*.json"))), 1
+        )
+        self.run_migration("--rollback")
+        self.assertEqual(self.active, "elementor-pro")
 
     def test_archive_hash_mismatch_and_unexpected_file_rejected(self):
         with self.assertRaisesRegex(RuntimeError, "hash mismatch"):
