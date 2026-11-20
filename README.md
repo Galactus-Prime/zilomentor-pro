@@ -82,10 +82,12 @@ directory and cannot unlink arbitrary supplied paths.
 
 Disposable WordPress tests confirmed valid sample files and rejection of
 PHP disguised as PDF/Office, arbitrary Office ZIP files, scripts in text
-and `.php8` extensions. **44/44 focused editor/runtime checks** and
-**68/68 isolated frontend/popup/WooCommerce checks** passed before the
-separate role-based REST regression was added. The wider editing regression
-and additional REST authorization test require their own final checks.
+and `.php8` extensions. **44/44 initial focused editor/runtime checks**, **68/68 complete
+isolated frontend/popup/WooCommerce checks**, **53/53 combined editor
+publishing/responsive checks**, and a further **38/38 role/REST-focused
+isolated runtime checks** passed. The REST tests checked icon/SVG route
+permission callbacks for guest, subscriber, contributor and editor roles,
+without dispatching any privileged write operation.
 
 **Compatibility caution:** a special-purpose CAD or other unusual extension
 previously accepted via a Form field alone can now be rejected. Register
