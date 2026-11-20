@@ -296,6 +296,16 @@ check("privileged Elementor Pro REST endpoint permission callbacks are probed",
           (ROOT / "tests/runtime_rest_auth_security.php").read_text()
       and "custom-icon-svg" in
           (ROOT / "tests/runtime_rest_auth_security.php").read_text())
+check("anonymous Stripe Checkout requires published saved widget and local redirect",
+      "is_public_stripe_document(" in
+          (ROOT / "modules/payments/module.php").read_text()
+      and "validate_checkout_return_url(" in
+          (ROOT / "modules/payments/module.php").read_text()
+      and "is_valid_stripe_session(" in
+          (ROOT / "modules/payments/module.php").read_text()
+      and "runtime_stripe_security.php" in qa_script
+      and "tests/runtime_stripe_security.php" not in
+          (ROOT / "tools/build_zip.py").read_text())
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
