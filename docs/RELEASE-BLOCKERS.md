@@ -54,8 +54,8 @@ Public upstream source: https://github.com/proelements/proelements
   verify file count/hash, sign its manifest offline, and reject tampering.
 - [x] Implement a read-only, HTTPS-only, GitHub Releases signed asset
   downloader with pinned Ed25519 PUBLIC key, exact ZIP/manifest validation,
-  temporary owner-only private staging and no WordPress install. Initial
-  no-network adversarial regression **13/13 passed**, without Actions or fees.
+  temporary owner-only private staging and no WordPress install. No-network
+  adversarial regression **14/14 passed**, without Actions or fees.
   See docs/SIGNED-GITHUB-RELEASE-FEED.md.
 - [ ] Owner privately signs, approves and **publishes a genuine release**
   through GitHub Releases; test the real online feed, including allowed
@@ -134,7 +134,7 @@ conditions do not allow a real provider sandbox checkout.
 - [x] 0.1.2 development has tests for upload type/content validation,
   private Posts-widget visibility, role permissions and Stripe request
   validation with no live payment transaction.
-- [x] Signed GitHub Releases *staging-only* client passes 13 synthetic
+- [x] Signed GitHub Releases *staging-only* client passes 14 synthetic
   signature/tamper/expiry/host/permission tests; it never enables
   WordPress automatic updates or installs anything.
 - [x] Staging signed-manifest format, SHA256-locked manual installer and
@@ -160,6 +160,20 @@ conditions do not allow a real provider sandbox checkout.
   and `--frontend-playwright-image haven-browser-qa:1.62.1`.
   Both PHP 8.4/8.5 syntax matrices passed. This is **not** a live paid
   transaction or a replacement for 4.4.1 vendor security parity.
+- [x] **0.1.2 development** bounds Word/Excel/PowerPoint/OpenDocument ZIP
+  entry count, per-entry/aggregate expanded bytes, compression ratio and
+  traversal/absolute entry names. Synthetic high-compression DOCX and
+  traversal fixtures were added; independent MIME/real-document compatibility
+  samples are still required.
+- [x] **0.1.2 development** classic and Atomic Form upload handlers create
+  executable-extension denial and download-only/no-sniff Apache rules for
+  new Form upload directories. Runtime checks exercise both writers and
+  preservation of owner-customised rules. The actual production Apache/Nginx
+  effective-policy and physical uploaded-file tests remain open.
+- [x] **0.1.2 development** Form-submission MCP read/write and WooCommerce
+  settings abilities now check the original capability policy inside
+  `execute()` too, protecting direct callers outside the registry.
+  Low-privilege direct-execution cases are in the disposable REST/MCP test.
 - [x] Stable private backups of the live 0.1.1 beta retained outside webroot.
 
 Full source evidence: `docs/SECURITY-REVIEW-2026-11-19.md` and
