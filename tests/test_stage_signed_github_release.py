@@ -7,8 +7,10 @@ never use these ephemeral keys to sign operational/production releases.
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 import hashlib
+import io
 import json
 import os
+import struct
 from pathlib import Path
 import shutil
 import subprocess
@@ -225,6 +227,18 @@ class SignedGitHubReleaseTests(unittest.TestCase):
             self.stage_valid()
         self.assertEqual((self.stage / self.zip_name).read_text(),
                          "keep existing file")
+
+    def test_zip_bomb_metadata_rejected_before_decompression(self):
+        # Central-directory uncompressed size is attacker-controlled.
+        # Artificially claim a 600 MiB file inside a ~50 KiB ZIP, without
+        # ever generating or decompressing a 600 MiB payload.
+        data = bytearray(self.zip_blob)
+        first = data.find(b"PK\\x01\\x02")
+        second = data.find(b"PK\\x01\\x02", first + 4)
+        self.assertGreater(second, first)
+        struct.pack_into("<I", data, second + 24, 600 * 1024 * 1024)
+        with self.assertRaisesRegex(feed.ReleaseError, "Decompressed plugin"):
+            feed.inspect_zip(bytes(data), self.version)
 
     def test_url_scheme_host_userinfo_and_port_are_rejected(self):
         for uri in (
