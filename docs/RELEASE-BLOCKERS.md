@@ -55,7 +55,7 @@ Public upstream source: https://github.com/proelements/proelements
 - [x] Implement a read-only, HTTPS-only, GitHub Releases signed asset
   downloader with pinned Ed25519 PUBLIC key, exact ZIP/manifest validation,
   temporary owner-only private staging and no WordPress install. Initial
-  no-network adversarial regression **12/12 passed**, without Actions or fees.
+  no-network adversarial regression **13/13 passed**, without Actions or fees.
   See docs/SIGNED-GITHUB-RELEASE-FEED.md.
 - [ ] Owner privately signs, approves and **publishes a genuine release**
   through GitHub Releases; test the real online feed, including allowed
