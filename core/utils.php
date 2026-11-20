@@ -68,7 +68,7 @@ class Utils {
 		}
 
 		if ( 'pdf' === $extension ) {
-			return 'application/pdf' === $mime && str_starts_with( $head, '%PDF-' );
+			return 'application/pdf' === $mime && 0 === strpos( $head, '%PDF-' );
 		}
 
 		// A forged .docx/.pptx/.xlsx file must actually contain the expected
@@ -83,7 +83,7 @@ class Utils {
 		];
 		if ( isset( $zip_folders[ $extension ] ) ) {
 			if ( ! class_exists( '\ZipArchive' )
-				|| ! str_starts_with( $head, "PK\x03\x04" ) ) {
+				|| ! 0 === strpos( $head, "PK\x03\x04" ) ) {
 				return false;
 			}
 
@@ -107,16 +107,16 @@ class Utils {
 		}
 
 		if ( in_array( $extension, [ 'doc', 'ppt', 'xls' ], true ) ) {
-			return str_starts_with( $head, "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1" );
+			return 0 === strpos( $head, "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1" );
 		}
 
 		if ( in_array( $extension, [ 'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'tif', 'tiff', 'ico' ], true ) ) {
-			return str_starts_with( $mime, 'image/' )
+			return 0 === strpos( $mime, 'image/' )
 				&& false !== @getimagesize( $path );
 		}
 
 		if ( in_array( $extension, [ 'mp3', 'mp4', 'm4a', 'mov', 'avi', 'ogg', 'wav', 'wmv', 'mpg', 'mpeg', 'webm' ], true ) ) {
-			return str_starts_with( $mime, 'audio/' ) || str_starts_with( $mime, 'video/' )
+			return 0 === strpos( $mime, 'audio/' ) || 0 === strpos( $mime, 'video/' )
 				|| in_array( $mime, [ 'application/ogg', 'application/x-ogg' ], true );
 		}
 
