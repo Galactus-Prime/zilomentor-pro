@@ -101,6 +101,40 @@ development. Signing and independent updates remain manual; see the
 **No automatic update service or operational private signing key has
 been installed.**
 
+## Development hardening: Stripe, private Posts and upload safeguards (20 November)
+
+Following the targeted upload audit, the **unreleased 0.1.2** branch now
+also validates a Stripe Checkout request's published WordPress document,
+actual stored Stripe Button widget, currency, positive totals and saved
+settings. Browser-controlled return URLs are constrained to WordPress-
+approved hosts. Two-decimal amounts use correct minor-unit rounding
+(e.g. £19.99 = 1,999 pence), and combined product, quantity and shipping
+totals have a maximum. Invalid tax JSON cannot leak PHP warnings into
+a Checkout API request. Tests use synthetic fixtures, **not Stripe**.
+
+Public Posts-widget pagination rejects requests for other users' draft,
+private or password-protected documents; logged-in editors retain
+document-specific edit permissions. Global Widget compatibility is
+preserved while privately protected template content is denied. New
+role-based tests check submissions, notes and Global Widget controllers
+under different account roles without dispatching privileged requests.
+
+Form upload hardening also includes **128-bit unpredictable attachment
+filenames** (replacing time-derived names), checks for ZIP/PHAR appended
+to images, Office archive structure and a regression for the known
+optional-empty-first-file bypass. Atomic Form files must originate from
+actual SAPI HTTP uploads and its cleanup remains constrained to its
+dedicated folder. A private Nginx/PHP-FPM QA configuration explicitly
+denies executable extensions in synthetic uploads. This is not proof
+that every public server or custom-proxy configuration is secure.
+
+These are **candidate-only** changes. The latest full regression and
+source matrix must pass before any signed release is considered, and
+the signed production update still requires an owner-held **offline**
+private key. General completion criteria are explicitly tracked in
+[release blockers](docs/RELEASE-BLOCKERS.md), not asserted from tests
+alone. No GitHub Actions or subscription service is required.
+
 ## Current beta deployment and limitations (19 November 2026)
 
 The owner explicitly authorised testing on `https://itzybitzyworkshop.co.uk/`.
