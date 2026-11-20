@@ -168,6 +168,12 @@ try {
     file_put_contents( $owned, 'synthetic temporary upload' );
     $storage->delete( [ $owned ] );
     $checks['atomic_cleanup_deletes_only_own_file'] = ! file_exists( $owned );
+    // Separate benign fixture intentionally remains until the *entire
+    // disposable WordPress tree* is destroyed. Nginx header QA fetches it.
+    $headers_fixture = trailingslashit( $form_dir ) . 'zmp-qa-header-fixture.txt';
+    file_put_contents( $headers_fixture, 'Synthetic ZiloMentor download only.' );
+    $checks['synthetic_attachment_header_fixture_created'] =
+        is_file( $headers_fixture );
     if ( file_exists( $owned ) ) {
         unlink( $owned );
     }
