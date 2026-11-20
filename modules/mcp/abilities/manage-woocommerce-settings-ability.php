@@ -110,6 +110,14 @@ class Manage_Woocommerce_Settings_Ability extends Abstract_Ability {
 	}
 
 	public function execute( $input = [] ) {
+		// Match the registry capability policy even if called directly.
+		if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'manage_woocommerce' ) ) {
+			return new \WP_Error(
+				'rest_forbidden',
+				__( 'Sorry, you are not allowed to perform this action.', 'elementor-pro' ),
+				[ 'status' => \WP_Http::FORBIDDEN ]
+			);
+		}
 		$input = is_array( $input ) ? $input : [];
 		$action = $input['action'] ?? null;
 
