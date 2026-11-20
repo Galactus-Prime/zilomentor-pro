@@ -20,14 +20,17 @@ Anonymous classic Form and Atomic Form uploads need three independent protection
 2. **Apache upload directory policy:** both V3 and Atomic handlers create
    an `.htaccess` for *new* `wp-content/uploads/elementor/forms/`
    directories. It denies common executable extension requests with
-   `FilesMatch` / `Require all denied`, disables indexing, and, when
+   `FilesMatch` / `Require all denied` even for multi-extension names
+   such as `payload.php.jpg` (some Apache handlers can act on an earlier
+   extension), disables indexing, and, when
    `mod_headers` is enabled, sets `Content-Disposition: attachment`,
    `X-Content-Type-Options: nosniff` and
    `Cache-Control: private, no-store`. Existing customised `.htaccess`
    files are **not silently overwritten**; audit and migrate older weak rules
    separately. `.htaccess` only works when Apache permits overrides.
 3. **Nginx/PHP-FPM:** Nginx **ignores** `.htaccess`. The disposable QA
-   configuration explicitly denies PHP-like files from all WordPress uploads
+   configuration explicitly denies PHP-like files, including a script
+   extension followed by a nominal image extension, from all WordPress uploads
    before its PHP handler, and serves Form files download-only/no-sniff.
    The production Nginx/Apache vhost must be reviewed separately; a synthetic
    isolated rule is not evidence of protection on another site.
