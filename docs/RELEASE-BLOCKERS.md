@@ -160,6 +160,15 @@ conditions do not allow a real provider sandbox checkout.
   and `--frontend-playwright-image haven-browser-qa:1.62.1`.
   Both PHP 8.4/8.5 syntax matrices passed. This is **not** a live paid
   transaction or a replacement for 4.4.1 vendor security parity.
+- [x] **0.1.2 development** adds a shared published/document-editor
+  authorization check for anonymous classic and Atomic Form target IDs,
+  restricting classic Form dynamic `queried_id` context and embedded
+  `templateID` access as well. The new role-based
+  `tests/runtime_form_document_visibility.php` fixture checks missing,
+  malformed, draft, private, password-protected and published posts.
+  It is intended to run only in the disposable WordPress test site,
+  **not** against production forms. Independent live-form preview
+  and anti-spam compatibility acceptance remain open.
 - [x] **0.1.2 development** bounds Word/Excel/PowerPoint/OpenDocument ZIP
   entry count, per-entry/aggregate expanded bytes, compression ratio and
   traversal/absolute entry names. Synthetic high-compression DOCX and
