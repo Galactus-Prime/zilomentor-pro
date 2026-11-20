@@ -181,6 +181,33 @@ criteria are tracked in [release blockers](docs/RELEASE-BLOCKERS.md),
 not asserted from tests alone. No commercial CI or subscription
 service is required.
 
+## Reduced Motion frontend compatibility (unreleased 0.1.2)
+
+The inherited Elementor Pro Motion Effects handler skips `initEffects()`
+when the browser prefers reduced motion, but its resize/editor callbacks
+could still run and dereference missing animation configuration. On the
+ItzyBitzyWorkshop homepage this generated two desktop
+`Cannot read properties of undefined (reading 'translateX')` errors
+when Reduced Motion was enabled, and zero when normal motion was selected.
+A similar upstream bug is recorded in
+[Elementor issue #34257](https://github.com/elementor/elementor/issues/34257).
+
+ZiloMentor 0.1.2 development now guards `toggle()` and
+`onElementChange()` in **both** `assets/js/frontend.js` and the shipped
+minified bundle, preventing callbacks from accessing skipped initialization.
+The exact candidate bundle was substituted into **read-only browser test
+contexts** without editing the site: desktop/mobile × reduced/normal
+motion passed 4/4 with zero JavaScript errors, unchanged 85/89 Elementor
+widgets, and 12 existing normal desktop motion elements intact. Two source
+regressions and JS syntax checks passed. The fix is **not** present in the
+live 0.1.1 beta; a signed candidate, formal security review and guarded
+release acceptance remain required.
+
+The read-only image canary also now distinguishes real failed image loads
+from an empty-source image in the **hidden custom mega-menu**. It reports
+zero broken image loads and one empty-source placeholder per viewport,
+without changing any live menu.
+
 ## Current beta deployment and limitations (19 November 2026)
 
 The owner explicitly authorised testing on `https://itzybitzyworkshop.co.uk/`.
