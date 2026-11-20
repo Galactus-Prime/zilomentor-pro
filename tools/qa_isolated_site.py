@@ -654,6 +654,11 @@ add_action( 'init', function () {
     location / {
         try_files $uri $uri/ /index.php?$args;
     }
+    # Explicitly model the no-executable-upload policy. Nginx ignores
+    # Apache .htaccess files, so PHP-FPM must never receive uploaded scripts.
+    location ~* ^/wp-content/uploads/.*\.(?:php[0-9]*|phtml|pht|phtm|phar|cgi|pl|py|rb|shtml|asp|aspx)$ {
+        return 403;
+    }
     location ~ \.php$ {
         try_files $uri =404;
         include /etc/nginx/fastcgi_params;
@@ -754,6 +759,17 @@ add_action( 'init', function () {
             if not separator:
                 return 0, result.stdout, "Missing HTTP status"
             return int(status.strip()), body, ""
+
+        if args.web_server == "nginx-fpm":
+            for blocked_extension in ("php", "php8", "phtml", "phar"):
+                denied, denied_body, denied_err = request(
+                    "wp-content/uploads/elementor/forms/"
+                    "__zmp_nonexistent_private_qa_probe__." + blocked_extension
+                )
+                record("Nginx synthetic upload execution denied: " + blocked_extension,
+                       denied == 403,
+                       {"status": denied, "error": denied_err,
+                        "test_scope": "Private disposable Nginx, no uploaded file"})
 
         for i in range(12):
             status, html, err = request("?page_id=" + str(fixtures["page"]))
