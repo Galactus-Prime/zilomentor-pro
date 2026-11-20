@@ -47,10 +47,13 @@ an actual production Form. A complete malware scan, all file formats,
 proxy-specific `.htaccess` behaviour, payment gateways and full
 vendor 4.4.1 source parity remain unverified.
 
-A second synthetic REST test has been added to probe registered Pro
-icon/SVG route permission callbacks as guest, subscriber, contributor
-and editor. **Do not claim this permission test has passed until its
-isolated run succeeds.**
+A second synthetic REST test calls the **actual registered Pro icon/SVG
+permission callbacks** as guest, subscriber, contributor and editor in
+disposable WordPress. Privileged icon writes are denied to contributors
+and lower roles, and protected icon reads are denied to guests and
+subscribers while editor reads remain available. This test passed in the
+isolated runtime; it deliberately does **not** dispatch writes, send
+network requests, or claim a complete REST authentication/nonce audit.
 
 The deployed live version remains **0.1.1** and has **not** received
 these unreleased changes.
