@@ -32,7 +32,7 @@ class IdentityTests(unittest.TestCase):
         self.backup = self.root / "private" / "backup"
         self.backup.mkdir(parents=True)
         self.backup.chmod(0o700)
-        (self.backup / "wordpress-post-untrusted-plugin-20261119.sql").write_text(
+        (self.backup / "wordpress-before-identity-synthetic.sql").write_text(
             "-- synthetic fixture; contains NO real site data\n")
         (self.site / "wp-config.php").write_text("<?php // synthetic")
         mu = self.site / "wp-content" / "mu-plugins"
@@ -77,7 +77,9 @@ class IdentityTests(unittest.TestCase):
     def run_migration(self, *flags):
         argv = [
             "migrate_independent_identity.py", "--site", str(self.site),
-            "--backup-dir", str(self.backup), *flags,
+            "--backup-dir", str(self.backup),
+            "--database-backup", str(self.backup / "wordpress-before-identity-synthetic.sql"),
+            *flags,
         ]
         stdout = StringIO()
         with patch.object(sys, "argv", argv), redirect_stdout(stdout):
