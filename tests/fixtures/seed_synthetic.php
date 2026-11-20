@@ -79,6 +79,30 @@ $elements = [
 update_post_meta( $page_id, '_elementor_data', wp_slash( wp_json_encode( $elements ) ) );
 update_post_meta( $page_id, '_elementor_edit_mode', 'builder' );
 update_post_meta( $page_id, '_elementor_version', ELEMENTOR_VERSION );
+
+// These restricted documents intentionally contain the SAME valid Form.
+// Anonymous HTTP form POSTs must be denied because of document visibility,
+// not merely because Elementor cannot locate a submitted widget.
+$restricted_form_pages = [];
+foreach ( [ 'draft', 'private', 'password' ] as $visibility ) {
+    $restricted_args = [
+        'post_type' => 'page',
+        'post_status' => 'password' === $visibility ? 'publish' : $visibility,
+        'post_title' => 'ZMP Synthetic Restricted Form ' . $visibility,
+    ];
+    if ( 'password' === $visibility ) {
+        $restricted_args['post_password'] = 'zmp-synthetic-secret';
+    }
+    $restricted_id = wp_insert_post( $restricted_args );
+    if ( ! $restricted_id || is_wp_error( $restricted_id ) ) {
+        fwrite( STDERR, "Unable to seed restricted Form visibility fixture\n" );
+        exit( 3 );
+    }
+    update_post_meta( $restricted_id, '_elementor_data', wp_slash( wp_json_encode( $elements ) ) );
+    update_post_meta( $restricted_id, '_elementor_edit_mode', 'builder' );
+    update_post_meta( $restricted_id, '_elementor_version', ELEMENTOR_VERSION );
+    $restricted_form_pages[ $visibility ] = $restricted_id;
+}
 // A second independent page permits History Undo/Redo testing without
 // changing the Heading/Form page used by other editor publish regressions.
 $history_id = wp_insert_post( [
@@ -144,6 +168,9 @@ echo wp_json_encode( [
     'page' => $page_id,
     'history_page' => (int) $history_id,
     'form' => $form_id,
+    'form_draft_page' => $restricted_form_pages['draft'],
+    'form_private_page' => $restricted_form_pages['private'],
+    'form_password_page' => $restricted_form_pages['password'],
     'product' => $product_id,
     'checkout_product' => $checkout_product_id,
     'product_url' => get_permalink( $product_id ),
