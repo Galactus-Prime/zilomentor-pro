@@ -64,6 +64,10 @@ def main():
         help="Opt-in synthetic Heading change and database-persistence check; requires editor-only Nginx/FPM + Playwright.",
     )
     parser.add_argument(
+        "--verify-editor-history", action="store_true",
+        help="Opt-in actual Elementor History Undo/Redo and Publish on a disposable Heading page.",
+    )
+    parser.add_argument(
         "--verify-editor-form-save", action="store_true",
         help="Opt-in Pro Form name edit, real editor Publish/Update click and independent DB/HTTP verification in disposable WordPress.",
     )
@@ -97,7 +101,7 @@ def main():
         parser.error("--focus editor requires --editor-playwright-image.")
     if args.web_server == "nginx-fpm" and args.source_wordpress is None:
         parser.error("--web-server nginx-fpm requires --source-wordpress.")
-    if (args.verify_editor_save or args.verify_editor_form_save or args.verify_editor_form_fields or args.verify_theme_builder_save or args.verify_popup_editor_save or args.verify_posts_nav_editor or args.verify_editor_responsive) and not (
+    if (args.verify_editor_save or args.verify_editor_history or args.verify_editor_form_save or args.verify_editor_form_fields or args.verify_theme_builder_save or args.verify_popup_editor_save or args.verify_posts_nav_editor or args.verify_editor_responsive) and not (
         args.focus == "editor" and args.web_server == "nginx-fpm"
         and args.editor_playwright_image and args.source_wordpress
     ):
@@ -152,6 +156,8 @@ def main():
             qa_cmd.extend(["--frontend-playwright-image", args.frontend_playwright_image])
         if args.verify_editor_save:
             qa_cmd.append("--verify-editor-save")
+        if args.verify_editor_history:
+            qa_cmd.append("--verify-editor-history")
         if args.verify_editor_form_save:
             qa_cmd.append("--verify-editor-form-save")
         if args.verify_editor_form_fields:
