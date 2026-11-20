@@ -119,6 +119,21 @@ equivalent to official Elementor Pro **4.4.1**. The high-impact vulnerability
 regression and these targeted mitigations do not establish universal CVE
 remediation, parity with vendor fixes, or a penetration-test assurance.
 
+## Quarantined 4.4.1 package is tampered, not patch evidence
+
+Read-only source inspection of the quarantined package that falsely claimed
+to be an official Elementor Pro 4.4.1 update found added licence-bypass
+code and third-party template fetching over insecure HTTP. Its readme
+references unofficial distribution. It is **not** a trustworthy security
+baseline. Its files were never used to create ZiloMentor patches.
+
+The live 0.1.1 code was independently byte-verified against the previously
+trusted package, and read-only postincident checks found no suspect
+domain references in loaded ZiloMentor/MU-plugin files, WordPress options,
+post content, cron or retained licence cache. This is not proof that
+the untrusted code never made an outbound connection while it was active.
+See `docs/UNTRUSTED-PLUGIN-INCIDENT.md` and keep the evidence private.
+
 ## Source of truth and limits
 
 - Official Elementor Pro 4.4.1, dated 16 November 2026, announces
