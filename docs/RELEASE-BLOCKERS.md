@@ -13,6 +13,20 @@ Do not replace open boxes with 100% claims or install the candidate simply
 because its synthetic tests pass. GitHub Issues are disabled in this
 repository, so blockers are tracked in this version-controlled document.
 
+## Critical dependency: untrusted 4.4.1 package is NOT source evidence
+
+The previously quarantined package claiming to be official Elementor Pro
+4.4.1 contains inserted fake licence data, altered licence HTTP responses,
+and a third-party template download link over plain HTTP with disabled TLS
+verification; its readme references an unauthorised distribution site.
+**Do not install, trust, diff for vendor patch parity, or redistribute it.**
+
+The live version was restored to byte-verified 0.1.1 with no matching
+malicious hostnames in its code, WP options, posts or cron. This does not
+prove the old code never executed or made network requests. Quarantine
+evidence is retained outside webroot. Full analysis:
+`docs/UNTRUSTED-PLUGIN-INCIDENT.md`.
+
 ## 1. Independent official Elementor Pro 4.4.1 security review
 
 - [ ] Obtain an authentic, lawfully accessible Pro 4.4.1 source diff or vetted
