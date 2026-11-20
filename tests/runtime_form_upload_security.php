@@ -56,6 +56,9 @@ try {
             $zip->addFromString( 'word/document.xml', '<w:document/>' );
             $zip->close();
             $valid( 'word.docx', $office_file, true );
+            $prefixed_office = $root . '/prefixed.docx';
+            file_put_contents( $prefixed_office, "fake header" . file_get_contents( $office_file ) );
+            $valid( 'prefixed.docx', $prefixed_office, false );
         }
         $not_office = $root . '/fake-zip.docx';
         $zip2 = new \ZipArchive();
@@ -75,6 +78,23 @@ try {
         imagedestroy( $image );
         $valid( 'tiny.png', $image_path, true );
         $valid( 'fake.png', $disguised_pdf, false );
+        $image_bytes = file_get_contents( $image_path );
+        $phar_image = $root . '/phar.png';
+        file_put_contents( $phar_image, $image_bytes . "\n__HALT_COMPILER();\n" );
+        $valid( 'phar.png', $phar_image, false );
+        if ( class_exists( '\\ZipArchive' ) ) {
+            $zip_tail = $root . '/archive-tail.zip';
+            $archive = new \ZipArchive();
+            if ( true === $archive->open( $zip_tail, \ZipArchive::CREATE ) ) {
+                $archive->addFromString( 'script.php', '<?php echo "untrusted";' );
+                $archive->close();
+                $polyglot_image = $root . '/png-zip.png';
+                file_put_contents( $polyglot_image, $image_bytes . file_get_contents( $zip_tail ) );
+                $valid( 'png-zip.png', $polyglot_image, false );
+            } else {
+                $checks['png_zip_polyglot_fixture_created'] = false;
+            }
+        }
     }
 
     $legacy_form = new $legacy();
