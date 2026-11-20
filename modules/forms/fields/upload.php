@@ -551,7 +551,7 @@ class Upload extends Field_Base {
 	 */
 	private function get_ensure_upload_dir() {
 		$path = $this->get_upload_dir();
-		if ( file_exists( $path . '/index.php' ) ) {
+		if ( is_file( $path . '/index.php' ) && is_file( $path . '/.htaccess' ) ) {
 			return $path;
 		}
 
@@ -569,14 +569,19 @@ class Upload extends Field_Base {
 				'file' => '.htaccess',
 				'content' => [
 					'Options -Indexes',
-					'<ifModule mod_headers.c>',
+					'# Apache-only defense in depth. Nginx requires its own deny rule.',
+					'<FilesMatch "(?i)\\.(?:php[0-9]*|phtml?|pht|phar|cgi|pl|py|rb|jsp|aspx?|shtml)$">',
+					'	Require all denied',
+					'</FilesMatch>',
+					'<IfModule mod_headers.c>',
 					'	<Files *.*>',
-					'       Header set Content-Disposition attachment',
+					'		Header always set Content-Disposition "attachment"',
+					'		Header always set X-Content-Type-Options "nosniff"',
+					'		Header always set Cache-Control "private, no-store"',
 					'	</Files>',
 					'</IfModule>',
 				],
-			],
-		];
+			],		];
 
 		foreach ( $files as $file ) {
 			if ( ! file_exists( trailingslashit( $path ) . $file['file'] ) ) {
