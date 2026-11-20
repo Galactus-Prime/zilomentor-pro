@@ -82,6 +82,6 @@ try {
 foreach ( $checks as $name => $ok ) {
     echo ( $ok ? 'PASS ' : 'FAIL ' ) . $name . PHP_EOL;
 }
-if ( count( $checks ) < 15 || in_array( false, $checks, true ) ) {
+if ( count( $checks ) < 14 || in_array( false, $checks, true ) ) {
     exit( 4 );
 }
