@@ -322,6 +322,18 @@ check("disposable Nginx blocks executable uploads before PHP-FPM",
       "Nginx synthetic upload execution denied" in qa_script
       and "location ~* ^/wp-content/uploads/" in qa_script
       and "phtml|pht|phtm|phar" in qa_script)
+check("private Nginx Form QA verifies attachment/no-sniff/no-store",
+      'Nginx synthetic Form uploads require attachment and nosniff headers' in qa_script
+      and 'add_header Content-Disposition "attachment" always' in qa_script
+      and 'add_header X-Content-Type-Options "nosniff" always' in qa_script
+      and "zmp-qa-header-fixture.txt" in
+          (ROOT / "tests/runtime_form_upload_security.php").read_text())
+check("sensitive submissions and global template REST roles tested",
+      "runtime_rest_sensitive_controllers.php" in qa_script
+      and "notes" in
+          (ROOT / "tests/runtime_rest_sensitive_controllers.php").read_text()
+      and "subscriber" in
+          (ROOT / "tests/runtime_rest_sensitive_controllers.php").read_text())
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
