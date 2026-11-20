@@ -136,6 +136,7 @@ class SignedGitHubReleaseTests(unittest.TestCase):
     def stage_valid(self, release=None, assets=None, current="0.1.1"):
         return feed.stage_release(
             current_version=current, public_key=self.public,
+            public_key_sha256=hashlib.sha256(self.public.read_bytes()).hexdigest(),
             stage_dir=self.stage,
             fetch=self.fetcher(release, assets), php=self.php,
         )
@@ -251,6 +252,20 @@ class SignedGitHubReleaseTests(unittest.TestCase):
             with self.subTest(uri=uri), self.assertRaises(feed.ReleaseError):
                 feed.safe_url(uri)
 
+    def test_pinned_public_key_fingerprint_mismatch_rejected_before_fetch(self):
+        fetched = []
+        def forbid_fetch(url, maximum):
+            fetched.append(url)
+            raise AssertionError("No remote download should occur before key verification")
+        with self.assertRaisesRegex(feed.ReleaseError, "fingerprint"):
+            feed.stage_release(
+                current_version="0.1.1", public_key=self.public,
+                public_key_sha256="0" * 64, stage_dir=self.stage,
+                fetch=forbid_fetch, php=self.php,
+            )
+        self.assertEqual(fetched, [])
+        self.assertFalse(list(self.stage.iterdir()))
+
     def test_invalid_public_key_cannot_authorize_release(self):
         fake_public = self.root / "broken-pub.b64"
         fake_public.write_text("This is not a valid Ed25519 public key")
@@ -258,6 +273,7 @@ class SignedGitHubReleaseTests(unittest.TestCase):
             feed.stage_release(
                 current_version="0.1.1",
                 public_key=fake_public,
+                public_key_sha256=hashlib.sha256(fake_public.read_bytes()).hexdigest(),
                 stage_dir=self.stage,
                 fetch=self.fetcher(), php=self.php,
             )
