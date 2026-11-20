@@ -16,6 +16,7 @@ Does not use a GitHub token, edit WordPress or create a signing private key.
 import argparse
 from datetime import datetime, timedelta, timezone
 import hashlib
+import hmac
 import io
 import json
 import os
@@ -266,9 +267,21 @@ def save_staged(stage_dir, files):
     return committed
 
 
-def stage_release(*, current_version, public_key, stage_dir, fetch=public_fetch,
-                  php=None):
+def stage_release(*, current_version, public_key, public_key_sha256, stage_dir,
+                  fetch=public_fetch, php=None):
     version_parts(current_version)
+    require(isinstance(public_key_sha256, str)
+            and SHA256_RE.fullmatch(public_key_sha256),
+            "Expected out-of-band public signing-key SHA256 is required")
+    key = Path(public_key)
+    require(key.is_file() and not key.is_symlink()
+            and key.stat().st_uid == os.geteuid()
+            and not key.stat().st_mode & 0o022
+            and key.stat().st_size <= 256,
+            "Trusted public key is missing, linked, too large or not owner controlled")
+    actual_fingerprint = hashlib.sha256(key.read_bytes()).hexdigest()
+    require(hmac.compare_digest(public_key_sha256, actual_fingerprint),
+            "Signing-key fingerprint differs from independently approved key")
     release_bytes = fetch(API_URL, 512 * 1024)
     try:
         release = json.loads(release_bytes)
@@ -323,11 +336,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--current-version", required=True)
     parser.add_argument("--trusted-public-key", required=True, type=Path)
+    parser.add_argument("--trusted-public-key-sha256", required=True,
+                        help="SHA256 of the exact owner-approved PUBLIC key file, verified out of band")
     parser.add_argument("--stage-dir", required=True, type=Path)
     args = parser.parse_args()
     try:
         result = stage_release(
             current_version=args.current_version, public_key=args.trusted_public_key,
+            public_key_sha256=args.trusted_public_key_sha256,
             stage_dir=args.stage_dir,
         )
     except ReleaseError as error:
