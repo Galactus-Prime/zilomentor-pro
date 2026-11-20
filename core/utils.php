@@ -91,9 +91,15 @@ class Utils {
 			if ( true !== $archive->open( $path, \ZipArchive::RDONLY ) ) {
 				return false;
 			}
-			$valid = false !== $archive->locateName( '[Content_Types].xml' )
-				&& false !== $archive->locateName( $zip_folders[ $extension ] );
-			if ( in_array( $extension, [ 'odt', 'ods', 'odp' ], true ) ) {
+			// Only inspect bounded, well-formed Office archives. A tiny .docx
+			// can advertise huge decompressed XML or thousands of ZIP entries.
+			// Reject such archives before reading even the small ODF MIME part.
+			$valid = self::form_office_archive_is_bounded( $archive );
+			if ( $valid && ! in_array( $extension, [ 'odt', 'ods', 'odp' ], true ) ) {
+				$valid = false !== $archive->locateName( '[Content_Types].xml' )
+					&& false !== $archive->locateName( $zip_folders[ $extension ] );
+			}
+			if ( $valid && in_array( $extension, [ 'odt', 'ods', 'odp' ], true ) ) {
 				$expected_odf = [
 					'odt' => 'application/vnd.oasis.opendocument.text',
 					'ods' => 'application/vnd.oasis.opendocument.spreadsheet',
@@ -139,6 +145,47 @@ class Utils {
 			&& $mime === (string) $registered['type'];
 	}
 
+
+	/**
+	 * Bound the ZIP metadata of an Office document without extracting files.
+	 *
+	 * Office MIME/entry-name checks alone accept high-ratio ZIP bombs and
+	 * pathological entry counts. These generous ceilings permit substantial
+	 * ordinary documents while refusing uploads whose expanded contents
+	 * could exhaust server resources if subsequently processed.
+	 */
+	private static function form_office_archive_is_bounded( \\ZipArchive $archive ): bool {
+		if ( $archive->numFiles < 1 || $archive->numFiles > 4096 ) {
+			return false;
+		}
+
+		$total_expanded = 0;
+		for ( $index = 0; $index < $archive->numFiles; $index++ ) {
+			$entry = $archive->statIndex( $index );
+			if ( false === $entry || ! isset( $entry['name'], $entry['size'], $entry['comp_size'] ) ) {
+				return false;
+			}
+
+			$name = (string) $entry['name'];
+			$expanded = $entry['size'];
+			$compressed = $entry['comp_size'];
+			if ( '' === $name || '/' === $name[0] || false !== strpos( $name, '\\\\' )
+				|| preg_match( '~(?:^|/)\\.\\.(?:/|$)~', $name )
+				|| ! is_int( $expanded ) || ! is_int( $compressed )
+				|| $expanded < 0 || $compressed < 0
+				|| $expanded > 64 * 1024 * 1024 ) {
+				return false;
+			}
+
+			$total_expanded += $expanded;
+			if ( $total_expanded > 128 * 1024 * 1024
+				|| ( $expanded > 1024 * 1024 && $expanded > max( 1, $compressed ) * 500 ) ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
 
 	/**
 	 * Detect ZIP archives and PHP PHAR stubs hidden after image bytes.
