@@ -352,6 +352,21 @@ of real payment gateways and full official 4.4.1 patch equivalence remains.
 
 ## Build and test (development only)
 
+For **isolated WordPress tests**, the disposable PHP 8.4 image must include
+`ZipArchive`; the previous base QA image lacked it. Build the documented
+ZIP-enabled image once on the existing development host (not production
+WordPress, with no GitHub Actions or subscription):
+
+```bash
+docker build -f tools/docker/Dockerfile.qa-php84-zip -t zmp-php84-zip-qa:local .
+docker run --rm --network none --entrypoint php zmp-php84-zip-qa:local -r 'var_export(class_exists("ZipArchive"));'
+```
+
+The WordPress QA harness now selects that image by default, so real Office
+and icon ZIP parser tests cannot appear to pass simply because the extension
+is absent. The test environment remains a disposable Docker network with
+synthetic content and no live database.
+
     python3 tools/run_manual_checks.py  # existing Docker/PHP QA host
 
 On the development VM, without Docker/PHP:
