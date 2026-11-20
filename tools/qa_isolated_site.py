@@ -537,7 +537,8 @@ add_action( 'init', function () {
                          "runtime_form_upload_security.php",
                          "runtime_rest_auth_security.php",
                          "runtime_stripe_security.php",
-                         "runtime_posts_visibility.php"):
+                         "runtime_posts_visibility.php",
+                         "runtime_rest_sensitive_controllers.php"):
             p = wp("eval-file",
                    f"wp-content/plugins/{plugin_folder}/tests/" + filename,
                    environment={"ZMP_ISOLATED_QA": "yes"})
@@ -551,7 +552,8 @@ add_action( 'init', function () {
                                              "runtime_form_upload_security.php",
                                              "runtime_rest_auth_security.php",
                                              "runtime_stripe_security.php",
-                                             "runtime_posts_visibility.php") else [])}),
+                                             "runtime_posts_visibility.php",
+                                             "runtime_rest_sensitive_controllers.php") else [])}),
                     "Runtime check failed: " + (p.stdout + p.stderr)[-500:])
 
         p = wp(
