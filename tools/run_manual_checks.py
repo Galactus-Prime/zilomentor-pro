@@ -94,6 +94,7 @@ def main():
     # Always prove our release-switch and rollback logic against synthetic
     # files before building an installable ZIP. This never opens production WP.
     execute([sys.executable, "tests/test_manual_live_swap.py"])
+    execute([sys.executable, "tests/test_migrate_independent_identity.py"])
     execute([sys.executable, "tests/test_build_zip.py"])
     execute([sys.executable, "tests/test_create_release_manifest.py"])
     execute([sys.executable, "tools/build_zip.py"])
