@@ -333,7 +333,12 @@ class Module extends Module_Base {
 			&& $args['quantity'] >= 1 && $args['quantity'] <= 99
 			&& is_int( $args['unit_amount'] )
 			&& $args['unit_amount'] >= 1 && $args['unit_amount'] <= 99999999
-			&& $args['unit_amount'] * $args['quantity'] <= 99999999;
+			&& ( ! isset( $args['shipping_amount'] )
+				|| ( is_int( $args['shipping_amount'] )
+					&& $args['shipping_amount'] >= 0
+					&& $args['shipping_amount'] <= 99999999 ) )
+			&& $args['unit_amount'] * $args['quantity'] +
+				( $args['shipping_amount'] ?? 0 ) <= 99999999;
 	}
 
 	public function submit_stripe_form() {
