@@ -61,6 +61,10 @@ def main():
         help="Opt-in synthetic Pro Form editor save with independent WordPress database/HTTP verification.",
     )
     argp.add_argument(
+        "--verify-editor-form-fields", action="store_true",
+        help="Opt-in real Pro Form repeater field-label edit/Publish with database and frontend checks.",
+    )
+    argp.add_argument(
         "--verify-theme-builder-save", action="store_true",
         help="Opt-in isolated Theme Builder Header template editor save plus page-condition render verification.",
     )
@@ -102,7 +106,7 @@ def main():
     args = argp.parse_args()
     plugin_folder = args.plugin_folder
     if (args.verify_editor_save or args.verify_editor_form_save
-            or args.verify_theme_builder_save or args.verify_popup_editor_save
+            or args.verify_editor_form_fields or args.verify_theme_builder_save or args.verify_popup_editor_save
             or args.verify_editor_responsive):
         require(args.focus == "editor" and args.editor_playwright_image is not None
                 and args.web_server == "nginx-fpm",
@@ -1263,7 +1267,7 @@ add_action( 'init', function () {
                    result.returncode == 0 and verify_data.get("saved") is True,
                    {"wpcli_exit": result.returncode, "verification": verify_data})
 
-        if args.verify_editor_form_save:
+        if args.verify_editor_form_save or args.verify_editor_form_fields:
             # Separate opt-in real editor interaction. It changes only the
             # hard-coded Form widget in this disposable WordPress database.
             form_js = plugins_path / plugin_folder / "tests/browser_editor_form_save.js"
@@ -1277,6 +1281,8 @@ add_action( 'init', function () {
                 "-e", "ZMP_QA_EDITOR_TOKEN=" + editor_login_token,
                 "-e", "ZMP_QA_PAGE_ID=" + str(fixtures["page"]),
                 "-e", "ZMP_QA_FORM_SAVE=yes",
+                "-e", "ZMP_QA_FORM_FIELDS=" +
+                      ("yes" if args.verify_editor_form_fields else "no"),
                 "-v", str(form_js) + ":/qa/editor_form_save.js:ro",
                 "--entrypoint", "timeout", args.editor_playwright_image,
                 "--signal=TERM", "--kill-after=5s", "80s",
@@ -1301,6 +1307,11 @@ add_action( 'init', function () {
                            "initialFormNameMatched", "editedFormNameMatched",
                            "actualSaveButtonClicked",
                        ))
+                       and (not args.verify_editor_form_fields or
+                            all(form_state.get(k) is True for k in (
+                                "repeaterSectionFound", "repeaterRowOpened",
+                                "repeaterLabelVisible", "repeaterLabelChanged",
+                            )))
                        and form_state.get("pageErrors") == 0
                        and form_state.get("failedLocalRequests") == 0
                        and form_state.get("localHttpErrors") == 0,
@@ -1316,16 +1327,19 @@ add_action( 'init', function () {
             form_verify = (
                 '$d=json_decode(get_post_meta(' + str(fixtures["page"]) +
                 ', "_elementor_data", true), true);'
-                '$found=false;$saved=false;$unchanged=false;'
-                '$scan=function($n)use(&$scan,&$found,&$saved,&$unchanged){'
+                '$found=false;$saved=false;$unchanged=false;$field_label_saved=false;'
+                '$scan=function($n)use(&$scan,&$found,&$saved,&$unchanged,&$field_label_saved){'
                 'foreach((array)$n as $item){if(!is_array($item))continue;'
                 'if(($item["id"]??"")==="1a2b3c4d"){$found=true;'
                 '$saved=(($item["widgetType"]??"")==="form"&&'
                 '($item["settings"]["form_name"]??"")==="ZiloMentor QA Saved Form");'
-                '$unchanged=($item["settings"]["button_text"]??"")==="Submit";}'
+                '$unchanged=($item["settings"]["button_text"]??"")==="Submit";'
+                '$fields=$item["settings"]["form_fields"]??[];'
+                '$field_label_saved=(($fields[0]["field_label"]??"")==="ZiloMentor QA Saved Email Label");}'
                 'if(!empty($item["elements"]))$scan($item["elements"]);}};'
                 '$scan($d);echo wp_json_encode(["found"=>$found,'
-                '"saved"=>$saved,"button_unchanged"=>$unchanged]);'
+                '"saved"=>$saved,"button_unchanged"=>$unchanged,'
+                '"field_label_saved"=>$field_label_saved]);'
             )
             form_result = wp("eval", form_verify)
             try:
@@ -1336,7 +1350,9 @@ add_action( 'init', function () {
                    form_result.returncode == 0
                    and form_db.get("found") is True
                    and form_db.get("saved") is True
-                   and form_db.get("button_unchanged") is True,
+                   and form_db.get("button_unchanged") is True
+                   and (not args.verify_editor_form_fields or
+                        form_db.get("field_label_saved") is True),
                    {"wpcli_exit": form_result.returncode, "verification": form_db})
             form_status, form_html, form_err = request(
                 "?page_id=" + str(fixtures["page"])
@@ -1347,6 +1363,14 @@ add_action( 'init', function () {
                    {"status": form_status, "error": form_err,
                     "rendered_name_present":
                         'name="ZiloMentor QA Saved Form"' in form_html})
+
+            if args.verify_editor_form_fields:
+                record("Saved Form repeater field label appears on synthetic frontend",
+                       form_status == 200
+                       and "ZiloMentor QA Saved Email Label" in form_html,
+                       {"status": form_status,
+                        "label_present": "ZiloMentor QA Saved Email Label" in form_html,
+                        "error": form_err})
 
         if args.verify_theme_builder_save:
             # This login token works only on web:8080, for the fixture
