@@ -233,8 +233,8 @@ class SignedGitHubReleaseTests(unittest.TestCase):
         # Artificially claim a 600 MiB file inside a ~50 KiB ZIP, without
         # ever generating or decompressing a 600 MiB payload.
         data = bytearray(self.zip_blob)
-        first = data.find(b"PK\\x01\\x02")
-        second = data.find(b"PK\\x01\\x02", first + 4)
+        first = data.find(b"PK\x01\x02")
+        second = data.find(b"PK\x01\x02", first + 4)
         self.assertGreater(second, first)
         struct.pack_into("<I", data, second + 24, 600 * 1024 * 1024)
         with self.assertRaisesRegex(feed.ReleaseError, "Decompressed plugin"):
