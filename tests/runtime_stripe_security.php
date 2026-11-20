@@ -65,6 +65,8 @@ try {
     $tests['invalid_document_id_denied'] = ! $class::is_public_stripe_document( 0 );
 
     $tests['usd_cents_calculated'] = 125 === $object->currency_adaptation( 'USD', '1.25' );
+    $tests['fractional_cents_19_99_not_undercharged'] = 1999 === $object->currency_adaptation( 'GBP', '19.99' );
+    $tests['fractional_cents_10_29_not_undercharged'] = 1029 === $object->currency_adaptation( 'USD', '10.29' );
     $tests['jpy_zero_decimal_amount'] = 555 === $object->currency_adaptation( 'JPY', '555.55' );
     $tests['invalid_price_rejected'] = 0 === $object->currency_adaptation( 'USD', '<?php 2' );
     $tests['negative_price_rejected'] = 0 === $object->currency_adaptation( 'USD', -12 );
@@ -75,6 +77,9 @@ try {
     $tests['zero_price_rejected'] = ! $class::is_valid_stripe_session( array_merge( $good, [ 'unit_amount' => 0 ] ) );
     $tests['negative_price_session_rejected'] = ! $class::is_valid_stripe_session( array_merge( $good, [ 'unit_amount' => -1 ] ) );
     $tests['oversized_price_rejected'] = ! $class::is_valid_stripe_session( array_merge( $good, [ 'unit_amount' => 100000000 ] ) );
+    $tests['oversized_total_rejected'] = ! $class::is_valid_stripe_session(
+        array_merge( $good, [ 'unit_amount' => 99999999, 'quantity' => 2 ] )
+    );
     $tests['zero_quantity_rejected'] = ! $class::is_valid_stripe_session( array_merge( $good, [ 'quantity' => 0 ] ) );
     $tests['oversized_quantity_rejected'] = ! $class::is_valid_stripe_session( array_merge( $good, [ 'quantity' => 100 ] ) );
     $tests['invalid_currency_rejected'] = ! $class::is_valid_stripe_session( array_merge( $good, [ 'currency' => 'GBP<script>' ] ) );
