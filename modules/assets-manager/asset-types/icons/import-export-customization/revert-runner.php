@@ -70,7 +70,7 @@ class Revert_Runner extends Revert_Runner_Base {
 
 	private function delete_icon_set_and_attachments( $icon_set_id ) {
 		$icon_set_path = get_post_meta( $icon_set_id, '_elementor_icon_set_path', true );
-		if ( $icon_set_path && is_dir( $icon_set_path ) ) {
+		if ( \ElementorPro\Modules\AssetsManager\AssetTypes\Icons\Custom_Icons::is_safe_icon_set_directory( $icon_set_path ) ) {
 			Plugin::$instance->uploads_manager->remove_file_or_dir( $icon_set_path );
 		}
 
