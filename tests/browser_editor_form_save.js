@@ -12,6 +12,8 @@ const pageId = Number(process.env.ZMP_QA_PAGE_ID || 0);
 const expectedId = "1a2b3c4d";
 const original = "ZiloMentor Synthetic Form";
 const updated = "ZiloMentor QA Saved Form";
+const testFieldRepeater = process.env.ZMP_QA_FORM_FIELDS === "yes";
+const updatedFieldLabel = "ZiloMentor QA Saved Email Label";
 const result = {
   authenticated: false,
   proFormFound: false,
@@ -20,6 +22,10 @@ const result = {
   editedFormNameMatched: false,
   previewNameUpdated: false,
   actualSaveButtonClicked: false,
+  repeaterSectionFound: false,
+  repeaterRowOpened: false,
+  repeaterLabelVisible: false,
+  repeaterLabelChanged: false,
   pageErrors: 0,
   failedLocalRequests: 0,
   cancelledLocalRequests: 0,
@@ -118,6 +124,43 @@ async function main() {
   await input.dispatchEvent("change");
   result.editedFormNameMatched = (await input.inputValue()) === updated;
   if (!result.editedFormNameMatched) return;
+  if (testFieldRepeater) {
+    // The Elementor Pro Form editor's actual repeater UI is more than
+    // the form-name text input. Expand the existing synthetic email row,
+    // edit its visible label and persist the same Widget via Publish.
+    const repeater = page.locator(
+      '#elementor-panel .elementor-control-form_fields'
+    ).first();
+    result.repeaterSectionFound = await repeater.count() === 1;
+    if (result.repeaterSectionFound) {
+      try {
+        const row = repeater.locator(
+          '.elementor-repeater-row-controls, .elementor-repeater-row-item-title'
+        ).first();
+        await row.click({timeout:5500,force:true});
+        result.repeaterRowOpened = true;
+      } catch {
+        result.repeaterDiagnostic = (await repeater.innerText().catch(()=>""))
+          .trim().slice(0,200);
+      }
+    }
+    const fieldLabel = page.locator(
+      '#elementor-panel input[data-setting="field_label"]'
+    ).first();
+    try {
+      await fieldLabel.waitFor({state:"visible",timeout:5500});
+      result.repeaterLabelVisible = true;
+      await fieldLabel.fill(updatedFieldLabel,{timeout:6500});
+      await fieldLabel.dispatchEvent("change");
+      result.repeaterLabelChanged =
+        (await fieldLabel.inputValue()) === updatedFieldLabel;
+    } catch {
+      result.repeaterPanelDiagnostic = (await page.locator("#elementor-panel")
+        .innerText().catch(()=>"")).trim().slice(0,280);
+    }
+    if (!result.repeaterLabelChanged) return;
+  }
+
   try {
     await widget.locator('form[name="' + updated + '"]')
       .waitFor({state:"attached",timeout:6500});
@@ -148,6 +191,9 @@ async function main() {
     process.exitCode = result.authenticated && result.proFormFound &&
       result.proFormSelected && result.initialFormNameMatched &&
       result.editedFormNameMatched && result.actualSaveButtonClicked &&
+      (!testFieldRepeater || (result.repeaterSectionFound &&
+        result.repeaterRowOpened && result.repeaterLabelVisible &&
+        result.repeaterLabelChanged)) &&
       result.pageErrors === 0 && result.failedLocalRequests === 0 &&
       result.localHttpErrors === 0 ? 0 : 1;
   }
