@@ -129,6 +129,13 @@ Sensitive Form-submission and WooCommerce MCP abilities now enforce the same
 capability check on direct `execute()` calls as on their registry callback.
 Neither improvement establishes complete vendor 4.4.1 security equivalence.
 
+Anonymous classic and Atomic Form submissions now reject unpublished,
+private or otherwise inaccessible target document IDs, while authorised
+editors can still test their own draft forms. Classic Form also restricts
+caller-selected dynamic-tag context and embedded template IDs. This
+development-only control is exercised by disposable guest/editor visibility
+regressions and must be assessed against real published Form workflows.
+
 Disposable WordPress tests confirmed valid sample files and rejection of
 PHP disguised as PDF/Office, arbitrary Office ZIP files, scripts in text
 and `.php8` extensions. **44/44 initial focused editor/runtime checks**, **68/68 complete
