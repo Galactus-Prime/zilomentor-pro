@@ -229,6 +229,12 @@ class Utils {
 	 * expose draft/private template settings or their submit actions.
 	 */
 	public static function is_form_submission_document_accessible( $post_id ): bool {
+		// absint() coerces arrays to 1, which can inadvertently select the
+		// public default WordPress post when an invalid ID was supplied.
+		if ( ( ! is_int( $post_id ) && ! is_string( $post_id ) )
+			|| ! preg_match( '/^[1-9][0-9]*$/D', (string) $post_id ) ) {
+			return false;
+		}
 		$post_id = absint( $post_id );
 		if ( ! $post_id || ! get_post( $post_id ) ) {
 			return false;
