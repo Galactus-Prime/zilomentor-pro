@@ -160,6 +160,12 @@ conditions do not allow a real provider sandbox checkout.
   and `--frontend-playwright-image haven-browser-qa:1.62.1`.
   Both PHP 8.4/8.5 syntax matrices passed. This is **not** a live paid
   transaction or a replacement for 4.4.1 vendor security parity.
+- [x] Read-only sensitive-key signature scan of the development checkout
+  found **no PEM private-key blocks, Stripe `sk_live_`/`sk_test_` secrets
+  or GitHub personal-token signatures** on 20 November. This is a
+  limited heuristic, not a complete historical secret scan or proof that
+  no key was ever exposed. Owner's real signing key must still be created
+  offline and never committed.
 - [x] **0.1.2 development** adds a shared published/document-editor
   authorization check for anonymous classic and Atomic Form target IDs,
   restricting classic Form dynamic `queried_id` context and embedded
