@@ -273,6 +273,14 @@ check("independent Fiore layout must retain original plugin initialization order
       and "zmp-early-bootstrap.php" in qa_script
       and "zmp-early-bootstrap.php" in
           (ROOT / "tools/migrate_independent_identity.py").read_text())
+check("anonymous classic/Atomic Forms reject private document IDs and dynamic contexts",
+      "is_form_submission_document_accessible(" in (ROOT / "core/utils.php").read_text()
+      and (ROOT / "modules/forms/classes/ajax-handler.php").read_text().count(
+          "Utils::is_form_submission_document_accessible(") >= 3
+      and "Utils::is_form_submission_document_accessible(" in
+          (ROOT / "modules/atomic-form/atomic-form-controller.php").read_text()
+      and "runtime_form_document_visibility.php" in qa_script
+      and (ROOT / "tests/runtime_form_document_visibility.php").is_file())
 check("anonymous Form uploads validate actual contents in both widget generations",
       "is_form_upload_content_safe(" in (ROOT / "core/utils.php").read_text()
       and "get_allowed_mime_types()" in (ROOT / "core/utils.php").read_text()
