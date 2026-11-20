@@ -399,6 +399,41 @@ class Custom_Icons extends  Assets_Base {
 		return new \WP_Error( 'unsupported_zip_format', esc_html__( 'The zip file provided is not supported!', 'elementor-pro' ) );
 	}
 
+	/**
+	 * Check a saved icon-set directory before any recursive deletion.
+	 * Import metadata may have originated on another site. Never trust it as
+	 * an arbitrary filesystem path, and never remove the shared icon root.
+	 *
+	 * @param mixed $path Potential icon set directory from post meta.
+	 */
+	public static function is_safe_icon_set_directory( $path ): bool {
+		if ( ! is_string( $path ) || '' === $path || is_link( rtrim( $path, '/\\' ) ) ) {
+			return false;
+		}
+
+		$uploads = wp_upload_dir( null, false );
+		if ( ! empty( $uploads['error'] ) || empty( $uploads['basedir'] ) ) {
+			return false;
+		}
+
+		$root_path = apply_filters(
+			'elementor_pro/icons_manager/custom_icons/dir',
+			trailingslashit( $uploads['basedir'] ) . 'elementor/custom-icons'
+		);
+
+		if ( ! is_string( $root_path ) || '' === $root_path ) {
+			return false;
+		}
+
+		$root = realpath( $root_path );
+		$target = realpath( $path );
+		// The icon importer creates one direct child directory per set.
+		// This also excludes the shared root, uploads root and sibling files.
+		return false !== $root && false !== $target
+			&& is_dir( $target )
+			&& dirname( $target ) === $root;
+	}
+
 	public function handle_delete_icon_set( $post_id ) {
 		if ( Icons_Manager::CPT !== get_post_type( $post_id ) ) {
 			return;
@@ -413,7 +448,7 @@ class Custom_Icons extends  Assets_Base {
 
 		// remove icon set assets directory
 		$icon_set_dir = get_post_meta( $post_id, '_elementor_icon_set_path', true );
-		if ( ! empty( $icon_set_dir ) && is_dir( $icon_set_dir ) ) {
+		if ( self::is_safe_icon_set_directory( $icon_set_dir ) ) {
 			$this::get_wp_filesystem()->rmdir( $icon_set_dir, true );
 		}
 
