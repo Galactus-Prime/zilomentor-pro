@@ -168,10 +168,11 @@ check("Pro Form editor UI save requires isolated opt-in and independent verifica
           (ROOT / "tools/run_manual_checks.py").read_text()
       and "Synthetic Pro Form editor value persisted in WordPress database" in qa_script
       and "Saved Pro Form name rendered on isolated frontend" in qa_script)
-check("Theme Builder editing restricted to disposable Header document",
+check("Theme Builder editing restricted to disposable Header and Popup templates",
       (ROOT / "tests/browser_theme_editor_save.js").is_file()
       and "ZMP_QA_THEME_SAVE" in (ROOT / "tests/browser_theme_editor_save.js").read_text()
-      and "'ZMP Synthetic Header' === get_the_title" in qa_script
+      and "'ZMP Synthetic Header' === $title" in qa_script
+      and "'ZMP Synthetic Popup' === $title" in qa_script
       and "Edited Header renders only on its intended synthetic page" in qa_script
       and "--verify-theme-builder-save" in qa_script
       and "--verify-theme-builder-save" in
