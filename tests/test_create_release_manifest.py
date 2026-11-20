@@ -48,12 +48,12 @@ class ManifestTests(unittest.TestCase):
             package = Path(tmp) / "zilomentor-pro-independent-0.1.2-staging-only.zip"
             with zipfile.ZipFile(package, "w", compression=zipfile.ZIP_DEFLATED) as z:
                 z.writestr("zilomentor-pro/elementor-pro.php",
-                           "<?php\\n/**\\n * Plugin Name: ZiloMentor Pro\\n"
-                           " * Version: 0.1.2\\n */\\n")
+                           "<?php\n/**\n * Plugin Name: ZiloMentor Pro\n"
+                           " * Version: 0.1.2\n */\n")
                 z.writestr("zilomentor-pro/assets/synthetic.txt", "tiny")
             blob = bytearray(package.read_bytes())
-            first = blob.find(b"PK\\x01\\x02")
-            second = blob.find(b"PK\\x01\\x02", first + 4)
+            first = blob.find(b"PK\x01\x02")
+            second = blob.find(b"PK\x01\x02", first + 4)
             self.assertGreater(second, first)
             struct.pack_into("<I", blob, second + 24, 600 * 1024 * 1024)
             package.write_bytes(blob)
@@ -67,8 +67,8 @@ class ManifestTests(unittest.TestCase):
             package = Path(tmp) / "zilomentor-pro-independent-0.1.2-staging-only.zip"
             with zipfile.ZipFile(package, "w") as z:
                 z.writestr("zilomentor-pro/elementor-pro.php",
-                           "<?php\\n/**\\n * Plugin Name: ZiloMentor Pro\\n"
-                           " * Version: 0.1.2\\n */\\n")
+                           "<?php\n/**\n * Plugin Name: ZiloMentor Pro\n"
+                           " * Version: 0.1.2\n */\n")
                 z.writestr("zilomentor-pro/../escape.php", "<?php")
             with self.assertRaisesRegex(ValueError, "Unsafe"):
                 mod.create_manifest(package)
