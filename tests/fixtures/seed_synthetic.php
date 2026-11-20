@@ -79,6 +79,21 @@ $elements = [
 update_post_meta( $page_id, '_elementor_data', wp_slash( wp_json_encode( $elements ) ) );
 update_post_meta( $page_id, '_elementor_edit_mode', 'builder' );
 update_post_meta( $page_id, '_elementor_version', ELEMENTOR_VERSION );
+// A second independent page permits History Undo/Redo testing without
+// changing the Heading/Form page used by other editor publish regressions.
+$history_id = wp_insert_post( [
+    'post_type' => 'page',
+    'post_status' => 'publish',
+    'post_title' => 'ZMP Synthetic Editor History',
+] );
+if ( ! $history_id || is_wp_error( $history_id ) ) {
+    fwrite( STDERR, "Unable to seed isolated history document\n" );
+    exit( 3 );
+}
+update_post_meta( $history_id, '_elementor_data', wp_slash( wp_json_encode( $elements ) ) );
+update_post_meta( $history_id, '_elementor_edit_mode', 'builder' );
+update_post_meta( $history_id, '_elementor_version', ELEMENTOR_VERSION );
+
 if ( function_exists( 'update_field' ) ) {
     update_field( 'field_zmp_qa_text', 'ZiloMentor Synthetic ACF Value', $page_id );
 }
@@ -127,6 +142,7 @@ update_option( 'woocommerce_checkout_page_id', $checkout_id );
 
 echo wp_json_encode( [
     'page' => $page_id,
+    'history_page' => (int) $history_id,
     'form' => $form_id,
     'product' => $product_id,
     'checkout_product' => $checkout_product_id,
