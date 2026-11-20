@@ -84,7 +84,10 @@ def main():
         "--verify-editor-responsive", action="store_true",
         help="Opt-in isolated real Elementor tablet, mobile and desktop editor switching checks.",
     )
-    argp.add_argument("--php-image", default="zc0140-php84-fpm-redis63-mysqli:local")
+    argp.add_argument(
+        "--php-image", default="zmp-php84-zip-qa:local",
+        help="Disposable PHP-FPM with ZIP extension; manually build using tools/docker/Dockerfile.qa-php84-zip.",
+    )
     argp.add_argument(
         "--web-server", choices=("php", "nginx-fpm"), default="php",
         help="Use the existing PHP development server or a disposable Nginx + multiworker PHP-FPM pair.",
