@@ -98,6 +98,21 @@ conditions do not allow a real provider sandbox checkout.
 - [ ] Repeat desktop/mobile pixel-level comparisons, browser JS and asset
   checks, WooCommerce cart/checkout, PHP8.4/8.5 and synthetic online test
   before any controlled production update.
+- [ ] Investigate the **two inherited desktop Motion Effects JavaScript errors**
+  seen on the live homepage. Read-only 1366×768 Chromium reports twice:
+  `Cannot read properties of undefined (reading 'translateX')`, with a stack
+  in `zilomentor-pro/assets/js/frontend.min.js` under
+  `prepareOptions()`. Mobile 390×844 reports zero. Historical live baseline
+  already showed the same **counts**, so do not attribute the regression to
+  the fork without an A/B comparison. Motion Effects data are present on
+  12 page elements; diagnostic-only browser instrumentation changed timing
+  and reproduced **zero** errors, suggesting a timing-sensitive condition
+  but not proving the root cause. Do not ship a speculative JS patch.
+- [ ] The same live read-only homepage canary finds one image element with
+  no `src` and no failed image HTTP request at both widths
+  (`<img alt="" width="900" height="600" decoding="async">`). Determine
+  whether it is an intentional placeholder/lazy element before fixing it.
+
 
 ## What is already verified
 
