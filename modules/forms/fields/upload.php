@@ -570,7 +570,7 @@ class Upload extends Field_Base {
 				'content' => [
 					'Options -Indexes',
 					'# Apache-only defense in depth. Nginx requires its own deny rule.',
-					'<FilesMatch "(?i)\\.(?:php[0-9]*|phtml?|pht|phar|cgi|pl|py|rb|jsp|aspx?|shtml)$">',
+					'<FilesMatch "(?i)\\.(?:php[0-9]*|phtml?|pht|phar|cgi|pl|py|rb|jsp|aspx?|shtml)(?:\\.|$)">',
 					'	Require all denied',
 					'</FilesMatch>',
 					'<IfModule mod_headers.c>',
