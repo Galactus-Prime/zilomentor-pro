@@ -290,6 +290,12 @@ class Custom_Icons extends  Assets_Base {
 					return new \WP_Error( 'invalid_icon_archive', esc_html__( 'ZIP symlinks are not supported.', 'elementor-pro' ) );
 				}
 
+				// Apache can interpret dangerous intermediate suffixes, for example
+				// icon.php.css. Never extract executable multi-extension names.
+				if ( preg_match( '~\.(?:php[0-9]*|phtml?|pht|phar|cgi|pl|py|rb|jsp|aspx?|shtml)(?:\.|$)~i', $name ) ) {
+					return new \WP_Error( 'invalid_icon_archive', esc_html__( 'Executable files are not permitted in icon ZIPs.', 'elementor-pro' ) );
+				}
+
 				// Ignore ancillary files that have no part in the icon set.
 				if ( 0 === strpos( $name, '__MACOSX/' ) || '/' === substr( $name, -1 ) ) {
 					continue;
