@@ -350,6 +350,17 @@ passed on rendered HTML. The manual release tests prove unsigned/expired/
 modified signatures and unsafe packages are rejected; additional review
 of real payment gateways and full official 4.4.1 patch equivalence remains.
 
+**Current unreleased candidate check (20 November 2026):** source
+`ef5564c9a84646369417de31073bc8c9fdbc0f8e` passed the
+**88/88** manual full isolated WordPress/Fiore/WooCommerce/Nginx/browser
+suite with real `ZipArchive` parsing; PHP 8.4 and 8.5 lint passed.
+This includes custom-icon import ZIP, malformed upload arrays and
+untrusted import-path deletion protections. Read
+`docs/ICON-ARCHIVE-SECURITY.md` and
+`docs/RELEASE-BLOCKERS.md` for caveats. **No owner-signed release,
+official Pro 4.4.1 security parity or payment-provider transaction
+has been verified, and live 0.1.1 remains unchanged.**
+
 ## Build and test (development only)
 
 For **isolated WordPress tests**, the disposable PHP 8.4 image must include
