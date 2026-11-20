@@ -80,6 +80,15 @@ try {
     $tests['oversized_total_rejected'] = ! $class::is_valid_stripe_session(
         array_merge( $good, [ 'unit_amount' => 99999999, 'quantity' => 2 ] )
     );
+    $tests['oversized_shipping_rejected'] = ! $class::is_valid_stripe_session(
+        array_merge( $good, [ 'shipping_amount' => 100000000 ] )
+    );
+    $tests['oversized_combined_total_rejected'] = ! $class::is_valid_stripe_session(
+        array_merge( $good, [ 'unit_amount' => 99999990, 'shipping_amount' => 25 ] )
+    );
+    $tests['small_shipping_allowed'] = $class::is_valid_stripe_session(
+        array_merge( $good, [ 'shipping_amount' => 250 ] )
+    );
     $tests['zero_quantity_rejected'] = ! $class::is_valid_stripe_session( array_merge( $good, [ 'quantity' => 0 ] ) );
     $tests['oversized_quantity_rejected'] = ! $class::is_valid_stripe_session( array_merge( $good, [ 'quantity' => 100 ] ) );
     $tests['invalid_currency_rejected'] = ! $class::is_valid_stripe_session( array_merge( $good, [ 'currency' => 'GBP<script>' ] ) );
