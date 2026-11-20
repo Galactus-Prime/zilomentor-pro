@@ -186,6 +186,10 @@ def main():
         # Test-only mail intercept: no messages may reach real recipients.
         mu = site / "wp-content" / "mu-plugins"
         mu.mkdir(exist_ok=True)
+        if plugin_folder == "zilomentor-pro":
+            early = ROOT / "tools/zmp-early-bootstrap.php"
+            require(early.is_file(), "Missing independent plugin early bootstrap adapter")
+            shutil.copy2(early, mu / "zmp-early-bootstrap.php")
         (mu / "zmp-qa-no-mail.php").write_text(
             r"""<?php
 // Generated exclusively inside a disposable QA WordPress tree.
@@ -528,7 +532,8 @@ add_action( 'init', function () {
                 "Fiore activation failed")
         for filename in ("runtime_bootstrap.php", "runtime_widgets.php",
                          "runtime_atomic_attributes_security.php",
-                         "runtime_posts_null.php", "runtime_release_guard.php"):
+                         "runtime_posts_null.php", "runtime_release_guard.php",
+                         "runtime_bootstrap_order.php"):
             p = wp("eval-file",
                    f"wp-content/plugins/{plugin_folder}/tests/" + filename,
                    environment={"ZMP_ISOLATED_QA": "yes"})
@@ -537,7 +542,8 @@ add_action( 'init', function () {
                             "security_checks": p.stdout.strip().splitlines()[:15]
                             if filename == "runtime_atomic_attributes_security.php" else
                             (p.stdout.strip().splitlines()[:6]
-                             if filename in ("runtime_posts_null.php", "runtime_release_guard.php") else [])}),
+                             if filename in ("runtime_posts_null.php", "runtime_release_guard.php",
+                                             "runtime_bootstrap_order.php") else [])}),
                     "Runtime check failed: " + (p.stdout + p.stderr)[-500:])
 
         p = wp(
