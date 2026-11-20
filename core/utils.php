@@ -623,22 +623,53 @@ class Utils {
 		}
 
 		if ( $_FILES === $super_global ) {
-			return isset( $super_global[ $key ]['name'] ) ?
-				static::sanitize_file_name( $super_global[ $key ] ) :
-				static::sanitize_multi_upload( $super_global[ $key ] );
+			$file = $super_global[ $key ];
+			if ( ! is_array( $file ) ) {
+				return null;
+			}
+			return static::sanitize_multi_upload( $file );
 		}
 
 		return wp_kses_post_deep( wp_unslash( $super_global[ $key ] ) );
 	}
 
+	/**
+	 * Sanitise only filename strings, preserving valid single and multi-upload
+	 * structures. Malformed scalar/array inputs must never reach WordPress'
+	 * sanitize_file_name(), which accepts a string only.
+	 */
+	private static function sanitize_upload_filename_values( $value ) {
+		if ( is_string( $value ) ) {
+			return sanitize_file_name( $value );
+		}
+
+		if ( is_array( $value ) ) {
+			return array_map( [ __CLASS__, 'sanitize_upload_filename_values' ], $value );
+		}
+
+		return '';
+	}
+
 	private static function sanitize_multi_upload( $fields ) {
-		return array_map( function( $field ) {
-			return array_map( [ __CLASS__, 'sanitize_file_name' ], $field );
-		}, $fields );
+		if ( ! is_array( $fields ) ) {
+			return [];
+		}
+
+		if ( array_key_exists( 'name', $fields ) ) {
+			return static::sanitize_file_name( $fields );
+		}
+
+		return array_map( [ __CLASS__, 'sanitize_multi_upload' ], $fields );
 	}
 
 	private static function sanitize_file_name( $file ) {
-		$file['name'] = sanitize_file_name( $file['name'] );
+		if ( ! is_array( $file ) ) {
+			return [];
+		}
+
+		if ( array_key_exists( 'name', $file ) ) {
+			$file['name'] = static::sanitize_upload_filename_values( $file['name'] );
+		}
 
 		return $file;
 	}
