@@ -141,7 +141,9 @@ def inspect_zip(data, version):
     try:
         archive = zipfile.ZipFile(io.BytesIO(data))
         with archive as z:
-            require(z.testzip() is None, "Corrupt ZIP content")
+            # Check central-directory entry count, expanded sizes and paths
+            # BEFORE testzip() decompresses anything. A ZIP bomb must not
+            # consume large CPU/memory simply to validate its checksum.
             names = set()
             expanded = 0
             payload_header = None
@@ -164,6 +166,7 @@ def inspect_zip(data, version):
                     require(info.file_size <= 65536,
                             "Suspiciously large WordPress bootstrap")
                     payload_header = z.read(info).decode("utf-8")
+            require(z.testzip() is None, "Corrupt ZIP content")
             require(payload_header is not None
                     and "Plugin Name: ZiloMentor Pro" in payload_header
                     and re.search(r"^\s*\*\s*Version:\s*" +
