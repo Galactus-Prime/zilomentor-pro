@@ -374,6 +374,11 @@ check("real Form field repeater edit is published, persisted and rendered",
           (ROOT / "tests/browser_editor_form_save.js").read_text()
       and "--verify-editor-form-fields" in
           (ROOT / "tools/run_manual_checks.py").read_text())
+check("synthetic Posts and WordPress Menu widget render regression",
+      (ROOT / "tests/fixtures/seed_posts_nav.php").is_file()
+      and "seed_posts_nav.php" in qa_script
+      and "Pro WordPress Navigation Menu renders synthetic WP link" in qa_script
+      and "Pro Posts widget renders synthetic published post" in qa_script)
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
