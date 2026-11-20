@@ -234,9 +234,10 @@ class Upload extends Field_Base {
 	 *
 	 * Uses wp_check_filetype_and_ext() as the primary content validator, which performs
 	 * MIME sniffing internally. For images, enforces strict MIME validation and checks for
-	 * archive/phar polyglots (which WordPress does not detect). For non-image extensions,
-	 * preserves backward compatibility by allowing admin-configured extensions that WordPress
-	 * does not recognize in its MIME type list (e.g., CAD formats like stl, dwg).
+	 * archive/phar polyglots. ALL allowed extensions now additionally require the
+	 * shared ZiloMentor content validator (registered WordPress MIME and actual
+	 * PDF/Office/media signature checks). Unknown types fail closed rather than
+	 * trusting a filename alone.
 	 *
 	 * @param string $path          Path to uploaded file (tmp_name).
 	 * @param string $original_name Original filename.
@@ -265,12 +266,13 @@ class Upload extends Field_Base {
 				return false;
 			}
 
-			return true;
+			return Utils::is_form_upload_content_safe( $path, $original_name );
 		}
 
-		// Allow non-image extensions for backward compatibility with admin-configured types
-		// that WordPress does not recognize (e.g., stl, dwg).
-		return true;
+		// A filename extension alone is not content validation. Require a
+		// WordPress-registered MIME type plus validated signature/content.
+		// Site-specific formats must first be registered via upload_mimes.
+		return Utils::is_form_upload_content_safe( $path, $original_name );
 	}
 
 	private function get_allowed_file_extensions( $field ) {
