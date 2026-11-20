@@ -313,6 +313,18 @@ class Module extends Module_Base {
 		return ! post_password_required( $post_id );
 	}
 
+	/** Reject invalid or oversized payment session settings before Stripe I/O. */
+	public static function is_valid_stripe_session( $args ) {
+		return is_array( $args )
+			&& isset( $args['currency'], $args['quantity'], $args['unit_amount'] )
+			&& is_string( $args['currency'] )
+			&& 1 === preg_match( '/^[A-Z]{3}$/D', $args['currency'] )
+			&& is_int( $args['quantity'] )
+			&& $args['quantity'] >= 1 && $args['quantity'] <= 99
+			&& is_int( $args['unit_amount'] )
+			&& $args['unit_amount'] >= 1 && $args['unit_amount'] <= 99999999;
+	}
+
 	public function submit_stripe_form() {
 		// Read only the nonce, page URL and IDs from the request. All price,
 		// currency, tax, quantity and secret-key values come from saved widgets.
@@ -374,9 +386,7 @@ class Module extends Module_Base {
 			: ( $settings['stripe_live_env_tax_rates_list'] ?? '' );
 		$args['unit_amount'] = $this->currency_adaptation( $args['currency'], $product_price );
 
-		if ( ! preg_match( '/^[A-Z]{3}$/D', $args['currency'] )
-			|| $args['quantity'] < 1 || $args['quantity'] > 99
-			|| $args['unit_amount'] < 1 || $args['unit_amount'] > 99999999 ) {
+		if ( ! self::is_valid_stripe_session( $args ) ) {
 			$this->error_handler( 400, esc_html__( 'Invalid payment amount or currency.', 'elementor-pro' ) );
 			return;
 		}
