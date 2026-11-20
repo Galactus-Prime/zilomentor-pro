@@ -284,8 +284,8 @@ class ManualSwapTests(unittest.TestCase):
         # Its central-directory metadata must be rejected before testzip().
         package, _ = self.zip("0.1.0")
         blob = bytearray(package.read_bytes())
-        first = blob.find(b"PK\\x01\\x02")
-        second = blob.find(b"PK\\x01\\x02", first + 4)
+        first = blob.find(b"PK\x01\x02")
+        second = blob.find(b"PK\x01\x02", first + 4)
         self.assertGreaterEqual(first, 0)
         self.assertGreater(second, first)
         struct.pack_into("<I", blob, second + 24, 600 * 1024 * 1024)
