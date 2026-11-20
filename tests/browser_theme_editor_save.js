@@ -1,22 +1,26 @@
 /**
- * Theme Builder Header editable-document regression in a disposable WP DB.
- * Opens the REAL Elementor editor for an isolated published Header template,
+ * Theme Builder Header and Popup editable-document regression in a disposable WP DB.
+ * Opens the REAL Elementor editor for an isolated published template,
  * changes a Heading and clicks its ordinary Publish/Update UI action.
  * Never execute on a production URL, user or database.
  */
 "use strict";
 const {chromium}=require("playwright");
 const token=process.env.ZMP_QA_EDITOR_TOKEN||"";
-const headerId=Number(process.env.ZMP_QA_HEADER_ID||0);
-const original="ZMP Synthetic Conditional Header";
-const updated="ZiloMentor QA Saved Header";
+const templateId=Number(process.env.ZMP_QA_TEMPLATE_ID||process.env.ZMP_QA_HEADER_ID||0);
+const kind=process.env.ZMP_QA_TEMPLATE_KIND||"header";
+const isPopup=kind==="popup";
+const original=isPopup?"ZMP Synthetic Conditional Popup":"ZMP Synthetic Conditional Header";
+const updated=isPopup?"ZiloMentor QA Saved Popup":"ZiloMentor QA Saved Header";
+const elementId=isPopup?"7a0b1c02":"7a0b1c01";
 const result={authenticated:false,headerWidgetFound:false,headingSelected:false,
   originalMatched:false,editedMatched:false,previewUpdated:false,saveClicked:false,
   pageErrors:0,httpErrors:0,requestFailures:0,cancelledRequests:0,externalBlocked:0};
 let browser;
 async function main(){
-  if(!/^[a-f0-9]{56}$/.test(token)||!Number.isSafeInteger(headerId)||
-      headerId<=0||process.env.ZMP_QA_THEME_SAVE!=="yes")
+  if(!/^[a-f0-9]{56}$/.test(token)||!Number.isSafeInteger(templateId)||
+      templateId<=0||!["header","popup"].includes(kind)||
+      process.env.ZMP_QA_THEME_SAVE!=="yes")
     throw new Error("Invalid isolated QA input");
   browser=await chromium.launch({headless:true,timeout:15000,
     args:["--no-sandbox","--disable-dev-shm-usage","--no-first-run"]});
@@ -38,13 +42,13 @@ async function main(){
     else result.requestFailures++;
   }catch{}});
   await page.goto("http://web:8080/?zmp_qa_editor_login="+token+
-    "&zmp_qa_page="+headerId,{waitUntil:"domcontentloaded",timeout:28000});
+    "&zmp_qa_page="+templateId,{waitUntil:"domcontentloaded",timeout:28000});
   await page.waitForFunction(()=>!!document.querySelector("#elementor-panel")&&
     !!window.elementor&&document.querySelectorAll("#elementor-panel button,#elementor-panel input").length>=30,
     null,{timeout:26000,polling:450});
   result.authenticated=(await page.locator("#loginform").count())===0;
   const widget=page.frameLocator("#elementor-preview-iframe")
-    .locator('.elementor-widget-heading[data-id="7a0b1c01"]');
+    .locator('.elementor-widget-heading[data-id="'+elementId+'"]');
   await widget.waitFor({state:"visible",timeout:18000});
   result.headerWidgetFound=(await widget.count())===1;
   const input=page.locator('#elementor-panel input[data-setting="title"],#elementor-panel textarea[data-setting="title"]');
@@ -84,6 +88,7 @@ async function main(){
   catch(e){result.errorCategory=String(e?.name||"UnknownError").slice(0,60)}
   finally{
     if(browser)try{await browser.close()}catch{}
+    result.templateKind=kind;
     console.log("ZMP_THEME_SAVE_JSON="+JSON.stringify(result));
     process.exitCode=(
       result.authenticated&&result.headerWidgetFound&&result.headingSelected&&
