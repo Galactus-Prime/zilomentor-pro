@@ -1,6 +1,8 @@
 <?php
 namespace ElementorPro\Modules\AtomicForm\File_Upload;
 
+use ElementorPro\Core\Utils;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
@@ -14,13 +16,32 @@ class File_Storage {
 			return [ 'error' => $this->translate_php_upload_error( $file->error ) ];
 		}
 
+		// Validate the actual bytes BEFORE wp_handle_upload moves them.
+		// Filename/type metadata supplied by anonymous visitors is untrusted.
+		if ( ! Utils::is_form_upload_content_safe( $file->tmp_name, $file->name ) ) {
+			return [ 'error' => __( 'This file type is not allowed.', 'elementor-pro' ) ];
+		}
+
 		return $this->move( $file );
 	}
 
 	public function delete( array $paths ): void {
+		// Restrict failed-form cleanup to files stored in our dedicated
+		// upload directory. Never delete caller-supplied arbitrary paths.
+		$uploads = wp_upload_dir( null, false );
+		$root = realpath( trailingslashit( $uploads['basedir'] ) . ltrim( self::UPLOAD_SUBDIR, '/' ) );
+		if ( false === $root ) {
+			return;
+		}
+
 		foreach ( $paths as $path ) {
-			if ( file_exists( $path ) ) {
-				@unlink( $path );
+			if ( ! is_string( $path ) || is_link( $path ) ) {
+				continue;
+			}
+
+			$resolved = realpath( $path );
+			if ( false !== $resolved && dirname( $resolved ) === $root && is_file( $resolved ) ) {
+				@unlink( $resolved );
 			}
 		}
 	}
