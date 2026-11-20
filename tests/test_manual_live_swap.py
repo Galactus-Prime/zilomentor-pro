@@ -63,14 +63,15 @@ class ManualSwapTests(unittest.TestCase):
         self.health_patch.start()
         self.addCleanup(self.health_patch.stop)
 
-    def zip(self, version, unsafe=False):
-        out = self.root / ("zmp-" + version + ("-evil" if unsafe else "") + ".zip")
+    def zip(self, version, unsafe=False, folder="elementor-pro"):
+        out = self.root / ("zmp-" + folder + "-" + version +
+                           ("-evil" if unsafe else "") + ".zip")
         with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED) as z:
-            z.writestr("elementor-pro/elementor-pro.php",
+            z.writestr(folder + "/elementor-pro.php",
                        plugin_text("ZiloMentor Pro", version))
-            z.writestr("elementor-pro/plugin.php", "<?php // synthetic\n")
+            z.writestr(folder + "/plugin.php", "<?php // synthetic\n")
             for n in range(1002):
-                z.writestr("elementor-pro/assets/test-%04d.txt" % n, "qa")
+                z.writestr(folder + "/assets/test-%04d.txt" % n, "qa")
             if unsafe:
                 z.writestr("../escape.txt", "not allowed")
         return out, hashlib.sha256(out.read_bytes()).hexdigest()
@@ -204,6 +205,68 @@ class ManualSwapTests(unittest.TestCase):
         restored = self.run_command("--rollback-to-official")
         self.assertIn("RESTORED=Elementor Pro", restored)
         self.assertEqual(swap.plugin_name(self.plugin), "Elementor Pro")
+
+    def test_independent_signed_update_preserves_basename_and_rollback(self):
+        sodium_php = Path("/opt/cpanel/ea-php84/root/usr/bin/php")
+        if not sodium_php.is_file():
+            self.skipTest("No PHP CLI Sodium")
+        new_folder = self.plugin.parent / "zilomentor-pro"
+        (self.plugin / "elementor-pro.php").write_text(
+            plugin_text("ZiloMentor Pro", "0.1.1")
+        )
+        os.rename(self.plugin, new_folder)
+        official = self.backup / "elementor-pro-official-original"
+        official.mkdir()
+        (official / "elementor-pro.php").write_text(
+            plugin_text("Elementor Pro", "4.4.0")
+        )
+        package, digest = self.zip("0.1.2", folder="zilomentor-pro")
+        verifier = SOURCE.with_name("release_signature.php")
+        private = self.backup / "synthetic-private-key.b64"
+        public = self.backup / "trusted-release-key.b64"
+        manifest_path = self.root / "independent.json"
+        sig = self.root / "independent.sig"
+        subprocess.run([str(sodium_php), str(verifier), "generate",
+                        str(private), str(public)], check=True,
+                       capture_output=True, text=True)
+        issued = datetime.now(timezone.utc).replace(microsecond=0)
+        manifest = {
+            "schema": 1,
+            "plugin": "zilomentor-pro/elementor-pro.php",
+            "version": "0.1.2",
+            "filename": package.name,
+            "sha256": digest,
+            "size_bytes": package.stat().st_size,
+            "issued_at": issued.isoformat().replace("+00:00", "Z"),
+            "expires_at": (issued + timedelta(days=21)).isoformat().replace("+00:00", "Z"),
+        }
+        manifest_path.write_text(json.dumps(manifest, sort_keys=True) + "\n")
+        subprocess.run([str(sodium_php), str(verifier), "sign",
+                        str(manifest_path), str(private), str(sig)],
+                       check=True, capture_output=True, text=True)
+        with patch.object(swap, "PHP_CLI", sodium_php):
+            with self.assertRaisesRegex(RuntimeError, "signed manifest"):
+                self.run_command(
+                    "--folder", "zilomentor-pro", "--zip", str(package),
+                    "--sha256", digest, "--apply",
+                )
+            arguments = (
+                "--folder", "zilomentor-pro", "--zip", str(package),
+                "--sha256", digest, "--signed-manifest", str(manifest_path),
+                "--signature", str(sig), "--trusted-public-key", str(public),
+            )
+            self.assertIn("DRY_RUN=YES", self.run_command(*arguments))
+            deployed = self.run_command(*arguments, "--apply")
+            self.assertIn("IS_UPDATE=true", deployed)
+            self.assertEqual(swap.plugin_version(new_folder), "0.1.2")
+            self.assertFalse(self.plugin.exists())
+            self.assertTrue((self.backup / ".zilomentor-independent-last-previous").is_file())
+            with self.assertRaisesRegex(RuntimeError, "cannot be replaced with vendor"):
+                self.run_command("--folder", "zilomentor-pro", "--rollback-to-official")
+            reverted = self.run_command("--folder", "zilomentor-pro", "--rollback")
+            self.assertIn("RESTORED=ZiloMentor Pro", reverted)
+            self.assertEqual(swap.plugin_version(new_folder), "0.1.1")
+            self.assertFalse(self.plugin.exists())
 
     def test_bad_hash_and_unsafe_archive_never_swap_files(self):
         package, digest = self.zip("0.1.0")
