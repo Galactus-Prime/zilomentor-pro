@@ -57,6 +57,10 @@ def main():
         help="Opt-in synthetic Heading edit/save on the disposable WordPress database only; requires --focus editor and Playwright.",
     )
     argp.add_argument(
+        "--verify-editor-history", action="store_true",
+        help="Opt-in real Elementor History undo/redo on a dedicated synthetic Heading and saved-data check.",
+    )
+    argp.add_argument(
         "--verify-editor-form-save", action="store_true",
         help="Opt-in synthetic Pro Form editor save with independent WordPress database/HTTP verification.",
     )
@@ -109,7 +113,7 @@ def main():
     )
     args = argp.parse_args()
     plugin_folder = args.plugin_folder
-    if (args.verify_editor_save or args.verify_editor_form_save
+    if (args.verify_editor_save or args.verify_editor_history or args.verify_editor_form_save
             or args.verify_editor_form_fields or args.verify_theme_builder_save or args.verify_popup_editor_save
             or args.verify_posts_nav_editor or args.verify_editor_responsive):
         require(args.focus == "editor" and args.editor_playwright_image is not None
@@ -1308,6 +1312,77 @@ add_action( 'init', function () {
             record("Synthetic Heading title persisted to WordPress database",
                    result.returncode == 0 and verify_data.get("saved") is True,
                    {"wpcli_exit": result.returncode, "verification": verify_data})
+
+        if args.verify_editor_history:
+            history_js = plugins_path / plugin_folder / "tests/browser_editor_history.js"
+            require(history_js.is_file(), "Missing private real Elementor History regression")
+            history_name = "zmp-qa-history-" + tag
+            history_cmd = [
+                "run", "--rm", "--name", history_name,
+                "--network", network, "--memory=1600m", "--cpus=2",
+                "--shm-size=128m",
+                "-e", "NODE_PATH=/usr/lib/node_modules",
+                "-e", "ZMP_QA_EDITOR_TOKEN=" + editor_login_token,
+                "-e", "ZMP_QA_PAGE_ID=" + str(fixtures["history_page"]),
+                "-e", "ZMP_QA_HISTORY=yes",
+                "-v", str(history_js) + ":/qa/history.js:ro",
+                "--entrypoint", "timeout", args.editor_playwright_image,
+                "--signal=TERM", "--kill-after=5s", "90s",
+                "node", "/qa/history.js",
+            ]
+            history_state = {}
+            try:
+                history_run = docker(history_cmd, timeout=110)
+                history_line = next((
+                    line[len("ZMP_HISTORY_EDITOR_JSON="):]
+                    for line in history_run.stdout.splitlines()
+                    if line.startswith("ZMP_HISTORY_EDITOR_JSON=")
+                ), None)
+                if history_line:
+                    try:
+                        history_state = json.loads(history_line)
+                    except ValueError:
+                        history_state = {}
+                record("Real Elementor History Undo and Redo before Publish",
+                       history_run.returncode == 0
+                       and all(history_state.get(k) is True for k in (
+                           "authenticated", "headingVisible", "titleSelected",
+                           "initialMatched", "editApplied", "undoCommand",
+                           "undoReverted", "redoCommand", "redoReapplied",
+                           "published",
+                       ))
+                       and all(history_state.get(k) == 0 for k in (
+                           "pageErrors", "httpErrors", "localFailures",
+                       )),
+                       {"exit_code": history_run.returncode,
+                        "state": history_state})
+            except subprocess.TimeoutExpired:
+                record("Real Elementor History Undo and Redo before Publish",
+                       False, {"hard_timeout": True})
+            finally:
+                docker(["rm", "-f", history_name], 20)
+            history_verify = (
+                '$id=' + str(fixtures["history_page"]) + ';'
+                '$d=json_decode(get_post_meta($id,"_elementor_data",true),true);'
+                '$saved=false;'
+                '$scan=function($n)use(&$scan,&$saved){'
+                'foreach((array)$n as $item){if(!is_array($item))continue;'
+                'if(($item["id"]??"")==="1a2b3c01"){'
+                '$saved=(($item["widgetType"]??"")==="heading"&&'
+                '($item["settings"]["title"]??"")==="ZiloMentor QA History Redo Heading");}'
+                'if(!empty($item["elements"]))$scan($item["elements"]);}};'
+                '$scan($d);echo wp_json_encode(["saved"=>$saved]);'
+            )
+            history_db_run = wp("eval", history_verify)
+            try:
+                history_db = json.loads(history_db_run.stdout.strip())
+            except ValueError:
+                history_db = {}
+            record("Redone Heading title persisted in WordPress after History Publish",
+                   history_db_run.returncode == 0
+                   and history_db.get("saved") is True,
+                   {"exit": history_db_run.returncode,
+                    "verification": history_db})
 
         if args.verify_editor_form_save or args.verify_editor_form_fields:
             # Separate opt-in real editor interaction. It changes only the
