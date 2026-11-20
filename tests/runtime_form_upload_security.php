@@ -225,7 +225,45 @@ try {
         $_FILES = $original_files;
     }
 
+    // Both V3 and Atomic form upload paths must create safe Apache rules.
+    // Delete and regenerate only inside this disposable synthetic upload tree,
+    // proving that each handler's own writer produces a valid policy.
+    $legacy_ensure = new \ReflectionMethod( $legacy, 'get_ensure_upload_dir' );
+    $legacy_directory = $legacy_ensure->invoke( $legacy_form );
+    $legacy_rules_path = trailingslashit( $legacy_directory ) . '.htaccess';
+    $legacy_rules = is_file( $legacy_rules_path ) ? file_get_contents( $legacy_rules_path ) : '';
+    $checks['legacy_apache_executable_uploads_denied'] =
+        false !== strpos( $legacy_rules, 'Require all denied' )
+        && false !== strpos( $legacy_rules, 'FilesMatch' );
+    $checks['legacy_apache_download_and_nosniff_headers'] =
+        false !== strpos( $legacy_rules, 'Content-Disposition "attachment"' )
+        && false !== strpos( $legacy_rules, 'X-Content-Type-Options "nosniff"' );
+
     $storage = new $atomic();
+    $uploads_location = wp_upload_dir( null, false );
+    $atomic_expected_dir = trailingslashit( $uploads_location['basedir'] ) . 'elementor/forms';
+    $checks['form_upload_writers_share_disposable_directory'] =
+        realpath( $legacy_directory ) === realpath( $atomic_expected_dir );
+    if ( $checks['form_upload_writers_share_disposable_directory']
+        && is_file( $legacy_rules_path ) ) {
+        unlink( $legacy_rules_path );
+        $atomic_ensure = new \ReflectionMethod( $atomic, 'ensure_upload_dir' );
+        $atomic_ensure->invoke( $storage );
+        $atomic_rules = is_file( $legacy_rules_path ) ? file_get_contents( $legacy_rules_path ) : '';
+        $checks['atomic_apache_executable_uploads_denied'] =
+            false !== strpos( $atomic_rules, 'Require all denied' )
+            && false !== strpos( $atomic_rules, 'FilesMatch' );
+        $checks['atomic_apache_download_and_nosniff_headers'] =
+            false !== strpos( $atomic_rules, 'Content-Disposition "attachment"' )
+            && false !== strpos( $atomic_rules, 'X-Content-Type-Options "nosniff"' );
+        $checks['atomic_apache_uses_real_newline_separators'] =
+            substr_count( $atomic_rules, "\n" ) >= 7;
+    } else {
+        $checks['atomic_apache_executable_uploads_denied'] = false;
+        $checks['atomic_apache_download_and_nosniff_headers'] = false;
+        $checks['atomic_apache_uses_real_newline_separators'] = false;
+    }
+
     $incoming = new $form_file( 'fake.pdf', 'application/pdf', $disguised_pdf,
         UPLOAD_ERR_OK, filesize( $disguised_pdf ) );
     $result = $storage->store( $incoming );
