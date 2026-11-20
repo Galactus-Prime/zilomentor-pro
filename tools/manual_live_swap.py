@@ -297,9 +297,9 @@ def main():
         file_count = 0
         expanded_bytes = 0
         with zipfile.ZipFile(source_zip) as z:
-            bad = z.testzip()
-            if bad is not None:
-                fail("ZIP integrity failed")
+            # Validate uncompressed sizes and paths from central-directory
+            # metadata BEFORE testzip() decompresses any archive members.
+            # A forged ZIP bomb must fail before expensive decompression.
             names = set()
             for info in z.infolist():
                 n = info.filename
@@ -324,6 +324,9 @@ def main():
                 names.add(n)
             if args.folder + "/" + ENTRY not in names or file_count < 1000:
                 fail("Staging archive missing expected Elementor Pro-compatible layout")
+            bad = z.testzip()
+            if bad is not None:
+                fail("ZIP integrity failed")
             entry = z.read(args.folder + "/" + ENTRY).decode("utf-8")
             if "Plugin Name: " + EXPECTED_NEW not in entry:
                 fail("Plugin release identity mismatch")
