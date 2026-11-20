@@ -52,8 +52,14 @@ Public upstream source: https://github.com/proelements/proelements
   only into the owner-controlled private deployment directory.
 - [ ] Rebuild the final tracked-source ZIP from the approved exact Git SHA,
   verify file count/hash, sign its manifest offline, and reject tampering.
-- [ ] Develop and validate a signed, HTTPS-only, owner-operated update feed
-  without a paid subscription or GitHub Actions.
+- [x] Implement a read-only, HTTPS-only, GitHub Releases signed asset
+  downloader with pinned Ed25519 PUBLIC key, exact ZIP/manifest validation,
+  temporary owner-only private staging and no WordPress install. Initial
+  no-network adversarial regression **12/12 passed**, without Actions or fees.
+  See docs/SIGNED-GITHUB-RELEASE-FEED.md.
+- [ ] Owner privately signs, approves and **publishes a genuine release**
+  through GitHub Releases; test the real online feed, including allowed
+  GitHub asset redirects and current rate-limit behaviour.
 - [ ] Test key rotation, revocation, expiry and complete rollback.
 - [ ] Keep production WordPress and WP Toolkit automatic ZiloMentor updates
   disabled until all the release gates are approved.
@@ -102,6 +108,9 @@ conditions do not allow a real provider sandbox checkout.
 - [x] 0.1.2 development has tests for upload type/content validation,
   private Posts-widget visibility, role permissions and Stripe request
   validation with no live payment transaction.
+- [x] Signed GitHub Releases *staging-only* client passes 12 synthetic
+  signature/tamper/expiry/host/permission tests; it never enables
+  WordPress automatic updates or installs anything.
 - [x] Staging signed-manifest format, SHA256-locked manual installer and
   migration rollback covered by synthetic tests.
 - [x] Manual isolated browser, WordPress and PHP suites use no GitHub Actions.
