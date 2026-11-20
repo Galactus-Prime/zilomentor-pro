@@ -581,7 +581,8 @@ class Upload extends Field_Base {
 					'	</Files>',
 					'</IfModule>',
 				],
-			],		];
+			],
+		];
 
 		foreach ( $files as $file ) {
 			if ( ! file_exists( trailingslashit( $path ) . $file['file'] ) ) {
