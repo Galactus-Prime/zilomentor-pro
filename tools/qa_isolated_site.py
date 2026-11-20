@@ -44,6 +44,11 @@ def main():
     argp = argparse.ArgumentParser(description=__doc__)
     argp.add_argument("--source-wordpress", required=True, type=Path)
     argp.add_argument(
+        "--plugin-folder", choices=("elementor-pro", "zilomentor-pro"),
+        default="elementor-pro",
+        help="Exercise legacy compatibility layout or independent ZiloMentor folder using disposable WordPress only.",
+    )
+    argp.add_argument(
         "--focus", choices=("all", "editor"), default="all",
         help="Run the full integration suite, or stop after isolated Elementor editor comparison.",
     )
@@ -91,6 +96,7 @@ def main():
         help="Optional cached image with Playwright available for bounded editor JS checks.",
     )
     args = argp.parse_args()
+    plugin_folder = args.plugin_folder
     if (args.verify_editor_save or args.verify_editor_form_save
             or args.verify_theme_builder_save or args.verify_editor_responsive):
         require(args.focus == "editor" and args.editor_playwright_image is not None
@@ -170,7 +176,7 @@ def main():
         if has_default_theme:
             shutil.copytree(default_theme, themes_path / "twentytwentyfive")
         shutil.copytree(
-            ROOT, plugins_path / "elementor-pro",
+            ROOT, plugins_path / plugin_folder,
             # Ignore transient cPanel EA-PHP CLI cache files as well. They can
             # disappear between copytree's listing and file-copy phase.
             ignore=shutil.ignore_patterns(
@@ -470,11 +476,32 @@ add_action( 'init', function () {
         )
         require(record("fresh WordPress installation", p.returncode == 0),
                 "Could not install synthetic WordPress")
-        for plugin in ("advanced-custom-fields-pro", "elementor", "elementor-pro", "woocommerce",
+        for plugin in ("advanced-custom-fields-pro", "elementor", plugin_folder, "woocommerce",
                        "vamtam-elementor-integration-fiore"):
             p = wp("plugin", "activate", plugin)
             require(record("activate " + plugin, p.returncode == 0),
                     "Plugin activation failed: " + plugin)
+        # Independently identify the WordPress plugin basename. The
+        # compatibility PHP API should remain ElementorPro, but the plugin's
+        # registered identity must be ZiloMentor's independent directory.
+        identity_check = wp(
+            "eval", '$list=(array)get_option("active_plugins",[]);'
+            '$target="' + plugin_folder + '/elementor-pro.php";'
+            'echo wp_json_encode(["target_active"=>in_array($target,$list,true),'
+            '"legacy_active"=>in_array("elementor-pro/elementor-pro.php",$list,true),'
+            '"new_active"=>in_array("zilomentor-pro/elementor-pro.php",$list,true)]);',
+        )
+        try:
+            identity_state = json.loads(identity_check.stdout.strip())
+        except ValueError:
+            identity_state = {}
+        require(record("Independent ZiloMentor plugin identity",
+                       identity_check.returncode == 0
+                       and identity_state.get("target_active") is True
+                       and identity_state.get("legacy_active") is (plugin_folder == "elementor-pro")
+                       and identity_state.get("new_active") is (plugin_folder == "zilomentor-pro"),
+                       {"folder": plugin_folder, "identity": identity_state}),
+                "Synthetic plugin identity does not match the requested folder")
         # A fresh WooCommerce 9.3+ installation starts in store-page-only
         # Coming Soon mode. Its ComingSoonRequestHandler exits during
         # template_include for the designated Cart/Checkout pages, hiding the
@@ -503,7 +530,7 @@ add_action( 'init', function () {
                          "runtime_atomic_attributes_security.php",
                          "runtime_posts_null.php", "runtime_release_guard.php"):
             p = wp("eval-file",
-                   "wp-content/plugins/elementor-pro/tests/" + filename,
+                   f"wp-content/plugins/{plugin_folder}/tests/" + filename,
                    environment={"ZMP_ISOLATED_QA": "yes"})
             require(record("runtime " + filename, p.returncode == 0,
                            {"exit": p.returncode,
@@ -515,7 +542,7 @@ add_action( 'init', function () {
 
         p = wp(
             "eval-file",
-            "wp-content/plugins/elementor-pro/tests/fixtures/seed_synthetic.php",
+            f"wp-content/plugins/{plugin_folder}/tests/fixtures/seed_synthetic.php",
             environment={"ZMP_ISOLATED_QA": "yes"},
         )
         require(record("seed only synthetic page/product/cart/checkout",
@@ -527,7 +554,7 @@ add_action( 'init', function () {
 
         template_seed = wp(
             "eval-file",
-            "wp-content/plugins/elementor-pro/tests/fixtures/seed_theme_popup.php",
+            f"wp-content/plugins/{plugin_folder}/tests/fixtures/seed_theme_popup.php",
             environment={"ZMP_ISOLATED_QA": "yes"},
         )
         try:
@@ -812,7 +839,7 @@ add_action( 'init', function () {
         if args.frontend_playwright_image is not None:
             # Real browser Popup test: open/close via the product's own JS API,
             # with no public host ports or external network access.
-            browser_test = plugins_path / "elementor-pro/tests/browser_theme_popup.js"
+            browser_test = plugins_path / plugin_folder / "tests/browser_theme_popup.js"
             require(browser_test.is_file(), "Missing private Popup browser test")
             browser_name = "zmp-qa-popup-" + tag
             browser_cmd = [
@@ -974,7 +1001,7 @@ add_action( 'init', function () {
                 # Node's Playwright API navigates at commit, avoiding Chromium
                 # --dump-dom hanging on asynchronous editor/background assets.
                 editor_name = "zmp-qa-editor-" + tag
-                js = plugins_path / "elementor-pro/tests/browser_editor_smoke.js"
+                js = plugins_path / plugin_folder / "tests/browser_editor_smoke.js"
                 require(js.is_file(), "Editor smoke test script missing")
                 editor_command = [
                     "run", "--rm", "--name", editor_name,
@@ -1027,7 +1054,7 @@ add_action( 'init', function () {
                 # Baseline on exactly the same synthetic WP/Fiore system,
                 # with ZiloMentor Pro disabled. This helps distinguish a
                 # slow/uninitialized free Elementor editor from our fork.
-                inactive = wp("plugin", "deactivate", "elementor-pro")
+                inactive = wp("plugin", "deactivate", plugin_folder)
                 if inactive.returncode == 0:
                     baseline_state = {}
                     try:
@@ -1090,7 +1117,7 @@ add_action( 'init', function () {
                                False, {"hard_timeout": True})
                     finally:
                         docker(["rm", "-f", editor_name], 20)
-                        restore = wp("plugin", "activate", "elementor-pro")
+                        restore = wp("plugin", "activate", plugin_folder)
                         require(record("Restore ZiloMentor in isolated test",
                                        restore.returncode == 0),
                                 "Failed to restore ZiloMentor in synthetic WP")
@@ -1163,7 +1190,7 @@ add_action( 'init', function () {
         if args.verify_editor_form_save:
             # Separate opt-in real editor interaction. It changes only the
             # hard-coded Form widget in this disposable WordPress database.
-            form_js = plugins_path / "elementor-pro/tests/browser_editor_form_save.js"
+            form_js = plugins_path / plugin_folder / "tests/browser_editor_form_save.js"
             require(form_js.is_file(), "Missing isolated Pro Form editor QA")
             form_browser_name = "zmp-qa-form-save-" + tag
             form_cmd = [
@@ -1249,7 +1276,7 @@ add_action( 'init', function () {
             # This login token works only on web:8080, for the fixture
             # named exactly ZMP Synthetic Header (elementor_library/header).
             header_id = theme_fixtures["documents"]["header"]["id"]
-            theme_js = plugins_path / "elementor-pro/tests/browser_theme_editor_save.js"
+            theme_js = plugins_path / plugin_folder / "tests/browser_theme_editor_save.js"
             require(theme_js.is_file(), "Missing Theme Builder editor regression")
             theme_browser_name = "zmp-qa-theme-save-" + tag
             theme_cmd = [
@@ -1343,7 +1370,7 @@ add_action( 'init', function () {
                     "errors": [target_err, unrelated_err]})
 
         if args.verify_editor_responsive:
-            responsive_js = plugins_path / "elementor-pro/tests/browser_editor_responsive.js"
+            responsive_js = plugins_path / plugin_folder / "tests/browser_editor_responsive.js"
             require(responsive_js.is_file(), "Missing responsive Elementor editor QA")
             responsive_browser_name = "zmp-qa-responsive-" + tag
             responsive_cmd = [
@@ -1594,7 +1621,7 @@ add_action( 'init', function () {
                 "has_product": "ZiloMentor Synthetic Test Product" in cart_after_ajax,
                 "transport": err_after_ajax})
         # Baseline without ZiloMentor: preserve all other synthetic site dependencies.
-        p = wp("plugin", "deactivate", "elementor-pro")
+        p = wp("plugin", "deactivate", plugin_folder)
         if p.returncode == 0:
             cookie_file = cookie_dir / "cookies.txt"
             if cookie_file.exists():
@@ -1638,7 +1665,7 @@ add_action( 'init', function () {
                    and fixtures["product"] in baseline_state.get("product_ids", []),
                    {"status": baseline_state_status,
                     "state": baseline_state, "error": baseline_state_err})
-            wp("plugin", "activate", "elementor-pro")
+            wp("plugin", "activate", plugin_folder)
             if has_default_theme:
                 default_activation = wp("theme", "activate", "twentytwentyfive")
                 if default_activation.returncode == 0:
@@ -1687,7 +1714,7 @@ add_action( 'init', function () {
             # any Elementor/Fiore integration. No production plugins touched.
             a = wp("theme", "activate", "twentytwentyfive")
             b = wp("plugin", "deactivate", "vamtam-elementor-integration-fiore")
-            c = wp("plugin", "deactivate", "elementor-pro")
+            c = wp("plugin", "deactivate", plugin_folder)
             d = wp("plugin", "deactivate", "elementor")
             if all(x.returncode == 0 for x in (a, b, c, d)):
                 pure_status, pure_html, pure_error = request(
