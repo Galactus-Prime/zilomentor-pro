@@ -74,8 +74,18 @@ try {
                 if ( is_string( $registered_methods ) ) {
                     $registered_methods = explode( ',', $registered_methods );
                 }
-                if ( ! is_array( $registered_methods ) ||
-                    ! in_array( $method, array_map( 'strtoupper', $registered_methods ), true ) ) {
+                if ( ! is_array( $registered_methods ) ) {
+                    continue;
+                }
+                $method_names = [];
+                foreach ( $registered_methods as $key => $value ) {
+                    if ( is_string( $key ) && $value ) {
+                        $method_names[] = strtoupper( $key );
+                    } elseif ( is_string( $value ) ) {
+                        $method_names[] = strtoupper( $value );
+                    }
+                }
+                if ( ! in_array( $method, $method_names, true ) ) {
                     continue;
                 }
                 if ( is_callable( $registered['permission_callback'] ?? null ) ) {
