@@ -83,7 +83,7 @@ class Utils {
 		];
 		if ( isset( $zip_folders[ $extension ] ) ) {
 			if ( ! class_exists( '\ZipArchive' )
-				|| ! 0 === strpos( $head, "PK\x03\x04" ) ) {
+				|| 0 !== strpos( $head, "PK\x03\x04" ) ) {
 				return false;
 			}
 
@@ -111,8 +111,11 @@ class Utils {
 		}
 
 		if ( in_array( $extension, [ 'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'tif', 'tiff', 'ico' ], true ) ) {
+			// Image geometry alone does not exclude ZIP or PHAR content
+			// appended after a valid PNG/GIF/JPEG header.
 			return 0 === strpos( $mime, 'image/' )
-				&& false !== @getimagesize( $path );
+				&& false !== @getimagesize( $path )
+				&& ! self::form_image_contains_embedded_archive( $path );
 		}
 
 		if ( in_array( $extension, [ 'mp3', 'mp4', 'm4a', 'mov', 'avi', 'ogg', 'wav', 'wmv', 'mpg', 'mpeg', 'webm' ], true ) ) {
@@ -136,6 +139,41 @@ class Utils {
 			&& $mime === (string) $registered['type'];
 	}
 
+
+	/**
+	 * Detect ZIP archives and PHP PHAR stubs hidden after image bytes.
+	 * Stream the PHAR scan to avoid allocating memory for large uploads.
+	 */
+	private static function form_image_contains_embedded_archive( string $path ): bool {
+		if ( class_exists( '\ZipArchive' ) ) {
+			$zip = new \ZipArchive();
+			if ( true === $zip->open( $path, \ZipArchive::RDONLY ) ) {
+				$zip->close();
+				return true;
+			}
+		}
+
+		$handle = @fopen( $path, 'rb' );
+		if ( false === $handle ) {
+			return true;
+		}
+		$lookbehind = '';
+		$signature = '__HALT_COMPILER';
+		while ( ! feof( $handle ) ) {
+			$chunk = fread( $handle, 65536 );
+			if ( false === $chunk ) {
+				fclose( $handle );
+				return true;
+			}
+			if ( false !== stripos( $lookbehind . $chunk, $signature ) ) {
+				fclose( $handle );
+				return true;
+			}
+			$lookbehind = substr( $chunk, -strlen( $signature ) );
+		}
+		fclose( $handle );
+		return false;
+	}
 
 	public static function get_public_post_types( $args = [] ) {
 		$post_type_args = [
