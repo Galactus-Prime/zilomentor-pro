@@ -258,10 +258,21 @@ try {
             && false !== strpos( $atomic_rules, 'X-Content-Type-Options "nosniff"' );
         $checks['atomic_apache_uses_real_newline_separators'] =
             substr_count( $atomic_rules, "\n" ) >= 7;
+
+        // Re-running either storage initializer must not overwrite a
+        // deliberate owner-supplied Apache policy. Preserve the known
+        // hardened directives when testing the custom-file scenario.
+        $custom_rules = "# Synthetic site-specific rule\n" . $atomic_rules;
+        file_put_contents( $legacy_rules_path, $custom_rules );
+        $atomic_ensure->invoke( $storage );
+        $legacy_ensure->invoke( $legacy_form );
+        $checks['form_writers_preserve_existing_custom_htaccess'] =
+            $custom_rules === file_get_contents( $legacy_rules_path );
     } else {
         $checks['atomic_apache_executable_uploads_denied'] = false;
         $checks['atomic_apache_download_and_nosniff_headers'] = false;
         $checks['atomic_apache_uses_real_newline_separators'] = false;
+        $checks['form_writers_preserve_existing_custom_htaccess'] = false;
     }
 
     $incoming = new $form_file( 'fake.pdf', 'application/pdf', $disguised_pdf,
