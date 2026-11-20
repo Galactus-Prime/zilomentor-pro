@@ -28,7 +28,7 @@ $optional_classes = [
 foreach ( $optional_classes as $route => $class ) {
     if ( ! isset( $routes[ $route ] ) && class_exists( $class ) ) {
         $api = new $class();
-        $register = new \\ReflectionMethod( $api, 'register_routes' );
+        $register = new \ReflectionMethod( $api, 'register_routes' );
         $register->invoke( $api );
         $routes = $server->get_routes();
     }
