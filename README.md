@@ -69,6 +69,23 @@ attributes fixes; this identity migration is not an automatic 4.4.1 patch.
 See [independent migration evidence](docs/INDEPENDENT-PLUGIN-IDENTITY.md)
 and [WP Toolkit collision investigation](docs/WPTOOLKIT-UPDATE-COLLISION.md).
 
+## Security warning: quarantined vendor-labelled ZIP was modified
+
+A package which previously overwrote the old `elementor-pro` folder
+claimed to be official Elementor Pro 4.4.1 but contained unofficial
+licence-bypass code and a third-party HTTP template endpoint. It
+remains quarantined **outside the live webroot**, and is **not** used
+as source material for this GPL fork.
+
+The current independently named live 0.1.1 plugin was verified byte-
+for-byte against the trusted installation ZIP. Read-only checks found
+no matching suspicious endpoints or forged licence cache in active
+code, WordPress options, posts or cron. These checks do not prove
+the malicious bootstrap never executed during its earlier installation.
+The exact findings and limits are documented in
+[the untrusted plugin incident record](docs/UNTRUSTED-PLUGIN-INCIDENT.md).
+Official Elementor Pro 4.4.1 source parity therefore remains **open**.
+
 ## Unreleased 0.1.2: additional Form upload security checks
 
 The development branch now validates the **actual file contents** of
