@@ -65,6 +65,10 @@ def main():
         help="Opt-in isolated Theme Builder Header template editor save plus page-condition render verification.",
     )
     argp.add_argument(
+        "--verify-popup-editor-save", action="store_true",
+        help="Opt-in isolated Popup template Heading edit and Publish, with database/condition verification.",
+    )
+    argp.add_argument(
         "--verify-editor-responsive", action="store_true",
         help="Opt-in isolated real Elementor tablet, mobile and desktop editor switching checks.",
     )
@@ -98,7 +102,8 @@ def main():
     args = argp.parse_args()
     plugin_folder = args.plugin_folder
     if (args.verify_editor_save or args.verify_editor_form_save
-            or args.verify_theme_builder_save or args.verify_editor_responsive):
+            or args.verify_theme_builder_save or args.verify_popup_editor_save
+            or args.verify_editor_responsive):
         require(args.focus == "editor" and args.editor_playwright_image is not None
                 and args.web_server == "nginx-fpm",
                 "Editor save verification needs --focus editor, --web-server nginx-fpm and --editor-playwright-image")
@@ -364,6 +369,7 @@ add_action( 'template_redirect', function () {
             'header_marker' => str_contains( $header_html, 'ZMP Synthetic Conditional Header' ),
             'header_saved_marker' => str_contains( $header_html, 'ZiloMentor QA Saved Header' ),
             'popup_marker' => str_contains( $popup_html, 'ZMP Synthetic Conditional Popup' ),
+            'popup_saved_marker' => str_contains( $popup_html, 'ZiloMentor QA Saved Popup' ),
             'scroll_popup_marker' => str_contains( $popup_html, 'ZMP Synthetic Scroll Popup' ),
             'exit_popup_marker' => str_contains( $popup_html, 'ZMP Synthetic Exit Popup' ),
             'header_bytes' => strlen( $header_html ),
@@ -1428,6 +1434,110 @@ add_action( 'init', function () {
                     "target_saved": target_data.get("header_saved_marker"),
                     "unrelated_saved": unrelated_data.get("header_saved_marker"),
                     "errors": [target_err, unrelated_err]})
+
+        if args.verify_popup_editor_save:
+            # Reuse the same browser-driven edit/Publish path as the Header,
+            # but open the real Elementor Popup template and check the
+            # persisted Heading plus its original page-specific condition.
+            popup_id = theme_fixtures["documents"]["popup"]["id"]
+            popup_js = plugins_path / plugin_folder / "tests/browser_theme_editor_save.js"
+            require(popup_js.is_file(), "Missing Popup editor publishing regression")
+            popup_browser_name = "zmp-qa-popup-save-" + tag
+            popup_cmd = [
+                "run", "--rm", "--name", popup_browser_name,
+                "--network", network, "--memory=1600m", "--cpus=2",
+                "--shm-size=128m",
+                "-e", "NODE_PATH=/usr/lib/node_modules",
+                "-e", "ZMP_QA_EDITOR_TOKEN=" + editor_login_token,
+                "-e", "ZMP_QA_TEMPLATE_ID=" + str(popup_id),
+                "-e", "ZMP_QA_TEMPLATE_KIND=popup",
+                "-e", "ZMP_QA_THEME_SAVE=yes",
+                "-v", str(popup_js) + ":/qa/popup_save.js:ro",
+                "--entrypoint", "timeout", args.editor_playwright_image,
+                "--signal=TERM", "--kill-after=5s", "90s",
+                "node", "/qa/popup_save.js",
+            ]
+            popup_state = {}
+            try:
+                popup_run = docker(popup_cmd, timeout=110)
+                popup_line = next((
+                    line[len("ZMP_THEME_SAVE_JSON="):]
+                    for line in popup_run.stdout.splitlines()
+                    if line.startswith("ZMP_THEME_SAVE_JSON=")
+                ), None)
+                if popup_line:
+                    try:
+                        popup_state = json.loads(popup_line)
+                    except ValueError:
+                        popup_state = {}
+                record("Synthetic Popup template changed and published in editor",
+                       popup_run.returncode == 0
+                       and popup_state.get("templateKind") == "popup"
+                       and all(popup_state.get(k) is True for k in (
+                           "authenticated", "headerWidgetFound", "headingSelected",
+                           "originalMatched", "editedMatched", "saveClicked",
+                       ))
+                       and all(popup_state.get(k) == 0 for k in (
+                           "pageErrors", "httpErrors", "requestFailures",
+                       )),
+                       {"exit_code": popup_run.returncode, "state": popup_state})
+            except subprocess.TimeoutExpired:
+                record("Synthetic Popup template changed and published in editor",
+                       False, {"hard_timeout": True})
+            finally:
+                docker(["rm", "-f", popup_browser_name], 20)
+
+            popup_verify = (
+                '$id=' + str(popup_id) + ';'
+                '$type=get_post_meta($id,"_elementor_template_type",true);'
+                '$d=json_decode(get_post_meta($id,"_elementor_data",true),true);'
+                '$saved=false;'
+                '$scan=function($n)use(&$scan,&$saved){'
+                'foreach((array)$n as $item){if(!is_array($item))continue;'
+                'if(($item["id"]??"")==="7a0b1c02"){'
+                '$saved=(($item["widgetType"]??"")==="heading"&&'
+                '($item["settings"]["title"]??"")==="ZiloMentor QA Saved Popup");}'
+                'if(!empty($item["elements"]))$scan($item["elements"]);}};'
+                '$scan($d);echo wp_json_encode(["type"=>$type,"saved"=>$saved]);'
+            )
+            popup_db_run = wp("eval", popup_verify)
+            try:
+                popup_db = json.loads(popup_db_run.stdout.strip())
+            except ValueError:
+                popup_db = {}
+            record("Popup template title persisted to WordPress database",
+                   popup_db_run.returncode == 0
+                   and popup_db.get("type") == "popup"
+                   and popup_db.get("saved") is True,
+                   {"wpcli_exit": popup_db_run.returncode,
+                    "verification": popup_db})
+
+            popup_target_status, popup_target_body, popup_target_err = request(
+                "?page_id=" + str(theme_fixtures["target"])
+                + "&zmp_qa_theme_popup=1"
+            )
+            popup_other_status, popup_other_body, popup_other_err = request(
+                "?page_id=" + str(fixtures["plain"])
+                + "&zmp_qa_theme_popup=1"
+            )
+            try:
+                popup_target = json.loads(popup_target_body)
+                popup_other = json.loads(popup_other_body)
+            except ValueError:
+                popup_target = {}
+                popup_other = {}
+            record("Edited Popup renders only on its intended synthetic page",
+                   popup_target_status == 200 and popup_other_status == 200
+                   and popup_target.get("popup_saved_marker") is True
+                   and popup_target.get("popup_marker") is False
+                   and popup_id in popup_target.get("popup_doc_ids", [])
+                   and popup_other.get("popup_saved_marker") is False
+                   and popup_id not in popup_other.get("popup_doc_ids", []),
+                   {"target_status": popup_target_status,
+                    "unrelated_status": popup_other_status,
+                    "target_saved": popup_target.get("popup_saved_marker"),
+                    "unrelated_saved": popup_other.get("popup_saved_marker"),
+                    "errors": [popup_target_err, popup_other_err]})
 
         if args.verify_editor_responsive:
             responsive_js = plugins_path / plugin_folder / "tests/browser_editor_responsive.js"
