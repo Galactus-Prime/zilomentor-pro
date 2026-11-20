@@ -365,6 +365,15 @@ check("manual isolated QA supports fast runtime-only security testing",
       and 'args.focus == "runtime"' in qa_script
       and 'choices=("all", "editor", "runtime")' in
           (ROOT / "tools/run_manual_checks.py").read_text())
+check("real Form field repeater edit is published, persisted and rendered",
+      "--verify-editor-form-fields" in qa_script
+      and "ZMP_QA_FORM_FIELDS=" in qa_script
+      and "Saved Form repeater field label appears on synthetic frontend" in qa_script
+      and "field_label_saved" in qa_script
+      and "repeaterLabelChanged" in
+          (ROOT / "tests/browser_editor_form_save.js").read_text()
+      and "--verify-editor-form-fields" in
+          (ROOT / "tools/run_manual_checks.py").read_text())
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
