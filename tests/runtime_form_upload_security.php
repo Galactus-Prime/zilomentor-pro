@@ -89,6 +89,39 @@ try {
         $legacy_form, $disguised_office, 'forged.docx', [ 'file_types' => 'docx' ]
     );
 
+    // Regression for CVE-2026-32475-style skipped-first-file handling.
+    // An optional empty first item must NEVER let a later executable upload
+    // bypass validation. These are in-memory $_FILES fixtures, not HTTP uploads.
+    $original_files = $_FILES;
+    try {
+        $_FILES['form_fields'] = [
+            'name' => [ 'synthetic_upload' => [ '', 'second.php' ] ],
+            'type' => [ 'synthetic_upload' => [ '', 'application/x-php' ] ],
+            'tmp_name' => [ 'synthetic_upload' => [ '', $disguised_pdf ] ],
+            'error' => [ 'synthetic_upload' => [ UPLOAD_ERR_NO_FILE, UPLOAD_ERR_OK ] ],
+            'size' => [ 'synthetic_upload' => [ 0, filesize( $disguised_pdf ) ] ],
+        ];
+        $fake_record = ( new \ReflectionClass(
+            '\\ElementorPro\\Modules\\Forms\\Classes\\Form_Record'
+        ) )->newInstanceWithoutConstructor();
+        $ajax_class = '\\ElementorPro\\Modules\\Forms\\Classes\\Ajax_Handler';
+        $ajax = new $ajax_class();
+        $legacy_form->fixed_files_indices = false;
+        $legacy_form->validation( [
+            'id' => 'synthetic_upload',
+            'required' => false,
+            'file_types' => 'pdf',
+            'max_files' => 2,
+            'file_sizes' => 2,
+        ], $fake_record, $ajax );
+        $checks['legacy_empty_first_file_does_not_skip_second_php'] =
+            ! empty( $ajax->errors['synthetic_upload'] );
+        $checks['legacy_empty_first_file_does_not_mark_success'] =
+            false === $ajax->is_success;
+    } finally {
+        $_FILES = $original_files;
+    }
+
     $storage = new $atomic();
     $incoming = new $form_file( 'fake.pdf', 'application/pdf', $disguised_pdf,
         UPLOAD_ERR_OK, filesize( $disguised_pdf ) );
