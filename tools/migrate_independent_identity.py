@@ -270,8 +270,20 @@ def main():
 
         if args.zip is None or args.sha256 is None:
             abort("Read-only preflight requires trusted 0.1.1 ZIP and full SHA256")
+        rolled_back_state = None
+        if state_file.is_file():
+            try:
+                rolled_back_state = json.loads(state_file.read_text(encoding="utf-8"))
+            except (ValueError, UnicodeError):
+                abort("Existing migration history is unreadable")
+            if (not isinstance(rolled_back_state, dict)
+                    or rolled_back_state.get("status") != "rolled_back"
+                    or rolled_back_state.get("version") != EXPECTED_VERSION):
+                abort("Previous migration is not fully rolled back")
+        elif state_file.exists() or state_file.is_symlink():
+            abort("Unsafe migration state file")
         if (not legacy.is_dir() or legacy.is_symlink()
-                or independent.exists() or state_file.exists()
+                or independent.exists()
                 or initial.get("legacy") is not True or initial.get("independent") is not False):
             abort("Site is not in a safe, active legacy state")
         archive = args.zip.resolve(strict=True)
@@ -287,6 +299,11 @@ def main():
             print("DRY_RUN=YES NO_DATABASE_OR_PLUGINS_CHANGED")
             return
 
+        if rolled_back_state is not None:
+            history = backup / ("zilomentor-previous-rolled-back-state-"
+                                + secrets.token_hex(6) + ".json")
+            os.rename(state_file, history)
+            history.chmod(0o600)
         stage = plugins / (".zilomentor-identity-stage-" + secrets.token_hex(5))
         stage.mkdir(mode=0o700)
         archived_name = "elementor-pro-identity-backup-" + secrets.token_hex(6)
