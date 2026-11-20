@@ -6,6 +6,13 @@ import subprocess
 import zipfile
 import sys
 import re
+from argparse import ArgumentParser
+
+ap = ArgumentParser(description="Build isolated, tracked-source ZiloMentor release ZIP.")
+ap.add_argument("--folder", choices=("zilomentor-pro", "elementor-pro"),
+                default="zilomentor-pro",
+                help="Default to the independent release folder; legacy only for compatibility tests.")
+folder = ap.parse_args().folder
 
 root = Path(__file__).resolve().parents[1]
 header = (root / "elementor-pro.php").read_text(encoding="utf-8")
@@ -13,7 +20,8 @@ match = re.search(r"^\s*\*\s*Version:\s*(\d+\.\d+\.\d+)\s*$", header, re.M)
 if not match:
     raise SystemExit("Invalid ZiloMentor Pro release version")
 version = match.group(1)
-dest = root / "dist" / f"zilomentor-pro-compat-{version}-staging-only.zip"
+layout = "independent" if folder == "zilomentor-pro" else "compat"
+dest = root / "dist" / f"zilomentor-pro-{layout}-{version}-staging-only.zip"
 dest.parent.mkdir(exist_ok=True)
 if not (root / "elementor-pro.php").is_file():
     raise SystemExit("Missing ZiloMentor Pro entrypoint")
@@ -55,13 +63,13 @@ if len(files) < 1000:
     raise SystemExit("Release packaging source unexpectedly incomplete")
 with zipfile.ZipFile(dest,"w",compression=zipfile.ZIP_DEFLATED,compresslevel=9) as z:
     for p in files:
-        archive_path="elementor-pro/"+p.relative_to(root).as_posix()
+        archive_path=folder+"/"+p.relative_to(root).as_posix()
         z.write(p,arcname=archive_path)
 with zipfile.ZipFile(dest) as z:
     bad = z.testzip()
     assert bad is None, bad
-    assert "elementor-pro/elementor-pro.php" in z.namelist()
-    assert "elementor-pro/license.txt" in z.namelist()
+    assert folder + "/elementor-pro.php" in z.namelist()
+    assert folder + "/license.txt" in z.namelist()
 print("PATH",dest)
 print("FILES",len(files))
 print("SIZE_BYTES",dest.stat().st_size)
