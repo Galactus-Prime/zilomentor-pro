@@ -43,6 +43,11 @@ def main():
         help="Run the complete HTTP suite, or the isolated editor comparison only.",
     )
     parser.add_argument(
+        "--plugin-folder", choices=("elementor-pro", "zilomentor-pro"),
+        default="elementor-pro",
+        help="Test legacy or independent plugin directory in disposable WordPress.",
+    )
+    parser.add_argument(
         "--browser-image", default=None,
         help="Optional pre-cached Chromium image for isolated browser DOM smoke tests; requires --source-wordpress.",
     )
@@ -120,6 +125,7 @@ def main():
             str(args.source_wordpress),
             "--web-server", args.web_server,
             "--focus", args.focus,
+            "--plugin-folder", args.plugin_folder,
         ]
         if args.browser_image:
             qa_cmd.extend(["--browser-image", args.browser_image])
