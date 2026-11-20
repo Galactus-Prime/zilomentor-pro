@@ -142,6 +142,15 @@ def main():
         p = execute(["docker", "image", "inspect", image], timeout=15)
         require(p.returncode == 0, f"Docker image must already be cached: {image}")
 
+    # Fail before creating a DB/network if archive tests would be skipped.
+    zip_probe = execute([
+        "docker", "run", "--rm", "--network", "none", "--entrypoint", "php",
+        args.php_image, "-r", 'exit(class_exists("ZipArchive") ? 0 : 7);',
+    ], timeout=25)
+    require(zip_probe.returncode == 0,
+            "Disposable QA PHP image must contain ZipArchive; build "
+            "tools/docker/Dockerfile.qa-php84-zip manually first.")
+
     tag = secrets.token_hex(4)
     network = f"zmp-qa-net-{tag}"
     database = f"zmp-qa-db-{tag}"
