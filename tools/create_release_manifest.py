@@ -21,22 +21,27 @@ def create_manifest(package: Path, valid_days: int = 90, now=None):
     if not package.is_file() or package.stat().st_size > 50 * 1024 * 1024:
         raise ValueError("Missing or oversized release package")
     with zipfile.ZipFile(package) as z:
-        name = "elementor-pro/elementor-pro.php"
-        if name not in z.namelist() or z.testzip() is not None:
-            raise ValueError("Release archive missing bootstrap or failed integrity")
+        options = ("zilomentor-pro/elementor-pro.php",
+                   "elementor-pro/elementor-pro.php")
+        matches = [x for x in options if x in z.namelist()]
+        if len(matches) != 1 or z.testzip() is not None:
+            raise ValueError("Release archive missing unambiguous bootstrap or failed integrity")
+        name = matches[0]
         entry = z.read(name).decode("utf-8", errors="strict")
     match = re.search(r"^\s*\*\s*Version:\s*(\d+\.\d+\.\d+)\s*$", entry, re.M)
     if not match or "Plugin Name: ZiloMentor Pro" not in entry:
         raise ValueError("Release ZIP must contain a valid ZiloMentor Pro header")
     version = match.group(1)
-    expected = "zilomentor-pro-compat-" + version + "-staging-only.zip"
+    folder = name.split("/", 1)[0]
+    layout = "independent" if folder == "zilomentor-pro" else "compat"
+    expected = "zilomentor-pro-" + layout + "-" + version + "-staging-only.zip"
     if package.name != expected:
         raise ValueError("ZIP filename/version mismatch")
     now = now or datetime.now(timezone.utc)
     now = now.astimezone(timezone.utc).replace(microsecond=0)
     return {
         "schema": 1,
-        "plugin": "elementor-pro/elementor-pro.php",
+        "plugin": name,
         "version": version,
         "filename": package.name,
         "sha256": hashlib.sha256(package.read_bytes()).hexdigest(),
