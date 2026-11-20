@@ -45,6 +45,15 @@ scanning; some highly compressible legitimate documents will be rejected.
 Disposable regression fixtures include a real archive with >4 MiB compressed
 down to a few kilobytes and an archive containing an `../` entry.
 
+Another review of multi-extension filenames found that a rule checking only
+the *final* suffix (for example `payload.php.jpg`) can miss a PHP handler
+selected by an earlier suffix. Both Form `FilesMatch` policies now refuse
+known script suffixes at an extension boundary **anywhere** in the filename;
+the disposable Nginx test executable deny uses the same principle and tests
+`.php.jpg`, `.phtml.png` and `.phar.webp`. Pure regex checks confirm
+regular PDFs/images remain outside the deny pattern. This does not replace
+the MIME checks on uploaded file bytes or the host-vhost acceptance gate.
+
 The classic and Atomic Form storage handlers now generate stronger Apache
 `.htaccess` policies for **new** upload directories: executable extension
 denial, download-only delivery, no MIME sniffing and private/no-store caching.
