@@ -121,17 +121,17 @@ class File_Storage {
 				'Options -Indexes',
 				'# Apache-only defense in depth. Nginx requires a separate deny rule.',
 				'<FilesMatch "(?i)\\.(?:php[0-9]*|phtml?|pht|phar|cgi|pl|py|rb|jsp|aspx?|shtml)$">',
-				'\tRequire all denied',
+				'Require all denied',
 				'</FilesMatch>',
 				'<IfModule mod_headers.c>',
-				'\t<Files *.*>',
-				'\t\tHeader always set Content-Disposition "attachment"',
-				'\t\tHeader always set X-Content-Type-Options "nosniff"',
-				'\t\tHeader always set Cache-Control "private, no-store"',
-				'\t</Files>',
+				'<Files *.*>',
+				'Header always set Content-Disposition "attachment"',
+				'Header always set X-Content-Type-Options "nosniff"',
+				'Header always set Cache-Control "private, no-store"',
+				'</Files>',
 				'</IfModule>',
 			];
-			@file_put_contents( $htaccess, implode( "\\n", $directives ) . "\\n" );
+			@file_put_contents( $htaccess, implode( "\n", $directives ) . "\n" );
 		}
 	}
 
