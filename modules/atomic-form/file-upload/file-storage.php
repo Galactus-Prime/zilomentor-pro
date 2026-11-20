@@ -117,7 +117,21 @@ class File_Storage {
 
 		$htaccess = trailingslashit( $path ) . '.htaccess';
 		if ( ! file_exists( $htaccess ) ) {
-			@file_put_contents( $htaccess, "Options -Indexes\n<IfModule mod_headers.c>\n\tHeader set Content-Disposition attachment\n</IfModule>\n" );
+			$directives = [
+				'Options -Indexes',
+				'# Apache-only defense in depth. Nginx requires a separate deny rule.',
+				'<FilesMatch "(?i)\\.(?:php[0-9]*|phtml?|pht|phar|cgi|pl|py|rb|jsp|aspx?|shtml)$">',
+				'\tRequire all denied',
+				'</FilesMatch>',
+				'<IfModule mod_headers.c>',
+				'\t<Files *.*>',
+				'\t\tHeader always set Content-Disposition "attachment"',
+				'\t\tHeader always set X-Content-Type-Options "nosniff"',
+				'\t\tHeader always set Cache-Control "private, no-store"',
+				'\t</Files>',
+				'</IfModule>',
+			];
+			@file_put_contents( $htaccess, implode( "\\n", $directives ) . "\\n" );
 		}
 	}
 
