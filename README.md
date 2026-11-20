@@ -80,7 +80,7 @@ expiry and archive safety before staging files privately outside webroot.
 It never directly installs a WordPress plugin or registers a one-click
 unverified update path.
 
-**12/12 synthetic release tests passed** using throwaway local signing
+**13/13 synthetic release tests passed** using throwaway local signing
 keys, including altered signatures/ZIPs, unsafe URLs, expired manifests,
 downgrades, duplicate assets, wrong keys and insecure permissions. A
 genuine signed public release has **not yet been published**, and no
