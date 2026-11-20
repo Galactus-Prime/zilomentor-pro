@@ -2,11 +2,12 @@
 
 **An independently maintained, GPL-licensed Elementor Pro compatibility fork for WordPress.**
 
-> **Limited live beta, v0.1.1, not a general production release.** Explicitly authorised
-> deployment to Itzy Bitzy Workshop succeeded on 19 November 2026 after offline
-> private backups and guarded rollback preparation. Public homepage screenshots
-> remained pixel-identical on desktop and mobile; live checkout/payments and
-> many editor functions remain uncertified.
+> **Limited live beta, v0.1.1, not a general production release.** Itzy Bitzy
+> Workshop now runs the independently identified plugin at
+> `zilomentor-pro/elementor-pro.php`, with free Elementor 4.4.1. The 20 November
+> 2026 guarded folder migration passed desktop/mobile visual acceptance, kept
+> private rollback files, and required no WooCommerce data rollback. Payment
+> gateways and the full paid Elementor security patchset remain uncertified.
 
 ZiloMentor Pro is a fork of [PRO Elements](https://github.com/proelements/proelements),
 which in turn incorporates GPL-licensed code originally developed by Elementor Ltd.
@@ -33,15 +34,40 @@ plugin version and must be tested.
 | --- | --- |
 | Original Elementor Pro PHP namespace and hooks | Retained from upstream; static check passes |
 | Theme Builder, dynamic tags and product widgets | 196 widgets registered; ACF text renders in a real Elementor Heading; synthetic Header conditions and Popup Page Load, On Scroll and Exit Intent browser triggers passed in isolated Fiore; other template/trigger combinations pending |
-| Vamtam Fiore integration on ItzyBitzyWorkshop | Live beta v0.1.0 active alongside free Elementor 4.4.1; public 1366x768 and 390x844 homepage screenshots pixel-identical with the original Pro 4.4.0 baseline; other pages still require visual comparison |
-| WordPress plugin path elementor-pro/elementor-pro.php | Provided when staging ZIP is installed |
+| Vamtam Fiore integration on ItzyBitzyWorkshop | Live independently named ZiloMentor beta **0.1.1** alongside free Elementor 4.4.1. Migrated desktop visual delta **0.0035 mean RGB**, mobile **0.0**, with **85/89 widgets** and no new browser errors. The header early-bootstrap adapter preserves Vamtam callback order. Other templates and gateway journeys remain uncertified |
+| Independent WordPress plugin identity | Installed live under `zilomentor-pro/elementor-pro.php` to avoid WP Toolkit's false Elementor Pro slug mapping. Compatible `ElementorPro` PHP classes remain. Legacy layout available only as an explicit test build |
 | WordPress editing and responsive layouts | 156 editor controls vs 81 free; isolated Heading, Pro Form and Theme Builder Header edits use real Publish/Update and independent database/conditional-render checks. Desktop → tablet (768px) → mobile (360px) → desktop editor switching passed; additional workflows pending |
 | WooCommerce cart, checkout and payments | 55/55 isolated HTTP/integration checks passed; registered Cart, AJAX mini-cart, guest checkout and synthetic offline bank-transfer order creation verified; card gateways, shipping and tax scenarios remain untested |
-| Release management | Upstream updater disabled; owner-only SHA256-pinned manual deployment and offline backups/previous-version/official-plugin file rollback implemented and synthetic tested. Signed online updater is not yet available |
+| Release management | Original/proprietary updater disabled. Independent Ed25519-signed **manual** 0.1.2 candidate and ZIP/rollback tests implemented, with private owner-only release backups. No operational signing key or auto-update feed is live |
 
 The initial source tracks PRO Elements **v4.4.0** at commit
 [58d52e0](https://github.com/proelements/proelements/commit/58d52e0f10640088aa179e28b40b161c33c57de4).
 The public fork retains its original upstream commit history.
+
+## Independent live plugin identity (20 November 2026)
+
+After a cPanel WP Toolkit collision between ZiloMentor and the official
+`elementor-pro` slug, the owner-approved beta was migrated using a verified
+**unchanged 0.1.1 ZIP** into the independent WordPress plugin directory
+`zilomentor-pro/`. A separate external MU release guard protects both
+plugin names from WordPress-managed vendor replacements, and a conditional MU
+bootstrap restores the Elementor/Fiore initialization order. The first trial
+had a genuine desktop header regression, which was immediately rolled back
+and corrected. An intermediate mobile difference was independently shown to
+persist after rollback, proving it was not caused by plugin identity.
+
+The final controlled live migration passed the strict visual gate using a
+current restored-site baseline (desktop **0.0035** average RGB delta, mobile
+**0.0000**, at 1366x768 and 390x844). Homepage, shop, cart, checkout and a
+product page returned HTTP 200 and no longer reference old plugin assets.
+Refreshed WP Toolkit lists **ZiloMentor Pro 0.1.1** under `zilomentor-pro`,
+not as official Elementor Pro, with no vendor update offer. Backup, file-only
+rollback and a private SQL snapshot were preserved.
+
+**The code is still 0.1.1**, based on PRO Elements 4.4.0 with targeted
+attributes fixes; this identity migration is not an automatic 4.4.1 patch.
+See [independent migration evidence](docs/INDEPENDENT-PLUGIN-IDENTITY.md)
+and [WP Toolkit collision investigation](docs/WPTOOLKIT-UPDATE-COLLISION.md).
 
 ## Current beta deployment and limitations (19 November 2026)
 
