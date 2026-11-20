@@ -73,10 +73,11 @@ try {
     foreach ( $created as $id ) {
         wp_delete_post( $id, true );
     }
-    if ( ! function_exists( 'wp_delete_user' ) ) {
-        require_once ABSPATH . 'wp-admin/includes/user.php';
-    }
-    wp_delete_user( $editor_id );
+    // The entire synthetic WordPress database is discarded by the QA
+    // harness. Deleting an authored editor here also invokes unrelated
+    // Elementor Notes delete_user hooks during WP-CLI teardown, which can
+    // fail independently of Form visibility. No persistent user survives.
+    // Never execute this fixture against a production database.
 }
 
 foreach ( $checks as $name => $ok ) {
