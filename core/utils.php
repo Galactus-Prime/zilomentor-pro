@@ -154,7 +154,7 @@ class Utils {
 	 * ordinary documents while refusing uploads whose expanded contents
 	 * could exhaust server resources if subsequently processed.
 	 */
-	private static function form_office_archive_is_bounded( \\ZipArchive $archive ): bool {
+	private static function form_office_archive_is_bounded( \ZipArchive $archive ): bool {
 		if ( $archive->numFiles < 1 || $archive->numFiles > 4096 ) {
 			return false;
 		}
@@ -169,7 +169,7 @@ class Utils {
 			$name = (string) $entry['name'];
 			$expanded = $entry['size'];
 			$compressed = $entry['comp_size'];
-			if ( '' === $name || '/' === $name[0] || false !== strpos( $name, '\\\\' )
+			if ( '' === $name || '/' === $name[0] || false !== strpos( $name, '\\' )
 				|| preg_match( '~(?:^|/)\\.\\.(?:/|$)~', $name )
 				|| ! is_int( $expanded ) || ! is_int( $compressed )
 				|| $expanded < 0 || $compressed < 0
