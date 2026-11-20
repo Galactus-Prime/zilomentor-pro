@@ -379,6 +379,14 @@ check("synthetic Posts and WordPress Menu widget render regression",
       and "seed_posts_nav.php" in qa_script
       and "Pro WordPress Navigation Menu renders synthetic WP link" in qa_script
       and "Pro Posts widget renders synthetic published post" in qa_script)
+check("real Nav Menu editing and Posts widget selection tested",
+      "--verify-posts-nav-editor" in qa_script
+      and "Nav Menu label persisted without losing Posts widget" in qa_script
+      and (ROOT / "tests/browser_posts_nav_editor.js").is_file()
+      and "ZMP_POSTS_NAV_EDITOR_JSON" in
+          (ROOT / "tests/browser_posts_nav_editor.js").read_text()
+      and "--verify-posts-nav-editor" in
+          (ROOT / "tools/run_manual_checks.py").read_text())
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
