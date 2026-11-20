@@ -147,6 +147,11 @@ try {
         UPLOAD_ERR_OK, filesize( $disguised_pdf ) );
     $result = $storage->store( $incoming );
     $checks['atomic_rejects_spoofed_pdf_before_move'] = isset( $result['error'] );
+    $local_file = new $form_file( 'readme.txt', 'text/plain', $real_txt,
+        UPLOAD_ERR_OK, filesize( $real_txt ) );
+    $local_file_result = $storage->store( $local_file );
+    $checks['atomic_refuses_non_http_uploaded_local_file'] =
+        isset( $local_file_result['error'] ) && file_exists( $real_txt );
 
     // Cleanup must not unlink a file outside the dedicated Elementor Form
     // upload directory even if caller input supplies an arbitrary real path.
