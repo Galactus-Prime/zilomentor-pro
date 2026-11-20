@@ -3,6 +3,58 @@
 **Scope:** draft 0.1.2 versus deployed 0.1.1; independent GPL fork based on
 PRO Elements 4.4.0. No live customer/order/payment data was used for this audit.
 
+## 20 November follow-up: anonymous Form upload hardening (0.1.2 candidate)
+
+An actual code-path audit of the upstream-derived V3 Form Upload and V4
+Atomic Form storage uncovered a bounded defense-in-depth gap: V3 validated
+image contents but treated arbitrary non-image *extensions configured in
+a Form field* as sufficient, even when the file's actual bytes did not
+match. WordPress itself cautions that its filetype validator has
+image-specific content checks and not every MIME is fully verified.
+Source: https://developer.wordpress.org/reference/functions/wp_check_filetype_and_ext/
+
+The development branch now adds **one shared content validator** in
+`core/utils.php` and calls it **before storing** uploads in both
+`modules/forms/fields/upload.php` and
+`modules/atomic-form/file-upload/file-storage.php`. It:
+
+- refuses unrecognised and dangerous script/executable extensions;
+- requires registered WordPress MIME types and FileInfo inspection;
+- verifies PDF magic and actual PDF MIME, checks Office Open XML ZIP
+  structure, requires legacy Office compound-file signatures;
+- verifies image structures and real audio/video MIME categories,
+  and rejects script-bearing text that would otherwise be served back
+  from public upload URLs;
+- makes failed Atomic Form cleanup **delete only direct files inside its
+  own `uploads/elementor/forms` directory**, not arbitrary outside paths
+  or symlinks.
+
+**Compatibility change:** an administrator listing a non-standard file
+extension in a Form is no longer enough to accept anonymous uploads.
+Custom types must be registered through WordPress's `upload_mimes`
+filter and have a MIME/content combination accepted by the stricter
+validator. This can reject some legitimate specialised CAD files or
+unusual multimedia MIME variants; review real workflow requirements
+before enabling the candidate on production.
+
+Disposable testing generated valid PDF/Office/image/text fixtures and
+mislabeled PHP, arbitrary ZIP and script-content fixtures. Legacy and
+Atomic checks rejected spoofed types and verified cleanup constraints.
+**44/44 focused runtime/editor checks** and **68/68 full storefront,
+popup, form and offline WooCommerce checkout checks** passed. The
+tests used a disposable WordPress/MariaDB instance and did not submit
+an actual production Form. A complete malware scan, all file formats,
+proxy-specific `.htaccess` behaviour, payment gateways and full
+vendor 4.4.1 source parity remain unverified.
+
+A second synthetic REST test has been added to probe registered Pro
+icon/SVG route permission callbacks as guest, subscriber, contributor
+and editor. **Do not claim this permission test has passed until its
+isolated run succeeds.**
+
+The deployed live version remains **0.1.1** and has **not** received
+these unreleased changes.
+
 ## Source of truth and limits
 
 - Official Elementor Pro 4.4.1, dated 16 November 2026, announces
