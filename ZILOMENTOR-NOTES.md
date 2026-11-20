@@ -11,6 +11,63 @@ identified `zilomentor-pro/elementor-pro.php` WordPress plugin basename to
 avoid WP Toolkit incorrectly treating this GPL fork as official Elementor Pro.
 A conditional must-use bootstrap preserves Fiore's historical init order.
 
+## 0.1.2 follow-up: file-upload and REST security gates (20 November 2026)
+
+**Development only.** The existing public Itzy Bitzy Workshop site still runs
+ZiloMentor **0.1.1** under its genuine independent plugin basename, with a
+separate release-guard MU plugin, early Fiore bootstrap and private backups.
+No updated Pro code or new customer/order records were deployed.
+
+Independent source review confirmed the V3 Form handler trusted a configured
+non-image extension without sufficiently checking the bytes. In the 0.1.2
+development branch, `Core\\Utils::is_form_upload_content_safe()` now
+requires a registered WordPress MIME type, FileInfo inspection and actual
+content signatures, with special PDF, Office ZIP/compound file and image
+checks. Both classic and Atomic forms call it BEFORE storage. The Atomic
+Form file-cleanup routine is now confined to its own
+`uploads/elementor/forms` directory and ignores outside paths/symlinks.
+Custom unknown extensions that could formerly be listed on a Form alone
+must now be registered through WordPress `upload_mimes`, and some exotic
+CAD/media MIME variants may be rejected by design.
+
+Security tests actually exercised a genuine synthetic PDF, DOCX, plain
+text and PNG; fake PHP-as-PDF, PHP-as-DOCX, ZIP lacking Office structure,
+PHP-in-text, executable `.php8` and fake image content; legacy and Atomic
+storage entrypoints; and restricted cleanup. All disposable tests passed.
+A second REST capability suite tested actual optional Atomic SVG/icon
+permission callbacks for guest, subscriber, contributor and editor, using
+synthetic WordPress accounts and no endpoint dispatch. It verified
+unauthorised reads/writes were denied and editor reads available.
+This is **not a full security audit of all Pro REST/nonce handlers**.
+
+- **44/44** first focused isolated runtime/editor checks
+- **68/68** full isolated frontend/Popup/Form/WooCommerce checks
+- **53/53** combined Elementor Heading, Pro Form, Theme Builder Header
+  Publish/Update and desktop/tablet/mobile responsive editor checks
+- **38/38** secondary focused isolated runtime and REST role checks
+- **49 structural/security assertions** and **941 PHP source files**
+  parsed successfully under each of PHP **8.4 and 8.5**
+- **8 signed updater**, **3 migration/rollback**, **1 packaging** and
+  **2 signed release manifest** Python tests passed
+- All test WordPress databases, private Docker networks and containers
+  were removed; no GitHub Actions were used.
+
+The independent 0.1.2 staging ZIP is assembled from Git-tracked files
+only. Its digest must be recalculated **after the final repository text
+changes**, and must be independently approved before an Ed25519
+manifest is created and signed on the owner's offline machine. The
+operational private signing key has NOT been created or copied to the
+production VPS. Documented procedure:
+`docs/OFFLINE-RELEASE-SIGNING.md`.
+
+**Remaining gates:** obtain reviewed 4.4.1 Pro patch equivalence where
+lawfully available; test additional authenticated REST and nonce
+boundaries; end-to-end uploads for real media and document formats;
+provider sandbox card/refund workflows; offline key custody, signed
+artifact hosting and an owner-approved update channel. Never claim
+0.1.2 is production-ready or automagically fix the broader vendor
+changelog from these targeted patches.
+
 ## Independent plugin identity live acceptance (20 November 2026)
 
 The limited owner-authorised beta now runs **ZiloMentor Pro 0.1.1** under
