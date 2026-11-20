@@ -53,6 +53,10 @@ an absent `wp-content/uploads/elementor/forms` directory at the inspected
 WordPress root; a nonexistent `.php` Form URL gave HTTP 404 with no-sniff.
 **A nonexistent-file 404 is not a live executable-upload security test.**
 No live Form file was created and no live web-server configuration was edited.
+A further non-root `httpd -M` check could not open cPanel's
+`/etc/apache2/conf/httpd.conf` (permission denied). Consequently the
+effective Apache module/override policy is **not verified**; do not infer
+that Apache will honour the synthetic upload rules on production.
 
 ## Before promoting to production
 
