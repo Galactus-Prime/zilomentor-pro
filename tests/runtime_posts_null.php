@@ -28,6 +28,18 @@ try {
     $rest_routed = $widget->is_rest_request();
     $result = $widget->get_wp_link_page( 2 );
     $expected = esc_url( get_pagenum_link( 2 ) );
+
+    // Exercise the Full Content skin separately: a preview can call it with
+    // no current WP_Post. The old code accessed $post->ID immediately.
+    $skin = new class {
+        use \ElementorPro\Modules\Posts\Skins\Skin_Content_Base;
+    };
+    ob_start();
+    try {
+        $skin->render_post_content();
+    } finally {
+        $missing_post_content = ob_get_clean();
+    }
 } finally {
     restore_error_handler();
     $GLOBALS['post'] = $original_post;
@@ -43,11 +55,12 @@ try {
     }
 }
 $passed = $rest_routed && is_string( $result ) && '' !== $result
-    && $result === $expected && ! $warnings;
+    && $result === $expected && '' === $missing_post_content && ! $warnings;
 echo wp_json_encode( [
     'passed' => $passed,
     'rest_preview_path_exercised' => $rest_routed,
     'expected_fallback_used' => $result === $expected,
     'warning_count' => count( $warnings ),
+    'missing_post_full_content_empty' => '' === $missing_post_content,
 ] );
 exit( $passed ? 0 : 4 );
