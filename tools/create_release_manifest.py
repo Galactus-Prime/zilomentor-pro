@@ -9,8 +9,9 @@ import argparse
 from datetime import datetime, timedelta, timezone
 import hashlib
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
+import stat
 import zipfile
 
 
@@ -21,9 +22,28 @@ def create_manifest(package: Path, valid_days: int = 90, now=None):
     if not package.is_file() or package.stat().st_size > 50 * 1024 * 1024:
         raise ValueError("Missing or oversized release package")
     with zipfile.ZipFile(package) as z:
+        # Reject expansion bombs, unsafe paths and links from ZIP metadata
+        # BEFORE testzip() decompresses the archive. Signing an archive
+        # must never be able to turn a tiny ZIP into an expensive unpack.
+        names = set()
+        expanded = 0
+        entries = z.infolist()
+        if not 1 <= len(entries) <= 3500:
+            raise ValueError("Release archive has an invalid number of entries")
+        for info in entries:
+            path = info.filename
+            parts = PurePosixPath(path).parts
+            if (not parts or parts[0] not in ("zilomentor-pro", "elementor-pro")
+                    or path.startswith("/") or "\\\\" in path or ".." in parts
+                    or path in names or stat.S_ISLNK(info.external_attr >> 16)):
+                raise ValueError("Unsafe, linked or repeated release archive entry")
+            names.add(path)
+            expanded += info.file_size
+            if info.file_size > 15 * 1024 * 1024 or expanded > 90 * 1024 * 1024:
+                raise ValueError("Release archive expanded size exceeds cap")
         options = ("zilomentor-pro/elementor-pro.php",
                    "elementor-pro/elementor-pro.php")
-        matches = [x for x in options if x in z.namelist()]
+        matches = [x for x in options if x in names]
         if len(matches) != 1 or z.testzip() is not None:
             raise ValueError("Release archive missing unambiguous bootstrap or failed integrity")
         name = matches[0]
