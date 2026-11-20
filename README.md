@@ -118,6 +118,17 @@ Office, image and audio/video checks and denies disguised executable/script
 formats. Atomic Form failure cleanup is restricted to its own upload
 directory and cannot unlink arbitrary supplied paths.
 
+The 20 November development pass additionally limits Office ZIP archive
+entry counts, expanded sizes and compression ratios; refuses unsafe internal
+archive paths; and makes both classic and Atomic Forms create Apache
+download-only/no-sniff rules that deny common executable extensions on new
+upload directories. Existing customised `.htaccess` files are not overwritten,
+and Nginx still requires a correctly ordered server-level executable deny.
+Read the [upload hardening runbook](docs/UPLOAD-HARDENING.md).
+Sensitive Form-submission and WooCommerce MCP abilities now enforce the same
+capability check on direct `execute()` calls as on their registry callback.
+Neither improvement establishes complete vendor 4.4.1 security equivalence.
+
 Disposable WordPress tests confirmed valid sample files and rejection of
 PHP disguised as PDF/Office, arbitrary Office ZIP files, scripts in text
 and `.php8` extensions. **44/44 initial focused editor/runtime checks**, **68/68 complete
