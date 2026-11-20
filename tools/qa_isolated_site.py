@@ -111,7 +111,7 @@ def main():
     plugin_folder = args.plugin_folder
     if (args.verify_editor_save or args.verify_editor_form_save
             or args.verify_editor_form_fields or args.verify_theme_builder_save or args.verify_popup_editor_save
-            or args.verify_post_nav_editor or args.verify_editor_responsive):
+            or args.verify_posts_nav_editor or args.verify_editor_responsive):
         require(args.focus == "editor" and args.editor_playwright_image is not None
                 and args.web_server == "nginx-fpm",
                 "Editor save verification needs --focus editor, --web-server nginx-fpm and --editor-playwright-image")
@@ -1615,7 +1615,7 @@ add_action( 'init', function () {
                     "unrelated_saved": popup_other.get("popup_saved_marker"),
                     "errors": [popup_target_err, popup_other_err]})
 
-        if args.verify_post_nav_editor:
+        if args.verify_posts_nav_editor:
             nav_js = plugins_path / plugin_folder / "tests/browser_posts_nav_editor.js"
             require(nav_js.is_file(), "Missing synthetic Posts/Nav editor QA")
             nav_browser_name = "zmp-qa-posts-nav-" + tag
