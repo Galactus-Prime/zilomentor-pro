@@ -5,9 +5,72 @@ Upstream: https://github.com/proelements/proelements
 Upstream pinned commit: 58d52e0f10640088aa179e28b40b161c33c57de4
 
 ## Goal
-Preserve Elementor Pro's PHP classes, widgets, template data, hook identifiers
-and standard WordPress plugin basename elementor-pro/elementor-pro.php for
-third-party WordPress themes, without modifying those themes.
+Preserve Elementor Pro's PHP classes, widgets, template data and hook
+identifiers for third-party WordPress themes, while using the independently
+identified `zilomentor-pro/elementor-pro.php` WordPress plugin basename to
+avoid WP Toolkit incorrectly treating this GPL fork as official Elementor Pro.
+A conditional must-use bootstrap preserves Fiore's historical init order.
+
+## Independent plugin identity live acceptance (20 November 2026)
+
+The limited owner-authorised beta now runs **ZiloMentor Pro 0.1.1** under
+`wp-content/plugins/zilomentor-pro/elementor-pro.php`, with free Elementor
+4.4.1, Fiore and WooCommerce. This changed WordPress's identifying path
+only; all 1,419 live plugin files were verified against the same trusted
+SHA256-pinned 0.1.1 release code used before migration. **No source-code
+upgrade to candidate 0.1.2, new licence or live payment transaction occurred.**
+
+The first live folder migration changed the desktop header (mean RGB
+difference 12.7127) and was immediately rolled back. Investigation showed
+changing alphabetical plugin load order had altered the registration order
+of the ElementorPro and Vamtam plugins_loaded callbacks. A dedicated,
+conditional, independently installed
+`wp-content/mu-plugins/zmp-early-bootstrap.php` restores the original order.
+The MU release guard 0.2.0 is separately installed and protects both old
+and new plugin basenames without obstructing WooCommerce updates.
+
+The corrected isolated suites passed **52/52** combined editor/save/responsive,
+**67/67** full popup/frontend/WooCommerce tests, and 5 explicit callbacks/
+bootstrap assertions. The second live attempt passed the desktop screen
+pixel comparison but failed a mobile comparison because a hero animation
+was in a different vertical position. The screenshot from the subsequently
+rolled-back old installation was **pixel-identical to the migrated
+screenshot**, showing the difference was **not caused by folder identity**.
+Both migrations were rolled back on any visual-gate failure.
+
+After proving the baseline mobile animation variation, a further controlled
+migration with an owner-only fresh WordPress database snapshot, exact plugin
+file checks, independent adapter and cache refresh passed the strict
+**live visual acceptance** against the later stable legacy baseline:
+
+- Desktop **1366x768**: full-page mean RGB delta **0.00350**,
+  header mean delta **0.01922** (0–255 RGB units)
+- Mobile **390x844**: **0.00000**, pixel-identical
+- Identical 85 desktop / 89 mobile Elementor widget counts and types, no
+  additional HTTP, JS or first-party request errors
+- Home, shop, cart, checkout and one product page returned **HTTP 200**
+  with **no old `/wp-content/plugins/elementor-pro/` asset references**
+- New independent navigation CSS returned HTTP 200
+- WP Toolkit after cache refresh listed **`zilomentor-pro`, ZiloMentor
+  Pro 0.1.1**, auto-updates off and **no official vendor-update offer**
+- WP-CLI verified Pro compatibility API, independent plugin basename,
+  free Elementor/WooCommerce bootstraps and early MU loader active
+- The original plugin files were retained privately in the restricted
+  backup directory for identity rollback. The private SQL export was not
+  restored; customers/orders were not rewritten.
+
+The version 0.1.2 development candidate is still not deployed. Its
+**independent default ZIP** contains **1,422 tracked files**, SHA256
+`6ea9afca81eadfaff6abc75ab58ea8728e6a10403ea9507ffb8edae701b3425c`
+at final QA. **49/49 static structural checks**, **939 PHP files parse
+under each of PHP 8.4 and 8.5**, **8 signed/manual updater tests**,
+**3 migration/rollback tests**, one package-hygiene test and two signed
+manifest schema tests all passed without GitHub Actions. Offline signing
+key custody, complete vendor security parity and live sandbox payment
+journeys remain open general-release blockers.
+
+Detailed evidence and the migration/rollback safeguards:
+`docs/INDEPENDENT-PLUGIN-IDENTITY.md`.
 
 ## Unreleased 0.1.2: signed manual updater and extra Pro hardening (19 November 2026)
 
