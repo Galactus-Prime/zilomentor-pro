@@ -1051,6 +1051,29 @@ add_action( 'init', function () {
                and data.get("success") is True,
                {"status": status, "response": body[-350:], "error": error})
 
+        # The same saved Elementor Form exists in all three restricted
+        # documents. Guest POSTs must be refused before executing actions.
+        for visibility, key in (
+            ("draft", "form_draft_page"),
+            ("private", "form_private_page"),
+            ("password-protected", "form_password_page"),
+        ):
+            blocked_request = dict(form_request, post_id=str(fixtures[key]))
+            blocked_status, blocked_body, blocked_error = request(
+                "wp-admin/admin-ajax.php", blocked_request
+            )
+            try:
+                blocked_data = json.loads(blocked_body)
+            except ValueError:
+                blocked_data = None
+            record("anonymous Form rejects " + visibility + " document",
+                   blocked_status == 200
+                   and isinstance(blocked_data, dict)
+                   and blocked_data.get("success") is False,
+                   {"status": blocked_status,
+                    "response": blocked_body[-350:],
+                    "error": blocked_error})
+
         acf_status, acf_body, acf_error = request(
             "?page_id=" + str(fixtures["page"]) + "&zmp_qa_acf_tag=1"
         )
