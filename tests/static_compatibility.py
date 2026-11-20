@@ -387,6 +387,17 @@ check("real Nav Menu editing and Posts widget selection tested",
           (ROOT / "tests/browser_posts_nav_editor.js").read_text()
       and "--verify-posts-nav-editor" in
           (ROOT / "tools/run_manual_checks.py").read_text())
+check("Elementor History undo redo and save verified in real editor",
+      "--verify-editor-history" in qa_script
+      and "Real Elementor History Undo and Redo before Publish" in qa_script
+      and "Redone Heading title persisted in WordPress after History Publish" in qa_script
+      and (ROOT / "tests/browser_editor_history.js").is_file()
+      and 'document/history/undo' in
+          (ROOT / "tests/browser_editor_history.js").read_text()
+      and 'document/history/redo' in
+          (ROOT / "tests/browser_editor_history.js").read_text()
+      and "--verify-editor-history" in
+          (ROOT / "tools/run_manual_checks.py").read_text())
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
