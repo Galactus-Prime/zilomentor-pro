@@ -55,6 +55,7 @@ try {
 		'absolute' => [ '/tmp/zmp-not-allowed.css' => 'not-allowed' ],
 		'backslash' => [ 'icons\\bad.css' => 'not-allowed' ],
 		'windows_drive' => [ 'C:/icons/bad.css' => 'not-allowed' ],
+		'executable_double_extension' => [ 'icons/icon.php.css' => 'not-allowed' ],
 		'compression_bomb' => [ 'icons/huge.css' => str_repeat( 'x', 4 * 1024 * 1024 ) ],
 	] as $label => $contents ) {
 		$archive = $zip_fixture( $label . '.zip', $contents );
