@@ -47,6 +47,20 @@ try {
     $valid( 'readme.txt', $real_txt, true );
     $valid( 'payload.php8', $script_php8, false );
 
+    // Representative media/text fixtures made locally with legitimate file
+    // signatures. No production uploads or third-party file downloads.
+    $csv = $fixture( 'inventory.csv', "SKU,Price\nDEMO-1,12.50\n" );
+    $valid( 'inventory.csv', $csv, true );
+    $rtf = $fixture( 'note.rtf', "{\\rtf1\\ansi Synthetic ZiloMentor document}\n" );
+    $valid( 'note.rtf', $rtf, true );
+    $wave = $fixture( 'silence.wav',
+        'RIFF' . pack( 'V', 36 ) . 'WAVEfmt ' .
+        pack( 'VvvVVvv', 16, 1, 1, 8000, 8000, 1, 8 ) .
+        'data' . pack( 'V', 0 )
+    );
+    $valid( 'silence.wav', $wave, true );
+    $valid( 'forged.wav', $disguised_pdf, false );
+
     if ( class_exists( '\ZipArchive' ) ) {
         $office_file = $root . '/word.docx';
         $zip = new \ZipArchive();
@@ -56,6 +70,49 @@ try {
             $zip->addFromString( 'word/document.xml', '<w:document/>' );
             $zip->close();
             $valid( 'word.docx', $office_file, true );
+
+            // Minimal OOXML part/package structure, including
+            // presentation/spreadsheet relationships (not empty ZIPs).
+            foreach ( [
+                'spreadsheet.xlsx' => [ 'xl/workbook.xml',
+                    '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheets/></workbook>' ],
+                'presentation.pptx' => [ 'ppt/presentation.xml',
+                    '<p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"/>' ],
+            ] as $office_name => $office_part ) {
+                $ooxml = $root . '/' . $office_name;
+                $archive = new \ZipArchive();
+                $created = true === $archive->open( $ooxml, \ZipArchive::CREATE );
+                $checks[ $office_name . '_fixture_created' ] = $created;
+                if ( $created ) {
+                    $archive->addFromString( '[Content_Types].xml',
+                        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>' );
+                    $archive->addFromString( $office_part[0], $office_part[1] );
+                    $archive->close();
+                    $valid( $office_name, $ooxml, true );
+                }
+            }
+
+            // ODF uses a mimetype entry and manifest, not OOXML content types.
+            foreach ( [
+                'text.odt' => 'application/vnd.oasis.opendocument.text',
+                'sheet.ods' => 'application/vnd.oasis.opendocument.spreadsheet',
+                'slides.odp' => 'application/vnd.oasis.opendocument.presentation',
+            ] as $odf_name => $odf_type ) {
+                $odf = $root . '/' . $odf_name;
+                $archive = new \ZipArchive();
+                $created = true === $archive->open( $odf, \ZipArchive::CREATE );
+                $checks[ $odf_name . '_fixture_created' ] = $created;
+                if ( $created ) {
+                    $archive->addFromString( 'mimetype', $odf_type );
+                    $archive->setCompressionName( 'mimetype', \ZipArchive::CM_STORE );
+                    $archive->addFromString( 'META-INF/manifest.xml',
+                        '<manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0"/>' );
+                    $archive->addFromString( 'content.xml',
+                        '<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"/>' );
+                    $archive->close();
+                    $valid( $odf_name, $odf, true );
+                }
+            }
             $prefixed_office = $root . '/prefixed.docx';
             file_put_contents( $prefixed_office, "fake header" . file_get_contents( $office_file ) );
             $valid( 'prefixed.docx', $prefixed_office, false );
