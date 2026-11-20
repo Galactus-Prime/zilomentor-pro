@@ -22,6 +22,23 @@ foreach ( $classes as $label => $class ) {
 	$controllers[ $label ] = ( new \ReflectionClass( $class ) )->newInstanceWithoutConstructor();
 }
 
+// Ability registration already declares capabilities; these tests also call
+// the public execute() methods directly so protection cannot be bypassed by
+// another integration invoking them outside WordPress' Abilities registry.
+$mcp_classes = [
+	'mcp_read_submissions' => '\ElementorPro\Modules\Mcp\Abilities\List_Form_Submissions_Ability',
+	'mcp_write_submissions' => '\ElementorPro\Modules\Mcp\Abilities\Manage_Form_Submissions_Ability',
+	'mcp_store_settings' => '\ElementorPro\Modules\Mcp\Abilities\Manage_Woocommerce_Settings_Ability',
+];
+$mcp_abilities = [];
+foreach ( $mcp_classes as $label => $class ) {
+	if ( ! class_exists( $class ) ) {
+		fwrite( STDERR, "Sensitive MCP ability missing: $label\\n" );
+		exit( 3 );
+	}
+	$mcp_abilities[ $label ] = new $class();
+}
+
 $old_user = get_current_user_id();
 $ids = [];
 $checks = [];
@@ -42,6 +59,17 @@ try {
 		foreach ( [ 'submissions', 'submission_forms' ] as $label ) {
 			$result = $controllers[ $label ]->get_permission_callback( $request );
 			$checks[ $label . '_' . $role ] = ( $role === 'administrator' ) === ( true === $result );
+		}
+		// These three methods must independently deny all low-privilege
+		// accounts before reading PII or altering any store configuration.
+		if ( 'administrator' !== $role ) {
+			foreach ( $mcp_abilities as $label => $ability ) {
+				$result = $ability->execute( [ 'action' => 'get' ] );
+				$checks[ $label . '_' . $role . '_direct_execution_denied' ] =
+					is_wp_error( $result ) && 'rest_forbidden' === $result->get_error_code();
+			}
+		} else {
+			$checks['mcp_admin_has_manage_options'] = current_user_can( 'manage_options' );
 		}
 		$global_allowed = $controllers['global_templates']->get_permission_callback( $request );
 		$checks[ 'global_templates_' . $role ] =
