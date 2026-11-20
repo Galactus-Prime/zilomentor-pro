@@ -616,7 +616,9 @@ class Upload extends Field_Base {
 			}
 
 			$uploads_dir = $this->get_ensure_upload_dir();
-			$filename = uniqid() . '.' . $file_extension;
+			// Submission attachment URLs must not be guessable from the
+			// request timestamp (uniqid). Use a CSPRNG-derived filename.
+			$filename = bin2hex( random_bytes( 16 ) ) . '.' . strtolower( $file_extension );
 			$filename = wp_unique_filename( $uploads_dir, $filename );
 			$new_file = trailingslashit( $uploads_dir ) . $filename;
 
