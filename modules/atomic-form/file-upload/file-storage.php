@@ -120,7 +120,7 @@ class File_Storage {
 			$directives = [
 				'Options -Indexes',
 				'# Apache-only defense in depth. Nginx requires a separate deny rule.',
-				'<FilesMatch "(?i)\\.(?:php[0-9]*|phtml?|pht|phar|cgi|pl|py|rb|jsp|aspx?|shtml)$">',
+				'<FilesMatch "(?i)\\.(?:php[0-9]*|phtml?|pht|phar|cgi|pl|py|rb|jsp|aspx?|shtml)(?:\\.|$)">',
 				'Require all denied',
 				'</FilesMatch>',
 				'<IfModule mod_headers.c>',
