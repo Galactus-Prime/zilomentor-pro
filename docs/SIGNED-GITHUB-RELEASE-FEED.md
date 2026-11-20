@@ -104,10 +104,10 @@ with --apply may change plugin files. Keep the original code for file rollback.
 ## Tests and outstanding requirements
 
 The manual no-Actions release checks run
-tests/test_stage_signed_github_release.py. Its 12 initial no-network tests
+tests/test_stage_signed_github_release.py. Its 13 no-network tests
 use short-lived synthetic keys only in private temporary directories. They
 cover valid staging, tampering, signatures, unsafe origin/ports, rollback
-prevention, duplicate assets, expiry, invalid trust, world-readable staging
+prevention, duplicate assets, expiry, invalid trust, world-readable staging, forged 600 MiB ZIP expansion metadata
 and overwrite protection. These are **not** a real published-feed test.
 
 WordPress supports custom Update URI and update_plugins_{hostname} filters:
