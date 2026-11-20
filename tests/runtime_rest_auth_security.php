@@ -16,6 +16,24 @@ $targets = [
     '/elementor-pro/v1/font-awesome-pro-icon' => [ 'GET', 'POST' ],
 ];
 
+// Atomic icon routes may be feature-gated on a fresh website. Register
+// their *actual* implementations in this synthetic REST server if needed,
+// so access-control tests do not silently disappear when V4 is disabled.
+$optional_classes = [
+    '/elementor-pro/v1/custom-icon-svg' =>
+        '\\ElementorPro\\Modules\\AtomicCustomIcons\\Rest_Api',
+    '/elementor-pro/v1/font-awesome-pro-icon' =>
+        '\\ElementorPro\\Modules\\AtomicCustomIcons\\Font_Awesome_Pro_Rest_Api',
+];
+foreach ( $optional_classes as $route => $class ) {
+    if ( ! isset( $routes[ $route ] ) && class_exists( $class ) ) {
+        $api = new $class();
+        $register = new \\ReflectionMethod( $api, 'register_routes' );
+        $register->invoke( $api );
+        $routes = $server->get_routes();
+    }
+}
+
 $checks = [];
 $original_id = get_current_user_id();
 $user_ids = [];
@@ -42,8 +60,7 @@ try {
     $tested_routes = 0;
     foreach ( $targets as $route => $methods ) {
         if ( ! isset( $routes[ $route ] ) ) {
-            // The Pro V4 Atomic icon experiment may be disabled in an
-            // isolated installation. Record absence, never report coverage.
+            // A truly missing API cannot be claimed as covered.
             echo 'SKIP missing_optional_route ' . $route . PHP_EOL;
             continue;
         }
