@@ -62,7 +62,25 @@ async function main(){
       await input.waitFor({state:"visible",timeout:7000});
     }catch{}
   }
-  if(!(await input.count())||!(await input.isVisible()))return;
+  if(!(await input.count())||!(await input.isVisible())){
+    // Elementor Popup documents can open with the Popup Settings panel
+    // instead of immediately exposing Heading settings. Record structural
+    // diagnostics (never cookies or login token), then retry a genuine
+    // double-click on the visible Heading widget.
+    result.panelDiagnostic=await page.locator("#elementor-panel")
+      .evaluate(node=>({
+        label:(node.innerText||"").trim().slice(0,390),
+        titleControls:node.querySelectorAll('[data-setting="title"]').length,
+        contentControls:node.querySelectorAll("input,textarea,[role=tab]").length,
+      })).catch(()=>({label:"panel unavailable"}));
+    try{
+      await widget.dblclick({timeout:7000,force:true});
+      await input.first().waitFor({state:"visible",timeout:5000});
+    }catch(e){
+      result.selectError=String(e?.name||"unknown");
+      return;
+    }
+  }
   result.headingSelected=true;
   result.originalMatched=(await input.first().inputValue())===original;
   if(!result.originalMatched)return;
