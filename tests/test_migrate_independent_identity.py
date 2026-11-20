@@ -40,6 +40,8 @@ class IdentityTests(unittest.TestCase):
         mu.mkdir()
         (mu / "zmp-release-guard.php").write_text(
             "<?php /** Version: 0.2.0 */")
+        (mu / "zmp-early-bootstrap.php").write_text(
+            "<?php /** Version: 0.1.0 */")
         (self.plugin / "elementor-pro.php").write_text(
             "<?php\n/**\n * Plugin Name: ZiloMentor Pro\n * Version: 0.1.1\n */\n")
         (self.plugin / "plugin.php").write_text("<?php // synthetic\n")
@@ -59,6 +61,7 @@ class IdentityTests(unittest.TestCase):
                 "identity": "0.1.1",
                 "base": self.active + "/elementor-pro.php",
                 "elementor": True,
+                "early_bootstrap": self.active == "zilomentor-pro",
                 "woocommerce": True,
             }
         def mocked_switch(_, old, new):
