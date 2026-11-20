@@ -145,12 +145,20 @@ dedicated folder. A private Nginx/PHP-FPM QA configuration explicitly
 denies executable extensions in synthetic uploads. This is not proof
 that every public server or custom-proxy configuration is secure.
 
-These are **candidate-only** changes. The latest full regression and
-source matrix must pass before any signed release is considered, and
-the signed production update still requires an owner-held **offline**
-private key. General completion criteria are explicitly tracked in
-[release blockers](docs/RELEASE-BLOCKERS.md), not asserted from tests
-alone. No GitHub Actions or subscription service is required.
+These are **candidate-only** changes. The final private browser
+suite passed **77/77 frontend/Popup/Form/WooCommerce** checks and
+**62/62 authenticated Elementor editor/publish/responsive** checks;
+additional role/Nginx security focus passed **46/46**. All 944 PHP
+source files passed PHP 8.4 and 8.5 syntax tests, and **55/55 static
+release-security checks** passed, without GitHub Actions.
+
+The signed production update still requires an owner-held **offline**
+private key and release approval. Provider card/refund sandbox tests,
+legitimate paid Elementor Pro 4.4.1 patch verification and additional
+editing/file format support remain outstanding. General completion
+criteria are tracked in [release blockers](docs/RELEASE-BLOCKERS.md),
+not asserted from tests alone. No commercial CI or subscription
+service is required.
 
 ## Current beta deployment and limitations (19 November 2026)
 
