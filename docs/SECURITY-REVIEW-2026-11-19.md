@@ -67,6 +67,58 @@ key and a safe signed online update channel are **not** provisioned; see
 The deployed live version remains **0.1.1** and has **not** received
 these unreleased changes.
 
+## 20 November second pass: known CVE, Stripe and public REST
+
+The official Elementor Pro 4.2.2 release in August 2026 addressed
+**CVE-2026-32475**, an unauthenticated classic Form upload issue in
+which an optional empty first file could suppress validation of a second
+executable file. ZiloMentor's PRO Elements 4.4.0-derived source already
+iterates over each entry instead of returning early on the empty one.
+A new disposable `$_FILES` regression reproduces precisely the
+**empty-first/executable-second** structure and requires a validation
+error, with no real HTTP upload or executable payload deployed.
+See https://www.bleepingcomputer.com/news/security/critical-elementor-pro-bug-exposes-wordpress-sites-to-rce-attacks/.
+
+Additional defense-in-depth fixes in unreleased 0.1.2:
+
+- Legacy anonymous upload filenames now use **128-bit cryptographic
+  randomness**, not timestamp-based `uniqid()`. This reduces the
+  predictability of public email-link attachment URLs but is not a
+  replacement for access-controlled document storage.
+- Both classic and Atomic upload content validation rejects images that
+  contain appended ZIP or PHP PHAR stubs. Validated OOXML files must
+  begin with actual `PK\x03\x04` bytes, not merely contain the
+  expected document entry somewhere in an archive.
+- Atomic storage rejects local readable paths which are **not actual
+  SAPI HTTP-uploaded files**, preventing the custom WordPress upload
+  action from promoting arbitrary server files to public attachments.
+- Public Posts-widget pagination now checks that the requested document
+  is **published and not password protected**, or that the logged-in
+  user has `edit_post` permission. A caller may not render an arbitrary
+  non-Posts widget through that endpoint. Focused synthetic tests cover
+  published, private, draft, password-protected and nonexistent posts
+  under guest, subscriber and administrator accounts.
+- Stripe Checkout initiation rejects malformed request IDs and unpublished
+  documents, resolves only a genuine saved Stripe-button widget, limits
+  externally suggested success/cancel URLs to permitted WordPress hosts,
+  and derives **prices, currency, quantity, shipping and tax choices
+  from saved server-side widget settings**, never visitor-supplied prices.
+  Minor-unit conversion now rounds 19.99 to 1999, avoiding one-penny
+  floating-point undercharges. It validates combined totals and safely
+  handles malformed tax-rate JSON. Unit tests make **no Stripe API calls**.
+
+The site read-only inspection found **no enabled live WooCommerce payment
+gateway** and **no configured Elementor Stripe test/live secret keys**.
+This means a payment-provider sandbox transaction, refund/webhook,
+duplicate-charge recovery or real card-gateway test is **not currently
+possible** with the available site configuration. An offline synthetic
+BACS checkout is not interchangeable with a genuine provider sandbox.
+
+The upstream `PRO Elements 4.4.0` fork is not formally certified as
+equivalent to official Elementor Pro **4.4.1**. The high-impact vulnerability
+regression and these targeted mitigations do not establish universal CVE
+remediation, parity with vendor fixes, or a penetration-test assurance.
+
 ## Source of truth and limits
 
 - Official Elementor Pro 4.4.1, dated 16 November 2026, announces
