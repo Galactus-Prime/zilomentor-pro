@@ -150,11 +150,22 @@ abstract class Icon_Set_Base {
 		$to = $this->get_ensure_upload_dir( $this->dir_name ) . '/';
 
 		foreach ( $wp_filesystem->dirlist( $this->directory, false, true ) as $file ) {
+			// Some third-party icon packs include demo HTML. Fontastic
+			// needs its reference HTML only *during parsing*; once the
+			// icon config has been prepared, publishing that HTML in
+			// same-origin uploads is unnecessary and can introduce XSS
+			// through an untrusted demo page.
+			if ( preg_match( '/\\.html?$/i', $file['name'] ) ) {
+				continue;
+			}
 			$full_path = $this->directory . $file['name'];
 			if ( $wp_filesystem->is_dir( $full_path ) ) {
 				$wp_filesystem->mkdir( $to . $file['name'] );
 
 				foreach ( $file['files'] as $filename => $sub_file ) {
+					if ( preg_match( '/\\.html?$/i', $filename ) ) {
+						continue;
+					}
 					$new_path = $to . $file['name'] . DIRECTORY_SEPARATOR . $filename;
 					$wp_filesystem->move( $full_path . DIRECTORY_SEPARATOR . $filename, $new_path );
 					$this->insert_attachment( $this->get_url() . '/' . $file['name'] . '/' . $filename, $new_path, $post_id );
