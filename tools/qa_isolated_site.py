@@ -13,6 +13,7 @@ Example on an already-provisioned private QA server:
 """
 import argparse
 import json
+import hashlib
 import re
 import os
 from pathlib import Path
@@ -1253,7 +1254,7 @@ add_action( 'init', function () {
                 and observed[0].get("safe") is True
                 and observed[0].get("exists_at_send") is True
                 and observed[0].get("sha256") ==
-                    __import__("hashlib").sha256(
+                    hashlib.sha256(
                         (qa_upload_source / "word.docx").read_bytes()
                     ).hexdigest()
             )
