@@ -266,6 +266,75 @@ class SignedGitHubReleaseTests(unittest.TestCase):
         self.assertEqual(fetched, [])
         self.assertFalse(list(self.stage.iterdir()))
 
+    def test_offline_key_rotation_requires_new_independently_pinned_public_key(self):
+        """A new signer is unusable until its new public fingerprint is approved."""
+        secret = self.root / ("rotated-private-" + os.urandom(5).hex() + ".b64")
+        public = self.root / ("rotated-public-" + os.urandom(5).hex() + ".b64")
+        manifest = self.root / ("rotated-manifest-" + os.urandom(5).hex() + ".json")
+        signature = self.root / ("rotated-signature-" + os.urandom(5).hex() + ".sig")
+        try:
+            self.call_php("generate", secret, public)
+            manifest.write_bytes(self.manifest_blob)
+            self.call_php("sign", manifest, secret, signature)
+            new_release, new_assets = self.make_release(
+                self.manifest_blob, signature.read_bytes(), self.zip_blob
+            )
+            # A new signed release MUST FAIL when the old approved key
+            # remains pinned. GitHub asset metadata alone cannot authorise it.
+            with self.assertRaises(feed.ReleaseError):
+                self.stage_valid(new_release, new_assets)
+            self.assertFalse(list(self.stage.iterdir()))
+
+            # Simulate the separate *owner-approved* fingerprint replacement.
+            # This is a test only; no operational key is installed.
+            rotated = feed.stage_release(
+                current_version="0.1.1",
+                public_key=public,
+                public_key_sha256=hashlib.sha256(public.read_bytes()).hexdigest(),
+                stage_dir=self.stage,
+                fetch=self.fetcher(new_release, new_assets),
+                php=self.php,
+            )
+            self.assertEqual(rotated["version"], "0.1.2")
+            self.assertFalse(rotated["live_installation_changed"])
+            self.assertEqual(len(rotated["files"]), 3)
+
+            # After the trust anchor changes, the OLD signer must no longer
+            # be able to authorize a stale "valid" release.
+            shutil.rmtree(self.stage)
+            self.stage.mkdir(mode=0o700)
+            with self.assertRaises(feed.ReleaseError):
+                feed.stage_release(
+                    current_version="0.1.1",
+                    public_key=public,
+                    public_key_sha256=hashlib.sha256(public.read_bytes()).hexdigest(),
+                    stage_dir=self.stage, fetch=self.fetcher(), php=self.php,
+                )
+            self.assertFalse(list(self.stage.iterdir()))
+        finally:
+            for file in (secret, public, manifest, signature):
+                file.unlink(missing_ok=True)
+
+    def test_revoked_trust_anchor_refuses_stage_before_network(self):
+        """Removing a compromised public trust anchor blocks downloads."""
+        trust = self.root / ("revoked-public-" + os.urandom(5).hex() + ".b64")
+        trust.write_bytes(self.public.read_bytes())
+        fingerprint = hashlib.sha256(trust.read_bytes()).hexdigest()
+        # Manual emergency revocation removes the trusted public key file.
+        trust.unlink()
+        fetched = []
+        def no_fetch(uri, maximum):
+            fetched.append(uri)
+            raise AssertionError("No network access allowed after revocation")
+        with self.assertRaises(feed.ReleaseError):
+            feed.stage_release(
+                current_version="0.1.1", public_key=trust,
+                public_key_sha256=fingerprint, stage_dir=self.stage,
+                fetch=no_fetch, php=self.php,
+            )
+        self.assertEqual([], fetched)
+        self.assertFalse(list(self.stage.iterdir()))
+
     def test_invalid_public_key_cannot_authorize_release(self):
         fake_public = self.root / "broken-pub.b64"
         fake_public.write_text("This is not a valid Ed25519 public key")
