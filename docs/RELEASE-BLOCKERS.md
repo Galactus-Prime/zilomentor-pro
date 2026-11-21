@@ -3,35 +3,49 @@
 ### Latest comprehensive manual QA (21 November 2026)
 
 The unreleased **ZiloMentor Pro 0.1.2** exact source SHA
-`7b9cb9ab3dfd8c064b85e8680c763de8ee2f612c` completed
-the manual full regression suite against a **disposable** WordPress
-7.1.5 / free Elementor 4.4.1 / Fiore / WooCommerce 11.3 /
-Nginx/PHP-FPM stack. **91 of 91 integration checks passed**, including
-the 13 independently generated genuine file formats and polyglot
-fixtures (26 SHA256 integrity and acceptance/rejection checks), classic
-Form email attachment read/cleanup boundaries, a real standalone
-loopback Apache test of generated Form `.htaccess`, nginx executable
-denial and download headers, Form published/private data permissions,
-custom-icon ZIP security, browser Popup interactions and offline
-synthetic WooCommerce checkout. Both PHP **8.4 and 8.5** syntax matrices
-passed, as did the manual offline signature simulations, migration
-rollback, source/static and package hygiene tests.
+`46ec6c2e446c151dcd374fbad24423edc65cfff5` passed the manually
+invoked **99 of 99 integration checks** against disposable
+WordPress **7.1.5**, free Elementor **4.4.1**, Fiore,
+WooCommerce **11.3**, Nginx/PHP-FPM and Chromium. Compared with the
+prior 91/91, eight **real anonymous HTTP multipart Form upload**
+regressions now exercise actual PHP upload parsing, index normalisation,
+linked file saving, attach-only email action and protected cleanup,
+valid two-file submission and rejection of fake PDFs, script-in-TXT,
+PNG/ZIP polyglots, empty-first/second executable uploads, and
+over-limit file counts. Synthetic `pre_wp_mail` interception guarantees
+no email is delivered; SHA256 checks confirm the genuine DOCX
+attachment seen by Email and its removal after the action.
 
-The exact staging-only source-built ZIP was **1,431 files**,
-**3,595,441 bytes**, SHA256
-`1ae9a6515daa07db31678e594dedc7daf1c0339ca20e4fc72858c19e3ed775b2`.
-No GitHub Actions or subscriptions were used. The archive was **not
-operationally signed, published, installed or approved for production**.
-No customer files, live WordPress database, real payment or outbound
-Form mail were used. The repository gained only documentation after
-this exact test SHA. Previous **88/88** at
-`ef5564c9a84646369417de31073bc8c9fdbc0f8e` is superseded.
+The suite also passed 13 independently generated genuine Office/ODF/
+PDF/image/audio/video fixtures, real Apache upload `.htaccess`
+verification (localhost), Nginx executable denial, Form document
+privacy, custom-icon ZIP security, Chromium Popup interactions and
+offline synthetic WooCommerce guest checkout. **PHP 8.4 and PHP 8.5**
+syntax matrices, migration rollback, static/security checks and
+manual signed-manifest/package simulations passed.
 
-These checks do **not** establish authentic official Elementor Pro
-4.4.1 patch parity, an independent security audit, live cPanel Apache
-vhost execution restrictions, real-world accessibility acceptance
-or a genuine payment-provider transaction. All those release
-requirements remain unverified.
+The **exact staging-only** 1,433-file ZIP measured **3,601,089 bytes**,
+SHA256 `d82603219ec0ffb44e03b6fe9b3c32ae83766e346aade2be987f7ee536bde23a`.
+This ZIP has **not** been operationally signed, published, installed or
+approved for production. No GitHub Actions, subscription, customer
+file, live WordPress database, real payment or outbound email was used.
+
+The separately executed **16/16 offline signing adversarial tests**
+passed at exact source SHA
+`82d1a99847d39e1907c8633039fd535e359cd1f5` on
+21 November, adding synthetic Ed25519 rotation and revocation tests
+to the original 14/14. All signing keys are generated and discarded
+within an isolated QA temporary directory; no owner key has been
+created. Since the complete integration run, the repository has gained
+only **test-only changes and documentation**, not production plugin
+PHP/JS. Previous 91/91 at
+`7b9cb9ab3dfd8c064b85e8680c763de8ee2f612c` is superseded.
+
+These tests do **not** establish authentic vendor Pro **4.4.1**
+patch parity, an independent security audit, production cPanel Apache
+vhost upload enforcement, end-user accessibility acceptance,
+actual SMTP delivery or a real provider-sandbox transaction.
+Those release requirements remain open.
 
 **Audit date: 21 November 2026**  
 **Production:** Itzy Bitzy Workshop runs ZiloMentor Pro 0.1.1, independently
@@ -93,7 +107,13 @@ Public upstream source: https://github.com/proelements/proelements
 - [ ] Owner privately signs, approves and **publishes a genuine release**
   through GitHub Releases; test the real online feed, including allowed
   GitHub asset redirects and current rate-limit behaviour.
-- [ ] Test key rotation, revocation, expiry and complete rollback.
+- [x] **Offline simulated** key rotation, emergency trust-anchor
+  revocation and signature expiry rejection passed 16/16 tests with
+  throwaway keys. Prior manual rollback simulation also passed;
+  neither required GitHub Actions or a subscription.
+- [ ] Verify **operational** key rotation/revocation, expiry and
+  rollback against a genuinely owner-approved public trust anchor and
+  signed published release. No operational private key exists yet.
 - [ ] Keep production WordPress and WP Toolkit automatic ZiloMentor updates
   disabled until all the release gates are approved.
 
@@ -124,12 +144,20 @@ conditions do not allow a real provider sandbox checkout.
   JPEG, PNG, PCM WAV and MP4 samples produced by independent libraries;
   verify SHA256, document reopenability and safe upload content acceptance
   within disposable WordPress. Reject fake PDF, script text and valid
-  PNG-with-embedded-ZIP. Exact source-SHA **91/91** run passed on
+  PNG-with-embedded-ZIP. Exact source-SHA **99/99** run passed on
   21 November 2026. See docs/REAL-FORMAT-UPLOAD-QA.md.
-- [ ] Expand genuine real-world file format compatibility to vendor-exported
-  Office/ODF variants, MIME aliases, encrypted/large/macro documents and
-  full authenticated/anonymous multipart Form upload to email delivery.
-  The current real samples confirm representative content validation only.
+- [x] Exercise **eight actual anonymous HTTP multipart** submissions
+  through Nginx/PHP-FPM, WordPress admin-ajax and classic Form widget:
+  genuine PDF link saved with CSPRNG filename, DOCX attach-only
+  intercepted at real Email action with SHA256 and cleanup verified,
+  two valid files persisted, PHP/forged PDF/PNG-ZIP/empty-first-file
+  bypass and excessive file count all rejected. No outbound email.
+  See docs/HTTP-MULTIPART-FORM-QA.md.
+- [ ] Expand real-world file compatibility to vendor-exported
+  Office/ODF variants, MIME aliases, encrypted/large/macro documents,
+  true email deliverability and all third-party Form actions.
+  The current real samples and intercepted mail confirm representative
+  content validation and multipart processing only.
 - [x] Test representative image ZIP/PHAR polyglots and executable
   empty-first/second-file upload bypass fixtures in **disposable** WordPress.
   Included synthetic and independently generated polyglot checks passed.
