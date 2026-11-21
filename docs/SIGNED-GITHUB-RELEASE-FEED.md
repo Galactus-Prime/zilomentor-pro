@@ -107,11 +107,25 @@ with --apply may change plugin files. Keep the original code for file rollback.
 ## Tests and outstanding requirements
 
 The manual no-Actions release checks run
-tests/test_stage_signed_github_release.py. Its 14 no-network tests
-use short-lived synthetic keys only in private temporary directories. They
-cover valid staging, tampering, signatures, unsafe origin/ports, rollback
-prevention, duplicate assets, expiry, invalid trust, world-readable staging, forged 600 MiB ZIP expansion metadata
-and overwrite protection. These are **not** a real published-feed test.
+`tests/test_stage_signed_github_release.py`. **16/16 no-network tests
+passed on 21 November 2026** at exact source commit
+`82d1a99847d39e1907c8633039fd535e359cd1f5`.
+Throwaway Ed25519 keys are created exclusively in private temporary
+QA directories; no operational keys leave the owner's control.
+Tests cover valid staging, tampering, signatures, unsafe origins/ports,
+rollback prevention, duplicate assets, expiry, invalid trust,
+world-readable staging, forged 600 MiB ZIP expansion metadata and
+overwrite protection. Newly added key-rotation tests prove that a
+release signed with a *different* key fails against the old pin until
+the owner has separately approved its replacement fingerprint, and
+that an old signed release fails after the rotation. Emergency
+revocation (removing the trusted public key file) is also verified to
+block further staging **before any network fetch**.
+
+These are synthetic trust transitions, **not** a genuinely owner-approved
+key rotation, an actual published-feed test, or proof of operational
+rollback. Never use the QA keys for production. The owner still
+needs an offline identity/trust procedure, and a real signed release.
 
 WordPress supports custom Update URI and update_plugins_{hostname} filters:
 https://developer.wordpress.org/reference/hooks/update_plugins_hostname/
