@@ -52,7 +52,7 @@ try {
 	$record = ( new \ReflectionClass( $record_class ) )->newInstanceWithoutConstructor();
 	$record->set( 'files', [
 		'email_field' => [
-			'path' => [ $good, $outer, $root . '/missing.txt', [ $good ] ],
+			'path' => [ $good, $outer, $root . '/missing.txt', [ $outer ] ],
 		],
 	] );
 	$email = ( new \ReflectionClass( $email_class ) )->newInstanceWithoutConstructor();
