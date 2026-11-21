@@ -40,6 +40,40 @@ third-party audit and not evidence of official Elementor Pro 4.4.1 parity.
    independent fix related to the vendor's public 4.4.1 changelog, not
    proof that the vendor used identical code.
 
+## 21 November follow-up: safe public asset handling
+
+A real Fontastic-style synthetic pack revealed another inherited import
+hazard: malformed stylesheet CSS can cause `extract_icon_list()` to
+return `false`, and the old `build_config()` called `count(false)`,
+raising a PHP TypeError. A filename-valid ZIP is not necessarily a
+valid icon set.
+
+The 0.1.2 source now validates the icon name, nonempty icon-list array,
+maximum 8,192 names, each bounded/nonempty string, and a nonempty
+prefix **before** moving imported files into public uploads. The
+config builder itself refuses invalid icon-list types rather than
+triggering a fatal. Fontastic pack metadata caches are scoped per
+instance, rather than leaking name/prefix between successive imports.
+
+The inherited copy process also published untrusted
+`demo.html`, `icons-reference.html` and nested HTML pages to the
+site's `wp-content/uploads/elementor/custom-icons` origin.
+These HTML files are now **excluded from public copy**, after any
+temporary parsing has occurred. Stylesheets and font files are still
+copied. `tests/runtime_icon_public_html_safety.php` verifies
+a functional Fontastic pack's icon configuration, CSS/WOFF assets,
+omission of both root and nested HTML, and clean invalid-pack
+rejection. The isolated runtime suite passed at SHA
+`ad9d11df671602d6720486eef37ef92cbc4fcc64`;
+see `docs/ICON-PUBLIC-ASSET-REVIEW.md`.
+
+**SVG remains a separate security-review requirement:** the icon
+importer also accepts legacy SVG font assets. Existing Elementor
+image-SVG sanitisation does not automatically cover ZIP-extracted
+font files, and its default allowed elements omit legacy SVG font
+glyph structures. Do not extrapolate this HTML safety fix into a
+claim that arbitrary uploaded SVG or CSS is safe.
+
 ## Reproducible zero-subscription QA
 
 The disposable `tests/runtime_icon_zip_security.php` fixture constructs
@@ -78,10 +112,10 @@ customer upload or paid-processor transaction.
 
 - Validate against genuine Fontello, IcoMoon and Fontastic export archives,
   including custom developer-provided directory filters.
-- An admin-supplied HTML/CSS icon archive still warrants a dedicated
-  browser and content-security review before treating imported code as
-  trusted. Archive limits mitigate resource exhaustion and filesystem
-  traversal; they do not prove all supported formats are harmless.
+- Imported HTML demo pages are now excluded, but custom SVG font
+  content and arbitrary stylesheet CSS still require an independent
+  content-security review. Archive limits protect ZIP handling, not
+  arbitrary active file content.
 - Real Apache/Nginx HTTP upload execution tests and complete independent
   security assessment remain separate release gates.
 - The official Elementor Pro **4.4.1** patch diff is not available to this
