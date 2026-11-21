@@ -624,6 +624,7 @@ add_action( 'init', function () {
                          "runtime_form_upload_security.php",
                          "runtime_form_mail_attachment_safety.php",
                          "runtime_icon_zip_security.php",
+                         "runtime_icon_public_html_safety.php",
                          "runtime_form_document_visibility.php",
                          "runtime_rest_auth_security.php",
                          "runtime_stripe_security.php",
