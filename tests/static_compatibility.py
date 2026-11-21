@@ -436,6 +436,20 @@ check("malformed multi-upload arrays cannot trigger filename type errors",
       "sanitize_upload_filename_values" in (ROOT / "core/utils.php").read_text()
       and "malformed_upload_names_cannot_trigger_type_error" in icon_fixture
       and "sanitize_multi_upload_preserves_file_indices" in icon_fixture)
+form_email = (ROOT / "modules/forms/actions/email.php").read_text()
+form_mail_fixture = (ROOT / "tests/runtime_form_mail_attachment_safety.php").read_text()
+check("classic Form mail attachments restricted to protected upload directory",
+      "is_safe_form_attachment_path" in (ROOT / "core/utils.php").read_text()
+      and form_email.count("Utils::is_safe_form_attachment_path(") >= 2
+      and "email_action_refuses_external_and_malformed_paths" in form_mail_fixture
+      and "runtime_form_mail_attachment_safety.php" in qa_script)
+check("real Apache Form upload policy QA only uses disposable loopback",
+      (ROOT / "tools/qa_apache_form_policy.py").is_file()
+      and "127.0.0.1" in (ROOT / "tools/qa_apache_form_policy.py").read_text()
+      and "zmp-isolated-qa-" in (ROOT / "tools/qa_apache_form_policy.py").read_text()
+      and "verify-apache-uploads" in qa_script
+      and "verify-apache-uploads" in
+          (ROOT / "tools/run_manual_checks.py").read_text())
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
