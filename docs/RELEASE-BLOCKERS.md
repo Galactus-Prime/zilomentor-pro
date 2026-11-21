@@ -2,50 +2,58 @@
 
 ### Latest comprehensive manual QA (21 November 2026)
 
-The unreleased **ZiloMentor Pro 0.1.2** exact source SHA
-`46ec6c2e446c151dcd374fbad24423edc65cfff5` passed the manually
-invoked **99 of 99 integration checks** against disposable
-WordPress **7.1.5**, free Elementor **4.4.1**, Fiore,
-WooCommerce **11.3**, Nginx/PHP-FPM and Chromium. Compared with the
-prior 91/91, eight **real anonymous HTTP multipart Form upload**
-regressions now exercise actual PHP upload parsing, index normalisation,
-linked file saving, attach-only email action and protected cleanup,
-valid two-file submission and rejection of fake PDFs, script-in-TXT,
-PNG/ZIP polyglots, empty-first/second executable uploads, and
-over-limit file counts. Synthetic `pre_wp_mail` interception guarantees
-no email is delivered; SHA256 checks confirm the genuine DOCX
-attachment seen by Email and its removal after the action.
+The **unreleased ZiloMentor Pro 0.1.2**, exact verified code SHA
+`2ad90a174eb7b2f4afe71436fad6fafb3b15b66d`,
+passed the **100/100 manual disposable WordPress integration checks**
+on 21 November 2026 (exit 0). The test stack used WordPress
+7.1.5, free Elementor 4.4.1, Fiore, WooCommerce 11.3,
+Nginx/PHP-FPM, real loopback Apache and Chromium browser checks.
+All PHP **8.4/8.5** syntax matrices, static checks, signed-manifest
+test simulations, rollback and package-hygiene checks passed.
 
-The suite also passed 13 independently generated genuine Office/ODF/
-PDF/image/audio/video fixtures, real Apache upload `.htaccess`
-verification (localhost), Nginx executable denial, Form document
-privacy, custom-icon ZIP security, Chromium Popup interactions and
-offline synthetic WooCommerce guest checkout. **PHP 8.4 and PHP 8.5**
-syntax matrices, migration rollback, static/security checks and
-manual signed-manifest/package simulations passed.
+The final test added **Fontastic custom-icon public asset security**:
+a functioning synthetic icon pack retained its CSS/WOFF config
+while imported same-origin root/nested HTML demo pages were not
+published; malformed icon-list data was refused rather than
+triggering an inherited `count(false)` fatal; pack name and prefix
+caches now belong to each distinct pack instance.
+Full coverage also includes genuine Office/ODF/PDF/audio/video
+fixtures, eight anonymous **real HTTP multipart** uploads with
+valid PDF/DOCX, attach-only email interception/cleanup, invalid
+PHP/PDF/PNG-ZIP, empty-first/second executable bypass rejection
+and multi-file count, Form document visibility and ZIP extraction,
+Chromium Popup behaviour and synthetic offline WooCommerce guest checkout.
 
-The **exact staging-only** 1,433-file ZIP measured **3,601,089 bytes**,
-SHA256 `d82603219ec0ffb44e03b6fe9b3c32ae83766e346aade2be987f7ee536bde23a`.
-This ZIP has **not** been operationally signed, published, installed or
-approved for production. No GitHub Actions, subscription, customer
-file, live WordPress database, real payment or outbound email was used.
+The **exact tested staging-only release ZIP** had **1,433 files**,
+**3,602,980 bytes** and SHA256
+`78c6edeb6ea1d94922824508a45590b20d736f160b4f6f0fbc12590f8bd6db98`.
+It was **not** signed, published, installed or approved for
+production. No GitHub Actions, paid subscriptions, customer files,
+live WordPress database mutation, payment or outbound real mail
+were used. Later documentation-only commits are NOT included in
+the above exact-SHA archive and would change a freshly rebuilt
+ZIP checksum; the owner must freeze/approve and sign the final
+release SHA separately. The former **99/99** run at
+`46ec6c2e446c151dcd374fbad24423edc65cfff5` is superseded.
 
-The separately executed **16/16 offline signing adversarial tests**
-passed at exact source SHA
-`82d1a99847d39e1907c8633039fd535e359cd1f5` on
-21 November, adding synthetic Ed25519 rotation and revocation tests
-to the original 14/14. All signing keys are generated and discarded
-within an isolated QA temporary directory; no owner key has been
-created. Since the complete integration run, the repository has gained
-only **test-only changes and documentation**, not production plugin
-PHP/JS. Previous 91/91 at
-`7b9cb9ab3dfd8c064b85e8680c763de8ee2f612c` is superseded.
+A separate **full real-editor/browser** suite passed at
+`46ec6c2e446c151dcd374fbad24423edc65cfff5` (exit 0),
+including saved Form/repeater, Heading/History Undo/Redo, Theme
+Header, Popup, Nav Menu/Posts and responsive Desktop/Tablet/Mobile
+editing with independent database checks. See
+`docs/EDITOR-ACCEPTANCE-2026-11-21.md`.
+The **16/16 no-network Ed25519 test simulations** passed at
+`82d1a99847d39e1907c8633039fd535e359cd1f5`,
+including throwaway-key rotation and revoked-anchor failure.
+No operational owner private key exists.
 
-These tests do **not** establish authentic vendor Pro **4.4.1**
-patch parity, an independent security audit, production cPanel Apache
-vhost upload enforcement, end-user accessibility acceptance,
-actual SMTP delivery or a real provider-sandbox transaction.
-Those release requirements remain open.
+**Still not certified:** authentic official Elementor Pro 4.4.1
+patch parity, independent PHP/JS/REST/asset security audit,
+SVG/CSS custom icon archive security, operational key trust and
+published signed release, real Stripe sandbox payment/refund,
+live cPanel upload-vhost enforcement, actual email delivery or
+WCAG/real-device visual acceptance. All corresponding release
+requirements remain open.
 
 **Audit date: 21 November 2026**  
 **Production:** Itzy Bitzy Workshop runs ZiloMentor Pro 0.1.1, independently
@@ -137,9 +145,19 @@ conditions do not allow a real provider sandbox checkout.
 
 ## 4. Editor and real-world file compatibility
 
-- [ ] Validate the Pro Form repeater UI and all actions, popup editing and
-  persistence, history undo/redo, dynamic conditions, Nav Menu and Posts
-  controls, responsive style persistence, keyboard/screen-reader access.
+- [x] **Representative real editor-browser input and persistence**:
+  Pro Form repeater field label and Form name, Heading edit/History
+  Undo and Redo, Theme Builder Header and Popup template editing
+  with page-scoped conditions, Nav Menu and Posts widget,
+  Desktop/Tablet/Mobile device switcher, independent WP database
+  save verification and frontend-render verification all passed.
+  Exact editor source SHA `46ec6c2e`; see
+  docs/EDITOR-ACCEPTANCE-2026-11-21.md.
+- [ ] Exhaustive Form actions, keyboard and assistive-technology
+  accessibility, desktop/mobile visual and pixel-level acceptance,
+  real-device checks, dynamic third-party conditions and full
+  responsive style persistence are still required.
+  Representative editor smoke passes are **not** WCAG certification.
 - [x] Test self-authored **genuine** DOCX, XLSX, ODT, ODS, ODP, PDF,
   JPEG, PNG, PCM WAV and MP4 samples produced by independent libraries;
   verify SHA256, document reopenability and safe upload content acceptance
@@ -158,6 +176,17 @@ conditions do not allow a real provider sandbox checkout.
   true email deliverability and all third-party Form actions.
   The current real samples and intercepted mail confirm representative
   content validation and multipart processing only.
+- [x] **Custom icon pack public assets**: self-authored Fontastic
+  with valid CSS/WOFF survives publishing without transferring
+  temporary root/nested untrusted HTML; corrupt icon names/lists
+  return `WP_Error` instead of crashing; per-instance Fontastic
+  pack metadata cache is isolated. Exact **100/100** full suite
+  included `runtime_icon_public_html_safety.php`.
+  See docs/ICON-PUBLIC-ASSET-REVIEW.md.
+- [ ] Audit/mitigate **SVG webfonts and CSS inside third-party icon
+  ZIPs** with legitimate Fontello, IcoMoon and Fontastic exports,
+  including scriptable SVG markup and external references. The
+  HTML omission and ZIP-bomb guards alone do not prove SVG/CSS safe.
 - [x] Test representative image ZIP/PHAR polyglots and executable
   empty-first/second-file upload bypass fixtures in **disposable** WordPress.
   Included synthetic and independently generated polyglot checks passed.
