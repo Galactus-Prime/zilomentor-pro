@@ -461,6 +461,18 @@ check("independently generated real document and media fixtures are integration-
           (ROOT / "tests/runtime_real_file_uploads.php").read_text()
       and "hash_file( 'sha256'" in
           (ROOT / "tests/runtime_real_file_uploads.php").read_text())
+multipart_src = (ROOT / "tools/qa_isolated_site.py").read_text()
+multipart_seed = (ROOT / "tests/fixtures/seed_synthetic.php").read_text()
+check("real HTTP multipart QA exercises safe linked and attached uploads plus attacks",
+      "anonymous genuine HTTP PDF multipart Form saves safe random-name link" in multipart_src
+      and "anonymous HTTP DOCX attach-only email action is safely intercepted and cleaned" in multipart_src
+      and "empty first slot followed by PHP" in multipart_src
+      and "too many genuine files" in multipart_src
+      and "anonymous HTTP multipart preserves two genuine file uploads" in multipart_src
+      and "zmp_qa_intercepted_mail" in multipart_src
+      and "'upload_form_link'" in multipart_seed
+      and "'upload_form_attach'" in multipart_seed
+      and "example.invalid" in multipart_seed)
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
