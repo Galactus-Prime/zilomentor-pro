@@ -223,6 +223,42 @@ class Utils {
 	}
 
 	/**
+	 * Determine whether a classic Form attachment is a regular file located
+	 * directly in its configured upload folder. Never attach or unlink a
+	 * path supplied by a mutated Form record outside that directory.
+	 *
+	 * Existing trusted custom upload_path filters continue to work.
+	 *
+	 * @param mixed $path File path carried in the Form record.
+	 */
+	public static function is_safe_form_attachment_path( $path ): bool {
+		if ( ! is_string( $path ) || '' === $path || is_link( $path ) ) {
+			return false;
+		}
+
+		$uploads = wp_upload_dir( null, false );
+		if ( ! empty( $uploads['error'] ) || empty( $uploads['basedir'] ) ) {
+			return false;
+		}
+
+		$root_path = apply_filters(
+			'elementor_pro/forms/upload_path',
+			trailingslashit( $uploads['basedir'] ) . 'elementor/forms'
+		);
+		if ( ! is_string( $root_path ) || '' === $root_path ) {
+			return false;
+		}
+
+		$root = realpath( $root_path );
+		$target = realpath( $path );
+
+		return false !== $root
+			&& false !== $target
+			&& is_file( $target )
+			&& dirname( $target ) === $root;
+	}
+
+	/**
 	 * Anonymous visitors may submit only forms belonging to published,
 	 * non-password-protected documents. Editors can test unpublished forms
 	 * they are authorised to edit. Never allow a caller-supplied post ID to
