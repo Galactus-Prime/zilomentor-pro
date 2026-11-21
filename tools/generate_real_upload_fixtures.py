@@ -76,7 +76,12 @@ def generate(out: Path):
     assert load(str(out / "sheet.ods")).spreadsheet is not None
 
     odp = OpenDocumentPresentation()
-    odp.masterstyles.addElement(style.MasterPage(name="Default"))
+    slide_layout = style.PageLayout(name="QA")
+    slide_layout.addElement(style.PageLayoutProperties(
+        pagewidth="28cm", pageheight="21cm", printorientation="landscape",
+    ))
+    odp.automaticstyles.addElement(slide_layout)
+    odp.masterstyles.addElement(style.MasterPage(name="Default", pagelayoutname="QA"))
     page = draw.Page(name="Synthetic slide", masterpagename="Default")
     frame = draw.Frame(x="2cm", y="2cm", width="15cm", height="3cm")
     text_box = draw.TextBox()
