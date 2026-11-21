@@ -457,9 +457,10 @@ check("independently generated real document and media fixtures are integration-
       and "real-file-fixtures-dir" in qa_script
       and "real-file-fixtures-dir" in (ROOT / "tools/run_manual_checks.py").read_text()
       and "runtime_real_file_uploads.php" in qa_script
-      and "real_format_image-zip-polyglot.png_denied" in
-          (ROOT / "tests/runtime_real_file_uploads.php").read_text().replace(
-              "'image-zip-polyglot.png' => false", "real_format_image-zip-polyglot.png_denied"))
+      and "'image-zip-polyglot.png' => false" in
+          (ROOT / "tests/runtime_real_file_uploads.php").read_text()
+      and "hash_file( 'sha256'" in
+          (ROOT / "tests/runtime_real_file_uploads.php").read_text())
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
