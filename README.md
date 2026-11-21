@@ -351,36 +351,52 @@ modified signatures and unsafe packages are rejected; additional review
 of real payment gateways and full official 4.4.1 patch equivalence remains.
 
 **Current unreleased candidate verification (21 November 2026):**
-exact tested source `46ec6c2e446c151dcd374fbad24423edc65cfff5`
-passed **99/99** full isolated WordPress 7.1.5 / free Elementor
-4.4.1 / Fiore / WooCommerce 11.3 / Nginx/PHP-FPM /
-Chromium integration checks. This includes **eight genuine
-anonymous HTTP multipart Form submissions** through WordPress
-admin-ajax, live-in-disposable PHP upload parsing, random-name
-linked files, Email attach-only cleanup with intercepted mail,
-multi-file success and executable/polyglot/fake-PDF/over-limit
-rejections. Thirteen independently authored Office/ODF/PDF/
-media fixtures, real localhost Apache and isolated Nginx
-upload defenses and offline synthetic WooCommerce guest checkout
-also passed. PHP **8.4 and 8.5** lint passed. No GitHub Actions,
-paid subscriptions, external email, real payments or live data
-were involved.
+exact tested source SHA
+`2ad90a174eb7b2f4afe71436fad6fafb3b15b66d`
+passed **100/100** full disposable WordPress 7.1.5 /
+free Elementor 4.4.1 / Fiore / WooCommerce 11.3 /
+Nginx/PHP-FPM / Chromium integration checks. PHP
+**8.4 and 8.5** syntax matrices, static regression,
+offline manifest-signature simulations, package hygiene
+and manual rollback passed. The full test covers eight
+real anonymous HTTP multipart submissions, genuine
+DOCX/XLSX/ODT/ODS/ODP/PDF/JPEG/PNG/WAV/MP4 files,
+unsafe polyglots, private Form restrictions, real Apache
+localhost executable denial, custom-icon ZIP limits,
+working Fontastic icon CSS/WOFF with no published HTML
+demos, malformed-pack rejection, Popup browser triggers,
+and synthetic offline WooCommerce guest checkout.
 
-The staging ZIP comprised **1,433 files**, SHA256
-`d82603219ec0ffb44e03b6fe9b3c32ae83766e346aade2be987f7ee536bde23a`.
-A separate no-network signing run passed **16/16** tests at
-`82d1a99847d39e1907c8633039fd535e359cd1f5`,
-including **throwaway-key rotation/revocation/expiry**.
-Read `docs/HTTP-MULTIPART-FORM-QA.md`,
-`docs/FORM-ATTACHMENT-APACHE-QA.md`,
+The exact tested staging ZIP contained **1,433 files**,
+**3,602,980 bytes**, SHA256
+`78c6edeb6ea1d94922824508a45590b20d736f160b4f6f0fbc12590f8bd6db98`.
+Later documentation-only commits alter a new ZIP checksum;
+the manifest must be rebuilt from the final owner-approved
+SHA before operational offline signing.
+
+A separate **full authenticated real editor acceptance**
+at SHA `46ec6c2e446c151dcd374fbad24423edc65cfff5`
+passed Heading, Undo/Redo, Form repeater, Header, Popup,
+Nav Menu/Posts and responsive device switching, with
+database/conditional frontend verification. Another
+**16/16** no-network Ed25519 acceptance run at
+`82d1a99847d39e1907c8633039fd535e359cd1f5`
+exercised **throwaway** key rotation and revocation.
+Details: `docs/EDITOR-ACCEPTANCE-2026-11-21.md`,
+`docs/HTTP-MULTIPART-FORM-QA.md`,
+`docs/ICON-PUBLIC-ASSET-REVIEW.md`,
 `docs/REAL-FORMAT-UPLOAD-QA.md`, and
 `docs/RELEASE-BLOCKERS.md`.
 
-**No owner-signed release, genuine Elementor Pro 4.4.1
-patch-parity evidence, independent security audit, legitimate
-payment-provider transaction, or production upload-vhost check
-has been verified. Live ZiloMentor Pro 0.1.1 remains unchanged;
-0.1.2 is draft, unsigned, unmerged and undeployed.**
+**Release blockers remain:** official Pro 4.4.1
+patch comparison and independent security audit, further
+SVG/CSS icon-pack content review, a genuine offline owner
+signing key and published signed release, real provider
+sandbox payment/refund verification, live upload-vhost
+validation and accessibility/visual acceptance.
+The current ZIP is **unsigned and unmerged**.
+Live ZiloMentor Pro **0.1.1** is unchanged.
+No GitHub Actions or subscriptions were used.
 
 ## Build and test (development only)
 
