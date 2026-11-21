@@ -24,7 +24,7 @@ $checks = [];
 wp_mkdir_p( trailingslashit( $source ) . 'fonts' );
 try {
 	$css = '@font-face { font-family: "' . $pack_name . '"; }' . "\n"
-		. '[class^="zmp-"] { font-family: "' . $pack_name . '"; }' . "\n"
+		. '[class^="zmp-"] { font-family: serif; }' . "\n"
 		. '.zmp-star:before { content: "\\ea01"; }' . "\n";
 	file_put_contents( trailingslashit( $source ) . 'styles.css', $css );
 	file_put_contents( trailingslashit( $source ) . 'icons-reference.html',
@@ -38,6 +38,8 @@ try {
 		$handler->is_valid() && $handler->is_icon_set();
 
 	$handler->handle_new_icon_set();
+	$checks['icon_pack_valid_content_before_publishing'] =
+		true === $handler->validate_icon_contents();
 	$handler->move_files( 0 );
 	$config = $handler->build_config();
 	$destination = trailingslashit( $destination_root ) . $config['name'];
@@ -53,6 +55,24 @@ try {
 		! file_exists( trailingslashit( $destination ) . 'fonts/preview.html' );
 	$checks['icon_pack_non_html_font_asset_still_published'] =
 		file_exists( trailingslashit( $destination ) . 'fonts/dummy.woff' );
+
+	// A corrupt export must be refused without an importer PHP fatal,
+	// an attachment record, or publication into the uploads directory.
+	$invalid_source = trailingslashit( $source ) . 'invalid-contents/';
+	wp_mkdir_p( trailingslashit( $invalid_source ) . 'fonts' );
+	file_put_contents( $invalid_source . 'icons-reference.html', '<p>Untrusted test only</p>' );
+	file_put_contents( $invalid_source . 'styles.css',
+		'@font-face { font-family: "Malformed"; }' );
+	$invalid = new $class( $invalid_source );
+	$invalid->handle_new_icon_set();
+	$checks['invalid_icon_set_contents_rejected_before_publishing'] =
+		is_wp_error( $invalid->validate_icon_contents() );
+	$checks['invalid_icon_set_build_config_returns_error_not_fatal'] =
+		is_wp_error( $invalid->build_config() );
+	$checks['different_fontastic_instances_do_not_share_names'] =
+		$handler->get_name() !== $invalid->get_name();
+
+
 } finally {
 	// Delete only this generated disposable QA source and destination.
 	$source_parent = realpath( dirname( $source ) );
@@ -74,6 +94,6 @@ try {
 foreach ( $checks as $name => $passed ) {
 	echo ( $passed ? 'PASS ' : 'FAIL ' ) . $name . PHP_EOL;
 }
-if ( count( $checks ) !== 5 || in_array( false, $checks, true ) ) {
+if ( count( $checks ) !== 9 || in_array( false, $checks, true ) ) {
 	exit( 4 );
 }
