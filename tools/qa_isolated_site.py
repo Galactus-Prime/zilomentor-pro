@@ -84,6 +84,8 @@ def main():
         "--verify-editor-responsive", action="store_true",
         help="Opt-in isolated real Elementor tablet, mobile and desktop editor switching checks.",
     )
+    argp.add_argument("--verify-apache-uploads", action="store_true",
+                      help="Run disposable localhost Apache against generated Form .htaccess and verify download/deny headers.")
     argp.add_argument(
         "--php-image", default="zmp-php84-zip-qa:local",
         help="Disposable PHP-FPM with ZIP extension; manually build using tools/docker/Dockerfile.qa-php84-zip.",
@@ -592,6 +594,21 @@ add_action( 'init', function () {
                                              "runtime_posts_visibility.php",
                                              "runtime_rest_sensitive_controllers.php") else [])}),
                     "Runtime check failed: " + (p.stdout + p.stderr)[-500:])
+
+        if args.verify_apache_uploads:
+            # Real policy emitted by the disposable WordPress Form runtime.
+            # Apache listens only on localhost and a temporary high port.
+            policy = site / "wp-content/uploads/elementor/forms/.htaccess"
+            p = execute([
+                sys.executable, str(ROOT / "tools/qa_apache_form_policy.py"),
+                "--htaccess", str(policy),
+            ], timeout=35)
+            require(record("real disposable Apache Form upload executable denial",
+                           p.returncode == 0 and "QA_APACHE_JSON=" in p.stdout,
+                           {"exit": p.returncode,
+                            "checks": p.stdout.strip().splitlines()[-9:]}),
+                    "Apache upload policy test failed: " +
+                    (p.stdout + p.stderr)[-900:])
 
         if args.focus == "runtime":
             # Lightweight fast feedback for file format/security regression
