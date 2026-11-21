@@ -249,7 +249,32 @@ def main():
         (mu / "zmp-qa-no-mail.php").write_text(
             r"""<?php
 // Generated exclusively inside a disposable QA WordPress tree.
-add_filter( 'pre_wp_mail', '__return_true', PHP_INT_MAX );
+// Suppress ALL transport and store only synthetic attachment observations.
+add_filter( 'pre_wp_mail', static function ( $pre, $mail ) {
+    $attachments = $mail['attachments'] ?? [];
+    if ( is_string( $attachments ) ) {
+        $attachments = [ $attachments ];
+    }
+    if ( ! is_array( $attachments ) ) {
+        $attachments = [];
+    }
+    $checks = [];
+    foreach ( $attachments as $attachment ) {
+        $checks[] = [
+            'safe' => \ElementorPro\Core\Utils::is_safe_form_attachment_path( $attachment ),
+            'exists_at_send' => is_string( $attachment ) && is_file( $attachment ),
+            'name' => is_string( $attachment ) ? basename( $attachment ) : '',
+            'sha256' => is_string( $attachment ) && is_file( $attachment )
+                ? hash_file( 'sha256', $attachment ) : '',
+        ];
+    }
+    // No recipient addresses or message bodies are recorded in QA.
+    update_option( 'zmp_qa_intercepted_mail', [
+        'attachment_count' => count( $attachments ),
+        'attachments' => $checks,
+    ], false );
+    return true; // No real mail can leave this disposable QA instance.
+}, PHP_INT_MAX, 2 );
 add_action( 'template_redirect', function () {
     if ( ! isset( $_GET['zmp_qa_cart_state'] ) ) {
         return;
