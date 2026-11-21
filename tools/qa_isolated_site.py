@@ -43,6 +43,8 @@ def require(condition, message):
 def main():
     argp = argparse.ArgumentParser(description=__doc__)
     argp.add_argument("--source-wordpress", required=True, type=Path)
+    argp.add_argument("--real-file-fixtures-dir", type=Path, default=None,
+                      help="Optional self-authored Office/PDF/ODF/media fixtures under an isolated /tmp directory.")
     argp.add_argument(
         "--plugin-folder", choices=("elementor-pro", "zilomentor-pro"),
         default="elementor-pro",
@@ -195,6 +197,29 @@ def main():
         themes_path = site / "wp-content" / "themes"
         plugins_path.mkdir(parents=True)
         themes_path.mkdir(parents=True)
+        if args.real_file_fixtures_dir is not None:
+            # Never stage files from production uploads or customer directories.
+            fixture_root = args.real_file_fixtures_dir.resolve(strict=True)
+            if (not fixture_root.is_dir()
+                    or not str(fixture_root).startswith("/tmp/zmp-realfiles-")
+                    or "public_html" in fixture_root.parts):
+                raise RuntimeError("Real-file QA fixtures must originate in a private /tmp/zmp-realfiles-* directory")
+            manifest = fixture_root / "manifest.json"
+            if not manifest.is_file() or manifest.is_symlink():
+                raise RuntimeError("Real-file QA fixture manifest missing")
+            parsed_manifest = json.loads(manifest.read_text(encoding="utf-8"))
+            paths = parsed_manifest.get("files", {})
+            if (parsed_manifest.get("generated") != "self-authored"
+                    or not isinstance(paths, dict) or len(paths) != 13):
+                raise RuntimeError("Real-file QA fixture manifest not self-authored or incomplete")
+            staging = site / "wp-content" / "zmp-qa-real-formats"
+            staging.mkdir()
+            for name in ("manifest.json", *paths.keys()):
+                p = fixture_root / name
+                if (not isinstance(name, str) or not re.fullmatch(r"[a-z0-9.-]+", name)
+                        or not p.is_file() or p.is_symlink() or p.stat().st_size > 16 * 1024 * 1024):
+                    raise RuntimeError("Invalid real-file QA fixture: " + str(name))
+                shutil.copy2(p, staging / name)
         for plugin in PLUGINS:
             from_dir = source / "wp-content/plugins" / plugin
             require(from_dir.is_dir(), f"Missing test dependency: {plugin}")
@@ -594,6 +619,16 @@ add_action( 'init', function () {
                                              "runtime_posts_visibility.php",
                                              "runtime_rest_sensitive_controllers.php") else [])}),
                     "Runtime check failed: " + (p.stdout + p.stderr)[-500:])
+
+        if args.real_file_fixtures_dir is not None:
+            p = wp("eval-file",
+                   f"wp-content/plugins/{plugin_folder}/tests/runtime_real_file_uploads.php",
+                   environment={"ZMP_ISOLATED_QA": "yes"})
+            require(record("real Office ODF PDF audio video and polyglot upload validation",
+                           p.returncode == 0 and p.stdout.count("PASS ") == 26,
+                           {"exit": p.returncode,
+                            "checks": p.stdout.strip().splitlines()[:26]}),
+                    "Real authored file QA failed: " + (p.stdout + p.stderr)[-1600:])
 
         if args.verify_apache_uploads:
             # Real policy emitted by the disposable WordPress Form runtime.
