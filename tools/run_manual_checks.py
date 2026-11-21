@@ -34,6 +34,8 @@ def main():
         "--source-wordpress", type=Path, default=None,
         help="Also run isolated HTTP/form/WooCommerce regression using only source files copied from this WordPress path.",
     )
+    parser.add_argument("--verify-apache-uploads", action="store_true",
+                        help="Verify real Apache executable denial and download headers in disposable Form uploads.")
     parser.add_argument(
         "--web-server", choices=("php", "nginx-fpm"), default="php",
         help="Run synthetic WordPress with the original PHP development server, or private Nginx/PHP-FPM workers.",
@@ -148,6 +150,8 @@ def main():
             "--focus", args.focus,
             "--plugin-folder", args.plugin_folder,
         ]
+        if args.verify_apache_uploads:
+            qa_cmd.append("--verify-apache-uploads")
         if args.browser_image:
             qa_cmd.extend(["--browser-image", args.browser_image])
         if args.editor_playwright_image:
