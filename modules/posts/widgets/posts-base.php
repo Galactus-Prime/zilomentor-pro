@@ -706,6 +706,12 @@ abstract class Posts_Base extends Base_Widget {
 			$url = $this->get_base_url_for_rest_request( $post_id, $url );
 		}
 
+		// A REST/editor preview can have no global post, or refer to a
+		// deleted post. Never dereference null when choosing a page URL.
+		if ( ! $post instanceof \WP_Post ) {
+			return esc_url( get_pagenum_link( $i ) );
+		}
+
 		if ( $i > 1 ) {
 			if ( '' === get_option( 'permalink_structure' ) || in_array( $post->post_status, [ 'draft', 'pending' ] ) ) {
 				$url = add_query_arg( $this->get_wp_pagination_query_var(), $i, $url );

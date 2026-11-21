@@ -1,0 +1,228 @@
+<?php
+/**
+ * Seed ONLY a disposable WordPress database with synthetic QA fixtures.
+ *
+ * This file intentionally rejects normal execution unless its test-specific
+ * environment flag is present, so it must never be run on a live website.
+ * Called from: tools/qa_isolated_site.py
+ */
+if ( ! defined( 'ABSPATH' ) || getenv( 'ZMP_ISOLATED_QA' ) !== 'yes' ) {
+    exit( 2 );
+}
+if ( ! class_exists( 'WC_Product_Simple' ) || ! did_action( 'elementor/loaded' ) ) {
+    fwrite( STDERR, "Missing Elementor or WooCommerce runtime\n" );
+    exit( 3 );
+}
+$page_id = wp_insert_post( [
+    'post_type' => 'page',
+    'post_status' => 'publish',
+    'post_title' => 'ZiloMentor Synthetic Elementor Page',
+] );
+$form_id = '1a2b3c4d';
+$elements = [
+    [
+        'id' => '1a2b3c00',
+        'elType' => 'container',
+        'settings' => [],
+        'elements' => [
+            [
+                'id' => '1a2b3c01',
+                'elType' => 'widget',
+                'widgetType' => 'heading',
+                'settings' => [
+                    'title' => 'ZiloMentor Synthetic Heading',
+                    // These custom attributes exist ONLY in a disposable
+                    // test database; verify safe data/ARIA values survive
+                    // and event handlers or unsafe protocols never render.
+                    '_attributes' => "data-zmp-security|visible\nonclick|alert(1)\nonmouseover|alert(1)\nhref|javascript:alert(1)\naria-label|Quoted \"example\"",
+                ],
+                'elements' => [],
+            ],
+            [
+                'id' => '1a2b3c02',
+                'elType' => 'widget',
+                'widgetType' => 'heading',
+                'settings' => [
+                    'title' => 'ACF Dynamic Fallback',
+                    '__dynamic__' => [
+                        'title' => \Elementor\Plugin::instance()->dynamic_tags->tag_data_to_tag_text(
+                            'zmp-qa-acf-heading', 'acf-text',
+                            [ 'key' => 'field_zmp_qa_text:zmp_qa_text' ]
+                        ),
+                    ],
+                ],
+                'elements' => [],
+            ],
+            [
+                'id' => $form_id,
+                'elType' => 'widget',
+                'widgetType' => 'form',
+                'settings' => [
+                    'form_name' => 'ZiloMentor Synthetic Form',
+                    'form_fields' => [
+                        [
+                            'custom_id' => 'email',
+                            'field_type' => 'email',
+                            'field_label' => 'Email',
+                            'required' => 'true',
+                        ],
+                    ],
+                    'submit_actions' => [],
+                    'button_text' => 'Submit',
+                ],
+                'elements' => [],
+            ],
+        ],
+        'isInner' => false,
+    ],
+];
+// Two separate, genuine HTTP multipart upload forms for the disposable
+// integration test. All recipients are RFC2606 .invalid synthetic addresses.
+// The QA mu-plugin intercepts ALL wp_mail calls before mail transport.
+// The link form keeps its uploaded file; attach-only deletes it after mail.
+$upload_link_id = '1a2b3c4e';
+$upload_attach_id = '1a2b3c4f';
+foreach ( [
+    [ $upload_link_id, 'link', [] ],
+    [ $upload_attach_id, 'attach', [ 'email' ] ],
+] as [ $upload_form_id, $upload_mode, $upload_actions ] ) {
+    $elements[0]['elements'][] = [
+        'id' => $upload_form_id,
+        'elType' => 'widget',
+        'widgetType' => 'form',
+        'settings' => [
+            'form_name' => 'ZMP Synthetic HTTP File ' . $upload_mode,
+            'form_fields' => [
+                [
+                    'custom_id' => 'email',
+                    'field_type' => 'email',
+                    'field_label' => 'Synthetic reply email',
+                    'required' => '',
+                ],
+                [
+                    'custom_id' => 'file',
+                    'field_type' => 'upload',
+                    'field_label' => 'Synthetic file',
+                    'required' => '',
+                    'attachment_type' => $upload_mode,
+                    'file_types' => 'pdf,docx,txt,png',
+                    'file_sizes' => 2,
+                    'allow_multiple_upload' => 'yes',
+                    'max_files' => 3,
+                ],
+            ],
+            'submit_actions' => $upload_actions,
+            'email_to' => 'qa-sink@example.invalid',
+            'email_subject' => 'Disposable ZiloMentor synthetic Form attachment',
+            'email_content' => '[all-fields]',
+            'email_from' => 'qa-sender@example.invalid',
+            'button_text' => 'Send synthetic file',
+        ],
+        'elements' => [],
+    ];
+}
+update_post_meta( $page_id, '_elementor_data', wp_slash( wp_json_encode( $elements ) ) );
+update_post_meta( $page_id, '_elementor_edit_mode', 'builder' );
+update_post_meta( $page_id, '_elementor_version', ELEMENTOR_VERSION );
+
+// These restricted documents intentionally contain the SAME valid Form.
+// Anonymous HTTP form POSTs must be denied because of document visibility,
+// not merely because Elementor cannot locate a submitted widget.
+$restricted_form_pages = [];
+foreach ( [ 'draft', 'private', 'password' ] as $visibility ) {
+    $restricted_args = [
+        'post_type' => 'page',
+        'post_status' => 'password' === $visibility ? 'publish' : $visibility,
+        'post_title' => 'ZMP Synthetic Restricted Form ' . $visibility,
+    ];
+    if ( 'password' === $visibility ) {
+        $restricted_args['post_password'] = 'zmp-synthetic-secret';
+    }
+    $restricted_id = wp_insert_post( $restricted_args );
+    if ( ! $restricted_id || is_wp_error( $restricted_id ) ) {
+        fwrite( STDERR, "Unable to seed restricted Form visibility fixture\n" );
+        exit( 3 );
+    }
+    update_post_meta( $restricted_id, '_elementor_data', wp_slash( wp_json_encode( $elements ) ) );
+    update_post_meta( $restricted_id, '_elementor_edit_mode', 'builder' );
+    update_post_meta( $restricted_id, '_elementor_version', ELEMENTOR_VERSION );
+    $restricted_form_pages[ $visibility ] = $restricted_id;
+}
+// A second independent page permits History Undo/Redo testing without
+// changing the Heading/Form page used by other editor publish regressions.
+$history_id = wp_insert_post( [
+    'post_type' => 'page',
+    'post_status' => 'publish',
+    'post_title' => 'ZMP Synthetic Editor History',
+] );
+if ( ! $history_id || is_wp_error( $history_id ) ) {
+    fwrite( STDERR, "Unable to seed isolated history document\n" );
+    exit( 3 );
+}
+update_post_meta( $history_id, '_elementor_data', wp_slash( wp_json_encode( $elements ) ) );
+update_post_meta( $history_id, '_elementor_edit_mode', 'builder' );
+update_post_meta( $history_id, '_elementor_version', ELEMENTOR_VERSION );
+
+if ( function_exists( 'update_field' ) ) {
+    update_field( 'field_zmp_qa_text', 'ZiloMentor Synthetic ACF Value', $page_id );
+}
+$product = new WC_Product_Simple();
+$product->set_name( 'ZiloMentor Synthetic Test Product' );
+$product->set_status( 'publish' );
+$product->set_regular_price( '9.99' );
+$product->set_catalog_visibility( 'visible' );
+$product_id = $product->save();
+
+// Separate virtual product for an isolated offline guest-checkout order.
+// Never requires a shipping carrier or any real payment gateway.
+$checkout_product = new WC_Product_Simple();
+$checkout_product->set_name( 'ZiloMentor Synthetic Checkout Item' );
+$checkout_product->set_status( 'publish' );
+$checkout_product->set_regular_price( '7.49' );
+$checkout_product->set_virtual( true );
+$checkout_product_id = $checkout_product->save();
+
+$plain_id = wp_insert_post( [
+    'post_type' => 'page',
+    'post_status' => 'publish',
+    'post_title' => 'ZiloMentor Synthetic Plain Page',
+    'post_content' => 'ZiloMentor Synthetic Plain Content Marker',
+] );
+$cart_id = wp_insert_post( [
+    'post_type' => 'page',
+    'post_status' => 'publish',
+    'post_title' => 'ZiloMentor Synthetic Cart',
+    'post_content' => '[woocommerce_cart]',
+] );
+$cart_control_id = wp_insert_post( [
+    'post_type' => 'page',
+    'post_status' => 'publish',
+    'post_title' => 'ZiloMentor Synthetic Cart Control',
+    'post_content' => '<p>ZiloMentor Cart Control Before</p>[woocommerce_cart]<p>ZiloMentor Cart Control After</p>',
+] );
+$checkout_id = wp_insert_post( [
+    'post_type' => 'page',
+    'post_status' => 'publish',
+    'post_title' => 'ZiloMentor Synthetic Checkout',
+    'post_content' => '[woocommerce_checkout]',
+] );
+update_option( 'woocommerce_cart_page_id', $cart_id );
+update_option( 'woocommerce_checkout_page_id', $checkout_id );
+
+echo wp_json_encode( [
+    'page' => $page_id,
+    'history_page' => (int) $history_id,
+    'form' => $form_id,
+    'upload_form_link' => $upload_link_id,
+    'upload_form_attach' => $upload_attach_id,
+    'form_draft_page' => $restricted_form_pages['draft'],
+    'form_private_page' => $restricted_form_pages['private'],
+    'form_password_page' => $restricted_form_pages['password'],
+    'product' => $product_id,
+    'checkout_product' => $checkout_product_id,
+    'product_url' => get_permalink( $product_id ),
+    'plain' => $plain_id,
+    'cart' => $cart_id,
+    'cart_control' => $cart_control_id,
+    'checkout' => $checkout_id,
+] );

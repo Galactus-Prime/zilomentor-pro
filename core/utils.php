@@ -10,6 +10,279 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Utils {
 
+	/**
+	 * Reject forged form-upload MIME types before storing any uploaded file.
+	 *
+	 * WordPress validates image contents but may rely on filename mapping for
+	 * non-images. Form uploads are anonymous, so never trust the client-sent
+	 * MIME field or the configured extension alone. Only WordPress-registered
+	 * MIME types are accepted. Extra structure checks apply to PDF, Office
+	 * and common multimedia formats.
+	 *
+	 * Custom formats must first be registered with WordPress' upload_mimes
+	 * filter; unknown binary types and executable scripts fail closed.
+	 */
+	public static function is_form_upload_content_safe( string $path, string $original_name ): bool {
+		if ( ! is_file( $path ) || ! is_readable( $path ) || is_link( $path )
+			|| 0 === filesize( $path ) ) {
+			return false;
+		}
+
+		$extension = strtolower( (string) pathinfo( $original_name, PATHINFO_EXTENSION ) );
+		if ( ! preg_match( '/^[a-z0-9]{2,10}$/D', $extension )
+			|| preg_match( '/^(?:php\d*|pht\w*|phar|phps|shtml|[cj]sp|aspx?|cgi|sh|bash|pl|py|rb)$/D', $extension )
+			|| in_array( $extension, [ 'html', 'htm', 'js', 'mjs', 'svg', 'svgz', 'swf', 'exe', 'dll', 'com', 'bat', 'cmd', 'ps1', 'hta', 'jar', 'htaccess', 'htpasswd' ], true ) ) {
+			return false;
+		}
+
+		$registered = wp_check_filetype( $original_name, get_allowed_mime_types() );
+		$checked = wp_check_filetype_and_ext( $path, $original_name );
+		if ( strtolower( (string) ( $registered['ext'] ?? '' ) ) !== $extension
+			|| empty( $registered['type'] )
+			|| strtolower( (string) ( $checked['ext'] ?? '' ) ) !== $extension
+			|| empty( $checked['type'] ) ) {
+			return false;
+		}
+
+		if ( ! function_exists( 'finfo_open' ) ) {
+			return false;
+		}
+
+		$info = finfo_open( FILEINFO_MIME_TYPE );
+		if ( false === $info ) {
+			return false;
+		}
+		$mime = finfo_file( $info, $path );
+		finfo_close( $info );
+		if ( ! is_string( $mime ) || '' === $mime ) {
+			return false;
+		}
+
+		if ( preg_match( '~(?:x-php|x-executable|x-sharedlib|x-mach-binary|javascript|text/html)~i', $mime ) ) {
+			return false;
+		}
+
+		$head = file_get_contents( $path, false, null, 0, 16 );
+		if ( ! is_string( $head ) ) {
+			return false;
+		}
+
+		if ( 'pdf' === $extension ) {
+			return 'application/pdf' === $mime && 0 === strpos( $head, '%PDF-' );
+		}
+
+		// A forged .docx/.pptx/.xlsx file must actually contain the expected
+		// Office Open XML entry, not just an arbitrary PK/ZIP archive.
+		$zip_folders = [
+			'docx' => 'word/document.xml',
+			'pptx' => 'ppt/presentation.xml',
+			'xlsx' => 'xl/workbook.xml',
+			'odt' => 'mimetype',
+			'ods' => 'mimetype',
+			'odp' => 'mimetype',
+		];
+		if ( isset( $zip_folders[ $extension ] ) ) {
+			if ( ! class_exists( '\ZipArchive' )
+				|| 0 !== strpos( $head, "PK\x03\x04" ) ) {
+				return false;
+			}
+
+			$archive = new \ZipArchive();
+			if ( true !== $archive->open( $path, \ZipArchive::RDONLY ) ) {
+				return false;
+			}
+			// Only inspect bounded, well-formed Office archives. A tiny .docx
+			// can advertise huge decompressed XML or thousands of ZIP entries.
+			// Reject such archives before reading even the small ODF MIME part.
+			$valid = self::form_office_archive_is_bounded( $archive );
+			if ( $valid && ! in_array( $extension, [ 'odt', 'ods', 'odp' ], true ) ) {
+				$valid = false !== $archive->locateName( '[Content_Types].xml' )
+					&& false !== $archive->locateName( $zip_folders[ $extension ] );
+			}
+			if ( $valid && in_array( $extension, [ 'odt', 'ods', 'odp' ], true ) ) {
+				$expected_odf = [
+					'odt' => 'application/vnd.oasis.opendocument.text',
+					'ods' => 'application/vnd.oasis.opendocument.spreadsheet',
+					'odp' => 'application/vnd.oasis.opendocument.presentation',
+				];
+				$valid = false !== $archive->locateName( 'META-INF/manifest.xml' )
+					&& $expected_odf[ $extension ] === $archive->getFromName( 'mimetype' );
+			}
+			$archive->close();
+			return $valid;
+		}
+
+		if ( in_array( $extension, [ 'doc', 'ppt', 'xls' ], true ) ) {
+			return 0 === strpos( $head, "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1" );
+		}
+
+		if ( in_array( $extension, [ 'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'tif', 'tiff', 'ico' ], true ) ) {
+			// Image geometry alone does not exclude ZIP or PHAR content
+			// appended after a valid PNG/GIF/JPEG header.
+			return 0 === strpos( $mime, 'image/' )
+				&& false !== @getimagesize( $path )
+				&& ! self::form_image_contains_embedded_archive( $path );
+		}
+
+		if ( in_array( $extension, [ 'mp3', 'mp4', 'm4a', 'mov', 'avi', 'ogg', 'wav', 'wmv', 'mpg', 'mpeg', 'webm' ], true ) ) {
+			return 0 === strpos( $mime, 'audio/' ) || 0 === strpos( $mime, 'video/' )
+				|| in_array( $mime, [ 'application/ogg', 'application/x-ogg' ], true );
+		}
+
+		if ( in_array( $extension, [ 'txt', 'csv', 'tsv', 'md', 'rtf' ], true ) ) {
+			if ( ! in_array( $mime, [ 'text/plain', 'text/csv', 'text/tab-separated-values', 'application/rtf', 'text/rtf' ], true ) ) {
+				return false;
+			}
+			$prefix = file_get_contents( $path, false, null, 0, 4096 );
+			return is_string( $prefix )
+				&& ! preg_match( '/<\?(?:php|=)|<script\b/i', $prefix );
+		}
+
+		// Unknown or custom registered types require an exact server MIME match.
+		// Never treat arbitrary "application/octet-stream" as safe merely
+		// because an administrator put its extension on a form field.
+		return 'application/octet-stream' !== $mime
+			&& $mime === (string) $registered['type'];
+	}
+
+
+	/**
+	 * Bound the ZIP metadata of an Office document without extracting files.
+	 *
+	 * Office MIME/entry-name checks alone accept high-ratio ZIP bombs and
+	 * pathological entry counts. These generous ceilings permit substantial
+	 * ordinary documents while refusing uploads whose expanded contents
+	 * could exhaust server resources if subsequently processed.
+	 */
+	private static function form_office_archive_is_bounded( \ZipArchive $archive ): bool {
+		if ( $archive->numFiles < 1 || $archive->numFiles > 4096 ) {
+			return false;
+		}
+
+		$total_expanded = 0;
+		for ( $index = 0; $index < $archive->numFiles; $index++ ) {
+			$entry = $archive->statIndex( $index );
+			if ( false === $entry || ! isset( $entry['name'], $entry['size'], $entry['comp_size'] ) ) {
+				return false;
+			}
+
+			$name = (string) $entry['name'];
+			$expanded = $entry['size'];
+			$compressed = $entry['comp_size'];
+			if ( '' === $name || '/' === $name[0] || false !== strpos( $name, '\\' )
+				|| preg_match( '~(?:^|/)\\.\\.(?:/|$)~', $name )
+				|| ! is_int( $expanded ) || ! is_int( $compressed )
+				|| $expanded < 0 || $compressed < 0
+				|| $expanded > 64 * 1024 * 1024 ) {
+				return false;
+			}
+
+			$total_expanded += $expanded;
+			if ( $total_expanded > 128 * 1024 * 1024
+				|| ( $expanded > 1024 * 1024 && $expanded > max( 1, $compressed ) * 500 ) ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Detect ZIP archives and PHP PHAR stubs hidden after image bytes.
+	 * Stream the PHAR scan to avoid allocating memory for large uploads.
+	 */
+	private static function form_image_contains_embedded_archive( string $path ): bool {
+		if ( class_exists( '\ZipArchive' ) ) {
+			$zip = new \ZipArchive();
+			if ( true === $zip->open( $path, \ZipArchive::RDONLY ) ) {
+				$zip->close();
+				return true;
+			}
+		}
+
+		$handle = @fopen( $path, 'rb' );
+		if ( false === $handle ) {
+			return true;
+		}
+		$lookbehind = '';
+		$signature = '__HALT_COMPILER';
+		while ( ! feof( $handle ) ) {
+			$chunk = fread( $handle, 65536 );
+			if ( false === $chunk ) {
+				fclose( $handle );
+				return true;
+			}
+			if ( false !== stripos( $lookbehind . $chunk, $signature ) ) {
+				fclose( $handle );
+				return true;
+			}
+			$lookbehind = substr( $chunk, -strlen( $signature ) );
+		}
+		fclose( $handle );
+		return false;
+	}
+
+	/**
+	 * Determine whether a classic Form attachment is a regular file located
+	 * directly in its configured upload folder. Never attach or unlink a
+	 * path supplied by a mutated Form record outside that directory.
+	 *
+	 * Existing trusted custom upload_path filters continue to work.
+	 *
+	 * @param mixed $path File path carried in the Form record.
+	 */
+	public static function is_safe_form_attachment_path( $path ): bool {
+		if ( ! is_string( $path ) || '' === $path || is_link( $path ) ) {
+			return false;
+		}
+
+		$uploads = wp_upload_dir( null, false );
+		if ( ! empty( $uploads['error'] ) || empty( $uploads['basedir'] ) ) {
+			return false;
+		}
+
+		$root_path = apply_filters(
+			'elementor_pro/forms/upload_path',
+			trailingslashit( $uploads['basedir'] ) . 'elementor/forms'
+		);
+		if ( ! is_string( $root_path ) || '' === $root_path ) {
+			return false;
+		}
+
+		$root = realpath( $root_path );
+		$target = realpath( $path );
+
+		return false !== $root
+			&& false !== $target
+			&& is_file( $target )
+			&& dirname( $target ) === $root;
+	}
+
+	/**
+	 * Anonymous visitors may submit only forms belonging to published,
+	 * non-password-protected documents. Editors can test unpublished forms
+	 * they are authorised to edit. Never allow a caller-supplied post ID to
+	 * expose draft/private template settings or their submit actions.
+	 */
+	public static function is_form_submission_document_accessible( $post_id ): bool {
+		// absint() coerces arrays to 1, which can inadvertently select the
+		// public default WordPress post when an invalid ID was supplied.
+		if ( ( ! is_int( $post_id ) && ! is_string( $post_id ) )
+			|| ! preg_match( '/^[1-9][0-9]*$/D', (string) $post_id ) ) {
+			return false;
+		}
+		$post_id = absint( $post_id );
+		if ( ! $post_id || ! get_post( $post_id ) ) {
+			return false;
+		}
+
+		if ( 'publish' === get_post_status( $post_id ) && ! post_password_required( $post_id ) ) {
+			return true;
+		}
+
+		return current_user_can( 'edit_post', $post_id );
+	}
+
 	public static function get_public_post_types( $args = [] ) {
 		$post_type_args = [
 			// Default is the value $public.
@@ -386,22 +659,53 @@ class Utils {
 		}
 
 		if ( $_FILES === $super_global ) {
-			return isset( $super_global[ $key ]['name'] ) ?
-				static::sanitize_file_name( $super_global[ $key ] ) :
-				static::sanitize_multi_upload( $super_global[ $key ] );
+			$file = $super_global[ $key ];
+			if ( ! is_array( $file ) ) {
+				return null;
+			}
+			return static::sanitize_multi_upload( $file );
 		}
 
 		return wp_kses_post_deep( wp_unslash( $super_global[ $key ] ) );
 	}
 
+	/**
+	 * Sanitise only filename strings, preserving valid single and multi-upload
+	 * structures. Malformed scalar/array inputs must never reach WordPress'
+	 * sanitize_file_name(), which accepts a string only.
+	 */
+	private static function sanitize_upload_filename_values( $value ) {
+		if ( is_string( $value ) ) {
+			return sanitize_file_name( $value );
+		}
+
+		if ( is_array( $value ) ) {
+			return array_map( [ __CLASS__, 'sanitize_upload_filename_values' ], $value );
+		}
+
+		return '';
+	}
+
 	private static function sanitize_multi_upload( $fields ) {
-		return array_map( function( $field ) {
-			return array_map( [ __CLASS__, 'sanitize_file_name' ], $field );
-		}, $fields );
+		if ( ! is_array( $fields ) ) {
+			return [];
+		}
+
+		if ( array_key_exists( 'name', $fields ) ) {
+			return static::sanitize_file_name( $fields );
+		}
+
+		return array_map( [ __CLASS__, 'sanitize_multi_upload' ], $fields );
 	}
 
 	private static function sanitize_file_name( $file ) {
-		$file['name'] = sanitize_file_name( $file['name'] );
+		if ( ! is_array( $file ) ) {
+			return [];
+		}
+
+		if ( array_key_exists( 'name', $file ) ) {
+			$file['name'] = static::sanitize_upload_filename_values( $file['name'] );
+		}
 
 		return $file;
 	}

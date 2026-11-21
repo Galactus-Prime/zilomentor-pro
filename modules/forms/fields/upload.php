@@ -234,9 +234,10 @@ class Upload extends Field_Base {
 	 *
 	 * Uses wp_check_filetype_and_ext() as the primary content validator, which performs
 	 * MIME sniffing internally. For images, enforces strict MIME validation and checks for
-	 * archive/phar polyglots (which WordPress does not detect). For non-image extensions,
-	 * preserves backward compatibility by allowing admin-configured extensions that WordPress
-	 * does not recognize in its MIME type list (e.g., CAD formats like stl, dwg).
+	 * archive/phar polyglots. ALL allowed extensions now additionally require the
+	 * shared ZiloMentor content validator (registered WordPress MIME and actual
+	 * PDF/Office/media signature checks). Unknown types fail closed rather than
+	 * trusting a filename alone.
 	 *
 	 * @param string $path          Path to uploaded file (tmp_name).
 	 * @param string $original_name Original filename.
@@ -265,12 +266,13 @@ class Upload extends Field_Base {
 				return false;
 			}
 
-			return true;
+			return Utils::is_form_upload_content_safe( $path, $original_name );
 		}
 
-		// Allow non-image extensions for backward compatibility with admin-configured types
-		// that WordPress does not recognize (e.g., stl, dwg).
-		return true;
+		// A filename extension alone is not content validation. Require a
+		// WordPress-registered MIME type plus validated signature/content.
+		// Site-specific formats must first be registered via upload_mimes.
+		return Utils::is_form_upload_content_safe( $path, $original_name );
 	}
 
 	private function get_allowed_file_extensions( $field ) {
@@ -549,7 +551,7 @@ class Upload extends Field_Base {
 	 */
 	private function get_ensure_upload_dir() {
 		$path = $this->get_upload_dir();
-		if ( file_exists( $path . '/index.php' ) ) {
+		if ( is_file( $path . '/index.php' ) && is_file( $path . '/.htaccess' ) ) {
 			return $path;
 		}
 
@@ -567,9 +569,15 @@ class Upload extends Field_Base {
 				'file' => '.htaccess',
 				'content' => [
 					'Options -Indexes',
-					'<ifModule mod_headers.c>',
+					'# Apache-only defense in depth. Nginx requires its own deny rule.',
+					'<FilesMatch "(?i)\\.(?:php[0-9]*|phtml?|pht|phar|cgi|pl|py|rb|jsp|aspx?|shtml)(?:\\.|$)">',
+					'	Require all denied',
+					'</FilesMatch>',
+					'<IfModule mod_headers.c>',
 					'	<Files *.*>',
-					'       Header set Content-Disposition attachment',
+					'		Header always set Content-Disposition "attachment"',
+					'		Header always set X-Content-Type-Options "nosniff"',
+					'		Header always set Cache-Control "private, no-store"',
 					'	</Files>',
 					'</IfModule>',
 				],
@@ -614,7 +622,9 @@ class Upload extends Field_Base {
 			}
 
 			$uploads_dir = $this->get_ensure_upload_dir();
-			$filename = uniqid() . '.' . $file_extension;
+			// Submission attachment URLs must not be guessable from the
+			// request timestamp (uniqid). Use a CSPRNG-derived filename.
+			$filename = bin2hex( random_bytes( 16 ) ) . '.' . strtolower( $file_extension );
 			$filename = wp_unique_filename( $uploads_dir, $filename );
 			$new_file = trailingslashit( $uploads_dir ) . $filename;
 

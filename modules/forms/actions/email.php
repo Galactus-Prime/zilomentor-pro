@@ -465,7 +465,9 @@ class Email extends Action_Base {
 		}
 
 		foreach ( $attachments_mode_attach as $file ) {
-			@unlink( $file );
+			if ( Utils::is_safe_form_attachment_path( $file ) ) {
+				@unlink( $file );
+			}
 		}
 
 		/**
@@ -574,6 +576,11 @@ class Email extends Action_Base {
 			} )
 			->filter()
 			->flatten()
+			// The Form record is filterable by integrations. Never attach an
+			// arbitrary local file or reveal it via the outgoing email.
+			->filter( function ( $file ) {
+				return Utils::is_safe_form_attachment_path( $file );
+			} )
 			->values();
 	}
 }

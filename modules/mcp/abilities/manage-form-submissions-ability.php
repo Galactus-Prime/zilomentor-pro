@@ -92,6 +92,13 @@ class Manage_Form_Submissions_Ability extends Abstract_Ability {
 	}
 
 	public function execute( $input = [] ) {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return new \WP_Error(
+				'rest_forbidden',
+				__( 'Sorry, you are not allowed to perform this action.', 'elementor-pro' ),
+				[ 'status' => \WP_Http::FORBIDDEN ]
+			);
+		}
 		$started_at = hrtime( true );
 		$input = is_array( $input ) ? $input : [];
 		$operations = $input['operations'] ?? null;

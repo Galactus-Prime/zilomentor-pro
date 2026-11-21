@@ -1,0 +1,10 @@
+# Disposable, network-disabled-at-runtime QA utility. Never deploy to WordPress.
+# Manually build on the owner's existing development server, without Actions:
+# docker build -f tools/docker/Dockerfile.qa-real-files -t zmp-real-file-qa:local .
+FROM python:3.12-slim-bookworm
+COPY tools/requirements-qa-real-files.txt /tmp/requirements.txt
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg \
+    && python -m pip install --no-cache-dir --disable-pip-version-check -r /tmp/requirements.txt \
+    && rm -rf /var/lib/apt/lists/* /tmp/requirements.txt
+WORKDIR /src

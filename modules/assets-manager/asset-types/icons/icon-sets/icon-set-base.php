@@ -150,11 +150,22 @@ abstract class Icon_Set_Base {
 		$to = $this->get_ensure_upload_dir( $this->dir_name ) . '/';
 
 		foreach ( $wp_filesystem->dirlist( $this->directory, false, true ) as $file ) {
+			// Some third-party icon packs include demo HTML. Fontastic
+			// needs its reference HTML only *during parsing*; once the
+			// icon config has been prepared, publishing that HTML in
+			// same-origin uploads is unnecessary and can introduce XSS
+			// through an untrusted demo page.
+			if ( preg_match( '/\\.html?$/i', $file['name'] ) ) {
+				continue;
+			}
 			$full_path = $this->directory . $file['name'];
 			if ( $wp_filesystem->is_dir( $full_path ) ) {
 				$wp_filesystem->mkdir( $to . $file['name'] );
 
 				foreach ( $file['files'] as $filename => $sub_file ) {
+					if ( preg_match( '/\\.html?$/i', $filename ) ) {
+						continue;
+					}
 					$new_path = $to . $file['name'] . DIRECTORY_SEPARATOR . $filename;
 					$wp_filesystem->move( $full_path . DIRECTORY_SEPARATOR . $filename, $new_path );
 					$this->insert_attachment( $this->get_url() . '/' . $file['name'] . '/' . $filename, $new_path, $post_id );
@@ -190,8 +201,11 @@ abstract class Icon_Set_Base {
 	public function validate_name() {
 		$name = $this->get_name();
 
-		if ( ! is_string( $name ) ) {
-			return true;
+		if ( ! is_string( $name ) || '' === trim( $name ) ) {
+			return new \WP_Error(
+				'invalid_pack_name',
+				esc_html__( 'Icon set has no valid name. Check the icon pack export.', 'elementor-pro' )
+			);
 		}
 
 		if ( preg_match( '#[/\\\\\0]|\.\.#', $name ) ) {
@@ -247,6 +261,33 @@ abstract class Icon_Set_Base {
 		return false;
 	}
 
+	/**
+	 * Refuse corrupted icon exports before moving files into public uploads.
+	 * A source pack containing the required filenames is not necessarily a
+	 * valid icon pack: malformed CSS or JSON can produce false/null icon lists.
+	 */
+	public function validate_icon_contents() {
+		$icons = $this->extract_icon_list();
+		$prefix = $this->get_prefix();
+		if ( ! is_array( $icons ) || empty( $icons )
+			|| count( $icons ) > 8192
+			|| ! is_string( $prefix ) || '' === trim( $prefix ) ) {
+			return new \WP_Error(
+				'invalid_icon_contents',
+				esc_html__( 'Invalid icon pack stylesheet or icon list.', 'elementor-pro' )
+			);
+		}
+		foreach ( $icons as $name ) {
+			if ( ! is_string( $name ) || '' === trim( $name ) || strlen( $name ) > 255 ) {
+				return new \WP_Error(
+					'invalid_icon_contents',
+					esc_html__( 'The icon pack contains an invalid icon name.', 'elementor-pro' )
+				);
+			}
+		}
+		return true;
+	}
+
 	public function build_config() {
 		$icon_set_config = [
 			'name' => $this->dir_name,
@@ -261,6 +302,12 @@ abstract class Icon_Set_Base {
 		];
 
 		$icons = $this->extract_icon_list();
+		if ( ! is_array( $icons ) ) {
+			return new \WP_Error(
+				'invalid_icon_contents',
+				esc_html__( 'The icon pack could not be read.', 'elementor-pro' )
+			);
+		}
 		$icon_set_config['count'] = count( $icons );
 		$icon_set_config['icons'] = $icons;
 

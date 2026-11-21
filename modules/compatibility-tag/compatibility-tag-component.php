@@ -26,7 +26,7 @@ class Compatibility_Tag_Component extends Compatibility_Tag_Base_Module {
 	 * @return string
 	 */
 	protected function get_plugin_label() {
-		return esc_html__( 'PRO Elements', 'elementor-pro' );
+		return esc_html__( 'ZiloMentor Pro', 'elementor-pro' );
 	}
 
 	/**
