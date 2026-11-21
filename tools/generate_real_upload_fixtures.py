@@ -21,7 +21,7 @@ import zipfile
 
 from docx import Document
 from openpyxl import Workbook, load_workbook
-from odf import draw, table, text
+from odf import draw, style, table, text
 from odf.opendocument import OpenDocumentPresentation, OpenDocumentSpreadsheet, OpenDocumentText, load
 from PIL import Image
 from reportlab.pdfgen import canvas
@@ -76,7 +76,8 @@ def generate(out: Path):
     assert load(str(out / "sheet.ods")).spreadsheet is not None
 
     odp = OpenDocumentPresentation()
-    page = draw.Page(name="Synthetic slide")
+    odp.masterstyles.addElement(style.MasterPage(name="Default"))
+    page = draw.Page(name="Synthetic slide", masterpagename="Default")
     frame = draw.Frame(x="2cm", y="2cm", width="15cm", height="3cm")
     text_box = draw.TextBox()
     text_box.addElement(text.P(text="Valid sample ODP presentation"))
