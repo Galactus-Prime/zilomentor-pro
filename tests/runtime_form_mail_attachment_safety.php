@@ -59,8 +59,11 @@ try {
 	$collector = ( new \ReflectionClass( $email_class ) )->getMethod( 'get_file_by_attachment_type' );
 	$fields = [ [ 'custom_id' => 'email_field', 'attachment_type' => $upload_class::MODE_ATTACH ] ];
 	$collected = $collector->invoke( $email, $fields, $record, $upload_class::MODE_ATTACH );
+	// Elementor's Collection::values() may return an array directly.
+	$paths = is_object( $collected ) && method_exists( $collected, 'all' )
+		? array_values( $collected->all() ) : array_values( (array) $collected );
 	$checks['email_action_refuses_external_and_malformed_paths'] =
-		[ $good ] === ( method_exists( $collected, 'all' ) ? array_values( $collected->all() ) : $collected );
+		[ $good ] === $paths;
 	$checks['email_action_did_not_delete_unrelated_file'] =
 		file_get_contents( $outer ) === 'do not attach or delete this external file';
 
