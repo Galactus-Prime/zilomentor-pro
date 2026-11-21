@@ -34,6 +34,8 @@ def main():
         "--source-wordpress", type=Path, default=None,
         help="Also run isolated HTTP/form/WooCommerce regression using only source files copied from this WordPress path.",
     )
+    parser.add_argument("--real-file-fixtures-dir", type=Path, default=None,
+                        help="Optional /tmp self-authored real Office/PDF/ODF/media fixture directory.")
     parser.add_argument("--verify-apache-uploads", action="store_true",
                         help="Verify real Apache executable denial and download headers in disposable Form uploads.")
     parser.add_argument(
@@ -152,6 +154,8 @@ def main():
         ]
         if args.verify_apache_uploads:
             qa_cmd.append("--verify-apache-uploads")
+        if args.real_file_fixtures_dir is not None:
+            qa_cmd.extend(["--real-file-fixtures-dir", str(args.real_file_fixtures_dir)])
         if args.browser_image:
             qa_cmd.extend(["--browser-image", args.browser_image])
         if args.editor_playwright_image:
