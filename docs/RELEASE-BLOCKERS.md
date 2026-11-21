@@ -1,31 +1,39 @@
 # ZiloMentor Pro release gates and remaining blockers
 
-### Latest comprehensive manual QA (20 November 2026)
+### Latest comprehensive manual QA (21 November 2026)
 
-The **unreleased ZiloMentor Pro 0.1.2 candidate, exact source SHA**
-`ef5564c9a84646369417de31073bc8c9fdbc0f8e`, successfully completed
-the manual full suite against a disposable WordPress/Fiore/WooCommerce/
-Nginx/PHP-FPM stack. **88/88 integration checks passed**, including the
-real `ZipArchive` Office/icon archive cases, symlink/traversal/compression
-ZIP rejection, source-level multi-upload filename sanitisation, Form privacy,
-Posts null-data regression, public page/browser Popup interactions, synthetic
-offline WooCommerce guest checkout and upload execution denial. Both PHP
-8.4 and PHP 8.5 syntax matrices passed; local signed-release simulation,
-manual rollback, static source and package-hygiene checks passed. The
-staging-only source-built ZIP was 1,429 files, 3,589,041 bytes, SHA256
-`feefc2e227be81c5f5a547c093095f8c99dab98b09254ee1e607528fca78489f`.
-This ZIP is **not signed, published, installed, or approved for production**.
+The unreleased **ZiloMentor Pro 0.1.2** exact source SHA
+`7b9cb9ab3dfd8c064b85e8680c763de8ee2f612c` completed
+the manual full regression suite against a **disposable** WordPress
+7.1.5 / free Elementor 4.4.1 / Fiore / WooCommerce 11.3 /
+Nginx/PHP-FPM stack. **91 of 91 integration checks passed**, including
+the 13 independently generated genuine file formats and polyglot
+fixtures (26 SHA256 integrity and acceptance/rejection checks), classic
+Form email attachment read/cleanup boundaries, a real standalone
+loopback Apache test of generated Form `.htaccess`, nginx executable
+denial and download headers, Form published/private data permissions,
+custom-icon ZIP security, browser Popup interactions and offline
+synthetic WooCommerce checkout. Both PHP **8.4 and 8.5** syntax matrices
+passed, as did the manual offline signature simulations, migration
+rollback, source/static and package hygiene tests.
 
-Earlier 87/87 coverage at source SHA
-`1ce553b9d010eb9f93e66bdec71225a8c6b029b4` was superseded by this
-new run with an additional real custom-icon ZIP runtime test and a
-ZIP-enabled PHP image; it must not be presented as the latest result.
-No GitHub Actions, subscription, customer payment, live database or live
-plugin change was involved. This is an acceptance *preview*, **not** proof
-of genuine Elementor Pro 4.4.1 patch parity, independent security audit,
-actual payment-provider QA or live-vhost upload execution safety.
+The exact staging-only source-built ZIP was **1,431 files**,
+**3,595,441 bytes**, SHA256
+`1ae9a6515daa07db31678e594dedc7daf1c0339ca20e4fc72858c19e3ed775b2`.
+No GitHub Actions or subscriptions were used. The archive was **not
+operationally signed, published, installed or approved for production**.
+No customer files, live WordPress database, real payment or outbound
+Form mail were used. The repository gained only documentation after
+this exact test SHA. Previous **88/88** at
+`ef5564c9a84646369417de31073bc8c9fdbc0f8e` is superseded.
 
-**Audit date: 20 November 2026**  
+These checks do **not** establish authentic official Elementor Pro
+4.4.1 patch parity, an independent security audit, live cPanel Apache
+vhost execution restrictions, real-world accessibility acceptance
+or a genuine payment-provider transaction. All those release
+requirements remain unverified.
+
+**Audit date: 21 November 2026**  
 **Production:** Itzy Bitzy Workshop runs ZiloMentor Pro 0.1.1, independently
 installed as `zilomentor-pro/elementor-pro.php`. It remains a limited
 owner-authorised beta.  
@@ -112,14 +120,27 @@ conditions do not allow a real provider sandbox checkout.
 - [ ] Validate the Pro Form repeater UI and all actions, popup editing and
   persistence, history undo/redo, dynamic conditions, Nav Menu and Posts
   controls, responsive style persistence, keyboard/screen-reader access.
-- [ ] Test real, legally supplied sample PDF, DOCX, XLSX, ODT, audio and video
-  files, including common MIME aliases. The new strict content gate can reject
-  special-purpose types that previously passed based on extension alone.
-- [ ] Test image ZIP/PHAR polyglots and executable multi-file upload bypass
-  fixtures in a **disposable** WordPress instance.
-- [ ] Confirm Nginx and Apache actually prevent script execution from
-  `wp-content/uploads/`, set download-only/no-sniff protections when serving
-  Form uploads, and avoid relying solely on .htaccess under Nginx.
+- [x] Test self-authored **genuine** DOCX, XLSX, ODT, ODS, ODP, PDF,
+  JPEG, PNG, PCM WAV and MP4 samples produced by independent libraries;
+  verify SHA256, document reopenability and safe upload content acceptance
+  within disposable WordPress. Reject fake PDF, script text and valid
+  PNG-with-embedded-ZIP. Exact source-SHA **91/91** run passed on
+  21 November 2026. See docs/REAL-FORMAT-UPLOAD-QA.md.
+- [ ] Expand genuine real-world file format compatibility to vendor-exported
+  Office/ODF variants, MIME aliases, encrypted/large/macro documents and
+  full authenticated/anonymous multipart Form upload to email delivery.
+  The current real samples confirm representative content validation only.
+- [x] Test representative image ZIP/PHAR polyglots and executable
+  empty-first/second-file upload bypass fixtures in **disposable** WordPress.
+  Included synthetic and independently generated polyglot checks passed.
+- [x] Test Nginx/PHP-FPM executable extension restrictions and attachment/
+  no-sniff headers in disposable containers, plus *actual Apache 2.4*
+  parsing of generated `.htaccess` via a disposable loopback HTTP server
+  (8/8 Apache HTTP cases). See docs/FORM-ATTACHMENT-APACHE-QA.md.
+- [ ] Confirm **production** cPanel Apache virtual-host inheritance and
+  physical Form upload directory HTTP execution/headers after a
+  controlled, owner-authorised 0.1.2 promotion. A localhost Apache test
+  cannot prove effective live-vhost restrictions.
 - [ ] Repeat desktop/mobile pixel-level comparisons, browser JS and asset
   checks, WooCommerce cart/checkout, PHP8.4/8.5 and synthetic online test
   before any controlled production update.
@@ -185,6 +206,32 @@ site document root and PHP-FPM; `httpd -t` reported `Syntax OK`, with
 `headers`, `authz_core` and `proxy_fcgi` modules loaded and general
 AllowOverride rules. This is not a physical upload-directory execution
 probe, and the Apache and Nginx live-policy gate remains unchecked.
+
+## 21 November follow-up: classic Form mail and genuine files
+
+- [x] Classic Form Email attachments now require a real, non-symlink,
+  regular file directly inside the configured protected Form upload
+  directory for **both** attaching to mail and deleting Attach-only
+  files. Owner-defined upload-path filters are preserved. Direct
+  reflection and negative path/symlink/malformed-record regressions
+  passed in disposable WordPress.
+- [x] Real standalone Apache parsed the `.htaccess` emitted by the
+  disposable Form initializer. It served an ordinary download with
+  `attachment` / `nosniff` / `no-store` and denied PHP, PHP8,
+  multi-extension PHP/PHTML/PHAR/Python/SHTML with HTTP **403**.
+  The true production cPanel vhost remains a separate open gate.
+- [x] 13 self-authored real-format fixtures were generated via
+  python-docx, openpyxl, odfpy, ReportLab, Pillow, WAV and FFmpeg,
+  with verified package structure and SHA256. Genuine content was
+  accepted for 10 safe formats; all 3 disguised/script/polyglot
+  variants were rejected. No fees, third-party file downloads,
+  customer data, live email or unsafe `/tmp` execution were used;
+  Python library dependencies ran in isolated Docker.
+- [x] November official free Elementor and historical Pro advisory
+  scopes were reviewed and recorded at
+  [CVE-CROSSCHECK-2026-11-21.md](CVE-CROSSCHECK-2026-11-21.md).
+  Neither official free-plugin patch status nor a specific prior CVE
+  test establishes complete ZiloMentor/Pro 4.4.1 vendor parity.
 
 ## What is already verified
 
