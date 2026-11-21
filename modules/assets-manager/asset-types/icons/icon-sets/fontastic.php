@@ -10,6 +10,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Fontastic extends Icon_Set_Base {
 
 	protected $data = '';
+	protected $cached_icon_prefix = null;
+	protected $cached_icon_name = null;
 	protected $data_file = 'icons-reference.html';
 	protected $stylesheet_file = 'styles.css';
 	protected $allowed_zipped_files = [ 'icons-reference.html', 'styles.css', 'fonts/' ];
@@ -45,23 +47,21 @@ class Fontastic extends Icon_Set_Base {
 	}
 
 	protected function get_prefix() {
-		static $set_prefix = null;
-		if ( null === $set_prefix ) {
+		if ( null === $this->cached_icon_prefix ) {
 			$pattern = '/class\^="(.*)?"/';
 			preg_match_all( $pattern, $this->data, $prefix );
 			if ( ! isset( $prefix[1][0] ) ) {
 				return false; //  missing css_prefix_text
 			}
-			$set_prefix = $prefix[1][0];
+			$this->cached_icon_prefix = $prefix[1][0];
 		}
-		return $set_prefix;
+		return $this->cached_icon_prefix;
 	}
 
 	const DEFAULT_NAME = 'fontastic';
 
 	public function get_name() {
-		static $set_name = null;
-		if ( null === $set_name ) {
+		if ( null === $this->cached_icon_name ) {
 			// The name is validated before prepare() loads the stylesheet.
 			if ( '' === $this->data ) {
 				$this->data = Utils::_unstable_file_get_contents( $this->directory . $this->stylesheet_file );
@@ -72,9 +72,9 @@ class Fontastic extends Icon_Set_Base {
 			if ( ! isset( $name[1][0] ) ) {
 				return false; //  missing name
 			}
-			$set_name = '' === trim( $name[1][0] ) ? self::DEFAULT_NAME : $name[1][0];
+			$this->cached_icon_name = '' === trim( $name[1][0] ) ? self::DEFAULT_NAME : $name[1][0];
 		}
-		return $set_name;
+		return $this->cached_icon_name;
 	}
 
 	protected function get_stylesheet( $unique_name = '' ) {
