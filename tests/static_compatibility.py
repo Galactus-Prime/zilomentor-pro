@@ -473,6 +473,18 @@ check("real HTTP multipart QA exercises safe linked and attached uploads plus at
       and "'upload_form_link'" in multipart_seed
       and "'upload_form_attach'" in multipart_seed
       and "example.invalid" in multipart_seed)
+icon_base = (ROOT / "modules/assets-manager/asset-types/icons/icon-sets/icon-set-base.php").read_text()
+icon_import = (ROOT / "modules/assets-manager/asset-types/icons/custom-icons.php").read_text()
+fontastic = (ROOT / "modules/assets-manager/asset-types/icons/icon-sets/fontastic.php").read_text()
+check("icon-pack imports never publish demo HTML or count corrupt lists",
+      "runtime_icon_public_html_safety.php" in qa_script
+      and icon_base.count("preg_match( '/\\\\.html?$/i'") >= 2
+      and "validate_icon_contents()" in icon_base
+      and "if ( ! is_array( $icons ) )" in icon_base
+      and icon_import.index("->validate_icon_contents()")
+          < icon_import.index("->move_files( $this->current_post_id )")
+      and "cached_icon_name" in fontastic
+      and "cached_icon_prefix" in fontastic)
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
