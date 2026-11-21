@@ -31,8 +31,9 @@ def generate(out: Path):
     out = out.resolve(strict=True)
     if not out.is_dir() or out.is_symlink():
         raise ValueError("Fixture destination must be a genuine empty directory")
-    if not str(out).startswith(str(Path(tempfile.gettempdir()).resolve()) + "/"):
-        raise ValueError("Only an isolated temporary-directory destination is permitted")
+    if (not str(out).startswith(str(Path(tempfile.gettempdir()).resolve()) + "/")
+            and str(out) != "/out"):
+        raise ValueError("Only /tmp or the dedicated disposable Docker /out mount is permitted")
     if any(out.iterdir()):
         raise ValueError("Fixture directory must be empty; refusing to overwrite")
 
