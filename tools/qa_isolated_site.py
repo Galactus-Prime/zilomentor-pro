@@ -1143,6 +1143,178 @@ add_action( 'init', function () {
                and data.get("success") is True,
                {"status": status, "response": body[-350:], "error": error})
 
+        if args.real_file_fixtures_dir is not None:
+            # Genuine anonymous multipart/form-data requests against the
+            # fully booted WordPress AJAX handler. The files are independently
+            # generated and exposed to curl ONLY from this /tmp QA tree.
+            # No production WordPress credentials or real email are used.
+            qa_upload_source = site / "wp-content/zmp-qa-real-formats"
+            protected_uploads = site / "wp-content/uploads/elementor/forms"
+            protected_uploads.mkdir(parents=True, exist_ok=True)
+
+            def stored_form_files():
+                return {
+                    p.name: p for p in protected_uploads.iterdir()
+                    if p.is_file() and re.fullmatch(r"[0-9a-f]{32}\.[a-z0-9]{2,10}", p.name)
+                }
+
+            def multipart_upload(form_key, parts):
+                # Each part is (safe source basename, claimed filename,
+                # MIME). A zero-length claimed name exercises empty-first
+                # multipart slots while preserving actual PHP POST parsing.
+                command = [
+                    "run", "--rm", "--network", network, "--memory=150m",
+                    "--user", "0:0",
+                    "-v", str(qa_upload_source) + ":/qa-files:ro",
+                    "--entrypoint", "curl", args.curl_image,
+                    "-sS", "--noproxy", "*", "--max-time", "65",
+                    "-w", "\n__ZMP_HTTP_STATUS__:%{http_code}",
+                    "--form", "action=elementor_pro_forms_send_form",
+                    "--form", "post_id=" + str(fixtures["page"]),
+                    "--form", "queried_id=" + str(fixtures["page"]),
+                    "--form", "form_id=" + str(fixtures[form_key]),
+                    "--form", "form_fields[email]=qa-recipient@example.invalid",
+                ]
+                for source_file, claimed_file, content_type in parts:
+                    # Whitelist fixtures and claimed names before asking
+                    # curl to assemble multipart payloads.
+                    require(re.fullmatch(r"[a-z0-9.-]+", source_file)
+                            and re.fullmatch(r"[a-zA-Z0-9._-]*", claimed_file)
+                            and content_type in (
+                                "application/pdf",
+                                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                "text/plain", "application/x-php", "image/png",
+                            ),
+                            "Unsafe synthetic multipart QA fixture")
+                    command.extend([
+                        "--form",
+                        ("form_fields[file][]=@/qa-files/" + source_file +
+                         ";filename=" + claimed_file +
+                         ";type=" + content_type),
+                    ])
+                command.append("http://web:8080/wp-admin/admin-ajax.php")
+                result = docker(command, 77)
+                if result.returncode:
+                    return 0, {}, result.stderr[-500:]
+                body, sep, status_str = result.stdout.rpartition(
+                    "\n__ZMP_HTTP_STATUS__:"
+                )
+                try:
+                    return int(status_str.strip()), json.loads(body), ""
+                except (ValueError, TypeError):
+                    return 0, {}, "Unexpected AJAX body " + body[-550:]
+
+            normal_pdf = ("letter.pdf", "letter.pdf", "application/pdf")
+            normal_docx = (
+                "word.docx", "word.docx",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            )
+            initial_files = stored_form_files()
+            # No Form action means no email transport, and a URL-referenced
+            # upload MUST remain with cryptographically random basename.
+            http_status, payload, error = multipart_upload(
+                "upload_form_link", [normal_pdf]
+            )
+            after_link = stored_form_files()
+            link_created = set(after_link) - set(initial_files)
+            link_valid = (
+                http_status == 200 and payload.get("success") is True
+                and len(link_created) == 1
+                and all(re.fullmatch(r"[0-9a-f]{32}\.pdf", name) for name in link_created)
+                and all(after_link[name].read_bytes() ==
+                        (qa_upload_source / "letter.pdf").read_bytes()
+                        for name in link_created)
+            )
+            record("anonymous genuine HTTP PDF multipart Form saves safe random-name link",
+                   link_valid, {"status": http_status,
+                                "created": sorted(link_created),
+                                "response": str(payload)[-220:], "error": error})
+
+            # Attach-only Form executes the actual Email action, while the
+            # synthetic mu-plugin captures wp_mail args and blocks delivery.
+            wp("option", "delete", "zmp_qa_intercepted_mail")
+            before_attach = stored_form_files()
+            http_status, payload, error = multipart_upload(
+                "upload_form_attach", [normal_docx]
+            )
+            after_attach = stored_form_files()
+            intercept = wp("option", "get", "zmp_qa_intercepted_mail",
+                           "--format=json")
+            try:
+                intercepted = json.loads(intercept.stdout)
+            except ValueError:
+                intercepted = {}
+            observed = intercepted.get("attachments", [])
+            attach_valid = (
+                http_status == 200 and payload.get("success") is True
+                and set(after_attach) == set(before_attach)
+                and intercepted.get("attachment_count") == 1
+                and isinstance(observed, list) and len(observed) == 1
+                and observed[0].get("safe") is True
+                and observed[0].get("exists_at_send") is True
+                and observed[0].get("sha256") ==
+                    __import__("hashlib").sha256(
+                        (qa_upload_source / "word.docx").read_bytes()
+                    ).hexdigest()
+            )
+            record("anonymous HTTP DOCX attach-only email action is safely intercepted and cleaned",
+                   attach_valid, {"status": http_status,
+                                  "post_file_count": len(after_attach),
+                                  "mail": intercepted,
+                                  "response": str(payload)[-300:], "error": error})
+
+            # Four actual multipart requests test what real PHP places in
+            # $_FILES, not just direct method calls in runtime tests.
+            rejected_cases = [
+                ("forged PDF content", [
+                    ("forged.pdf", "forged.pdf", "application/pdf"),
+                ]),
+                ("PHP bytes in allowed text extension", [
+                    ("script.txt", "script.txt", "text/plain"),
+                ]),
+                ("PNG ZIP script polyglot", [
+                    ("image-zip-polyglot.png", "image-zip-polyglot.png", "image/png"),
+                ]),
+                ("empty first slot followed by PHP", [
+                    ("script.txt", "", "text/plain"),
+                    ("script.txt", "second.php", "application/x-php"),
+                ]),
+                ("too many genuine files", [
+                    normal_pdf, normal_pdf, normal_pdf, normal_pdf,
+                ]),
+            ]
+            for case, parts in rejected_cases:
+                before_files = stored_form_files()
+                http_status, payload, error = multipart_upload(
+                    "upload_form_link", parts
+                )
+                after_files = stored_form_files()
+                record("anonymous real HTTP multipart rejects " + case,
+                       http_status == 200 and payload.get("success") is False
+                       and set(after_files) == set(before_files),
+                       {"status": http_status, "response": str(payload)[-270:],
+                        "new_files": sorted(set(after_files)-set(before_files)),
+                        "error": error})
+
+            # Valid two-file multipart POST must preserve every file, not
+            # silently stop processing at index zero or mask a second one.
+            before_multiple = stored_form_files()
+            http_status, payload, error = multipart_upload(
+                "upload_form_link", [normal_pdf, (
+                    "image.png", "image.png", "image/png"
+                )]
+            )
+            after_multiple = stored_form_files()
+            created_multiple = set(after_multiple) - set(before_multiple)
+            record("anonymous HTTP multipart preserves two genuine file uploads",
+                   http_status == 200 and payload.get("success") is True
+                   and len(created_multiple) == 2
+                   and {p.rsplit(".", 1)[-1] for p in created_multiple} ==
+                       {"pdf", "png"}
+                   and all(len(p.split(".")[0]) == 32 for p in created_multiple),
+                   {"status": http_status, "created": sorted(created_multiple),
+                    "response": str(payload)[-270:], "error": error})
+
         # The same saved Elementor Form exists in all three restricted
         # documents. Guest POSTs must be refused before executing actions.
         for visibility, key in (
