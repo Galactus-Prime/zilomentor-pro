@@ -385,8 +385,21 @@ class Custom_Icons extends  Assets_Base {
 				return $name_validation;
 			}
 			$icon_set_handler->handle_new_icon_set();
+			// A ZIP containing the expected filenames may still have malformed
+			// stylesheet/JSON data. Reject it before publishing public files,
+			// instead of allowing count(false) or invalid generated CSS paths.
+			if ( $icon_set_handler instanceof IconSets\\Icon_Set_Base ) {
+				$contents_validation = $icon_set_handler->validate_icon_contents();
+				if ( is_wp_error( $contents_validation ) ) {
+					self::get_wp_filesystem()->rmdir( $results['extracted_to'], true );
+					return $contents_validation;
+				}
+			}
 			$icon_set_handler->move_files( $this->current_post_id );
 			$config = $icon_set_handler->build_config();
+			if ( is_wp_error( $config ) ) {
+				return $config;
+			}
 
 			// Notify about duplicate prefix
 			if ( self::icon_set_prefix_exists( $config['prefix'] ) ) {
