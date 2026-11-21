@@ -76,6 +76,51 @@ $elements = [
         'isInner' => false,
     ],
 ];
+// Two separate, genuine HTTP multipart upload forms for the disposable
+// integration test. All recipients are RFC2606 .invalid synthetic addresses.
+// The QA mu-plugin intercepts ALL wp_mail calls before mail transport.
+// The link form keeps its uploaded file; attach-only deletes it after mail.
+$upload_link_id = '1a2b3c4e';
+$upload_attach_id = '1a2b3c4f';
+foreach ( [
+    [ $upload_link_id, 'link', [] ],
+    [ $upload_attach_id, 'attach', [ 'email' ] ],
+] as [ $upload_form_id, $upload_mode, $upload_actions ] ) {
+    $elements[0]['elements'][] = [
+        'id' => $upload_form_id,
+        'elType' => 'widget',
+        'widgetType' => 'form',
+        'settings' => [
+            'form_name' => 'ZMP Synthetic HTTP File ' . $upload_mode,
+            'form_fields' => [
+                [
+                    'custom_id' => 'email',
+                    'field_type' => 'email',
+                    'field_label' => 'Synthetic reply email',
+                    'required' => '',
+                ],
+                [
+                    'custom_id' => 'file',
+                    'field_type' => 'upload',
+                    'field_label' => 'Synthetic file',
+                    'required' => '',
+                    'attachment_type' => $upload_mode,
+                    'file_types' => 'pdf,docx,txt,png',
+                    'file_sizes' => 2,
+                    'allow_multiple_upload' => 'yes',
+                    'max_files' => 3,
+                ],
+            ],
+            'submit_actions' => $upload_actions,
+            'email_to' => 'qa-sink@example.invalid',
+            'email_subject' => 'Disposable ZiloMentor synthetic Form attachment',
+            'email_content' => '[all-fields]',
+            'email_from' => 'qa-sender@example.invalid',
+            'button_text' => 'Send synthetic file',
+        ],
+        'elements' => [],
+    ];
+}
 update_post_meta( $page_id, '_elementor_data', wp_slash( wp_json_encode( $elements ) ) );
 update_post_meta( $page_id, '_elementor_edit_mode', 'builder' );
 update_post_meta( $page_id, '_elementor_version', ELEMENTOR_VERSION );
@@ -168,6 +213,8 @@ echo wp_json_encode( [
     'page' => $page_id,
     'history_page' => (int) $history_id,
     'form' => $form_id,
+    'upload_form_link' => $upload_link_id,
+    'upload_form_attach' => $upload_attach_id,
     'form_draft_page' => $restricted_form_pages['draft'],
     'form_private_page' => $restricted_form_pages['private'],
     'form_password_page' => $restricted_form_pages['password'],
