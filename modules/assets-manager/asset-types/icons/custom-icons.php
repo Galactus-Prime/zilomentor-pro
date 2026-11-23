@@ -394,11 +394,11 @@ class Custom_Icons extends  Assets_Base {
 					self::get_wp_filesystem()->rmdir( $results['extracted_to'], true );
 					return $contents_validation;
 				}
-			}
-			$asset_validation = $icon_set_handler->validate_public_icon_assets();
-			if ( is_wp_error( $asset_validation ) ) {
-				self::get_wp_filesystem()->rmdir( $results['extracted_to'], true );
-				return $asset_validation;
+				$asset_validation = $icon_set_handler->validate_public_icon_assets();
+				if ( is_wp_error( $asset_validation ) ) {
+					self::get_wp_filesystem()->rmdir( $results['extracted_to'], true );
+					return $asset_validation;
+				}
 			}
 			$icon_set_handler->move_files( $this->current_post_id );
 			$config = $icon_set_handler->build_config();
