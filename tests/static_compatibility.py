@@ -500,6 +500,13 @@ check("custom icon ZIP active CSS and SVG webfonts validated before public move"
       and "css_image_set_remote" in icon_active_fixture
       and icon_import.index("->validate_public_icon_assets()")
           < icon_import.index("->move_files( $this->current_post_id )"))
+check("Fontello and IcoMoon structurally representative icon packs stay compatible",
+      "runtime_icon_pack_formats.php" in qa_script
+      and (ROOT / "tests/runtime_icon_pack_formats.php").is_file()
+      and "fontello_validates_css_data_and_local_font" in
+          (ROOT / "tests/runtime_icon_pack_formats.php").read_text()
+      and "icomoon_validates_css_data_and_local_font" in
+          (ROOT / "tests/runtime_icon_pack_formats.php").read_text())
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
