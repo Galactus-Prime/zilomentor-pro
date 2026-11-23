@@ -20,11 +20,11 @@ $good_svg = '<svg xmlns="http://www.w3.org/2000/svg" version="1.1">'
 	. '<missing-glyph horiz-adv-x="500"/>'
 	. '<glyph glyph-name="star" unicode="&#xe801;" horiz-adv-x="500" d="M0 0L10 10Z"/>'
 	. '</font></defs></svg>';
-$base_css = '@font-face{font-family:"zmp-safe";'
-	. 'src:url("fonts/dummy.woff?ver=1") format("woff"),'
-	. 'url("fonts/dummy.svg#safe-font") format("svg");}'
-	. '[class^="zmp-"] {font-family:"zmp-safe";}'
-	. '.zmp-star:before {content:"\ea01";}';
+$base_css = '@font-face { font-family: "zmp-safe"; }' . "\n"
+	. '@font-face { src:url("fonts/dummy.woff?ver=1") format("woff"),'
+	. 'url("fonts/dummy.svg#safe-font") format("svg"); }' . "\n"
+	. '[class^="zmp-"] { font-family: "zmp-safe"; }' . "\n"
+	. '.zmp-star:before { content:"\ea01"; }' . "\n";
 $checks = [];
 try {
 	file_put_contents( $stylesheet, $base_css );
