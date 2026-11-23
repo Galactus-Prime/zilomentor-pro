@@ -46,6 +46,12 @@ try {
 		'css_missing_font' => '@font-face{src:url(fonts/missing.woff);}',
 		'css_escaped_url' => 'a{background:url(https\3a //remote.invalid/a.woff);}',
 		'css_style_binding' => 'a{-moz-binding:url(fonts/dummy.woff);}',
+		'css_escaped_import' => '@im\70ort url("https://remote.invalid/escaped.css");',
+		'css_commented_import' => '@im/**/port url("https://remote.invalid/hidden.css");',
+		'css_escaped_url_function' => 'a{background:u\72l(https://remote.invalid/font.woff);}',
+		'css_escaped_data_scheme' => 'a{background:url(d\61ta:text/html,attack);}',
+		'css_image_set_remote' => 'a{background:image-set("https://remote.invalid/track.png");}',
+		'css_commented_behavior' => 'a{be/**/havior:url(fonts/dummy.woff);}',
 	];
 	foreach ( $css_attacks as $name => $payload ) {
 		file_put_contents( $stylesheet, $base_css . "\n" . $payload );
@@ -84,6 +90,6 @@ try {
 foreach ( $checks as $name => $passed ) {
 	echo ( $passed ? 'PASS ' : 'FAIL ' ) . $name . PHP_EOL;
 }
-if ( count( $checks ) !== 18 || in_array( false, $checks, true ) ) {
+if ( count( $checks ) !== 24 || in_array( false, $checks, true ) ) {
 	exit( 4 );
 }
