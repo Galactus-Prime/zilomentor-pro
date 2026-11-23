@@ -91,5 +91,10 @@ foreach ( $checks as $name => $passed ) {
 	echo ( $passed ? 'PASS ' : 'FAIL ' ) . $name . PHP_EOL;
 }
 if ( count( $checks ) !== 24 || in_array( false, $checks, true ) ) {
+	fwrite( STDERR, 'FAILED_ICON_ASSET_ASSERTIONS: ' . wp_json_encode( array_keys(
+		array_filter( $checks, static function ( $passed ) {
+			return true !== $passed;
+		} )
+	) ) . ' (count=' . count( $checks ) . ')' . PHP_EOL );
 	exit( 4 );
 }
