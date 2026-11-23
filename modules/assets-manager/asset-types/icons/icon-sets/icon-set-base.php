@@ -192,16 +192,47 @@ abstract class Icon_Set_Base {
 
 	private static function is_safe_icon_stylesheet( $css, $filename, $root ) {
 		if ( ! is_string( $css ) || '' === trim( $css ) || false !== strpos( $css, "\0" )
-			|| preg_match( '~@(?:import|namespace)\b|expression\s*\(|(?:-moz-binding|behavior)\s*:|(?:javascript|vbscript|data)\s*:~i', $css ) ) {
+			|| false !== strpos( $css, '<' ) || false !== strpos( $css, '>' ) ) {
 			return false;
 		}
-		// Resolve exactly the CSS url() tokens. Unsupported quoting and CSS
-		// escapes fail closed, so escaping cannot turn a remote URL into a
-		// path that merely looks relative to our simple parser.
-		$tokens = preg_match_all( '~url\s*\(~i', $css );
+		// CSS identifiers can encode any ASCII character as a hex escape
+		// (e.g. @im\70ort / u\72l) or split keywords with comments.
+		// Normalise those before detecting imports and network functions.
+		// Glyph codepoint escapes such as "\e800" are > ASCII and stay
+		// untouched; real icon font stylesheets continue to work.
+		$normalized = preg_replace( '~/\*.*?\*/~s', '', $css );
+		if ( null === $normalized || preg_match( '~\\\\[\r\n\f]~', $normalized ) ) {
+			return false;
+		}
+		$normalized = preg_replace_callback(
+			'~\\\\([0-9a-f]{1,6})(?:[ \t\r\n\f])?|\\\\([^0-9a-f\r\n\f])~i',
+			static function ( $match ) {
+				if ( ! empty( $match[1] ) ) {
+					$codepoint = hexdec( $match[1] );
+					return $codepoint >= 32 && $codepoint <= 126
+						? chr( $codepoint ) : $match[0];
+				}
+				return $match[2];
+			},
+			$normalized
+		);
+		if ( null === $normalized
+			|| preg_match(
+				'~@(?:import|namespace)\b|expression\s*\(|'
+				. '(?:-moz-binding|behavior)\s*:|(?:javascript|vbscript|data)\s*:|'
+				. '(?:-webkit-)?image-set\s*\(|url-prefix\s*\(~i',
+				$normalized
+			) ) {
+			return false;
+		}
+		// Resolve exactly the CSS url() tokens after escape/comment
+		// normalisation. Everything must refer to a regular font file
+		// inside this extracted package. Remote, absent, traversing
+		// or unsupported image/document references are refused.
+		$tokens = preg_match_all( '~url\s*\(~i', $normalized );
 		$parsed = preg_match_all(
 			'~url\s*\(\s*(?:"([^"]*)"|\'([^\']*)\'|([^)]*))\s*\)~i',
-			$css, $matches, PREG_SET_ORDER
+			$normalized, $matches, PREG_SET_ORDER
 		);
 		if ( false === $tokens || false === $parsed || $tokens !== $parsed ) {
 			return false;
