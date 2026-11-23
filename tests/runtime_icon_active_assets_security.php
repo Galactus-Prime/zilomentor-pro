@@ -78,6 +78,25 @@ try {
 	file_put_contents( $svgfile, $good_svg );
 	$checks['restoring_valid_assets_restores_acceptance'] =
 		true === $icon->validate_public_icon_assets();
+
+	// Exercise the actual inherited import manager, not only the isolated
+	// validators. The manager must reject malicious CSS/SVG before it can
+	// create a publicly accessible custom-icon folder.
+	file_put_contents( $svgfile, str_replace(
+		'<defs>', '<script>alert(1)</script><defs>', $good_svg
+	) );
+	$importer_class = '\ElementorPro\Modules\AssetsManager\AssetTypes\Icons\Custom_Icons';
+	$importer = ( new \ReflectionClass( $importer_class ) )->newInstanceWithoutConstructor();
+	$import = ( new \ReflectionMethod( $importer, 'handle_extracted_icon_set' ) )->invoke(
+		$importer,
+		[ 'directory' => trailingslashit( $source ),
+		  'extracted_to' => trailingslashit( $source ) ]
+	);
+	$expected_public_dir = trailingslashit( wp_upload_dir( null, false )['basedir'] )
+		. 'elementor/custom-icons/zmp-safe';
+	$checks['actual_import_rejects_svg_before_any_public_files'] =
+		is_wp_error( $import ) && ! file_exists( $expected_public_dir );
+
 } finally {
 	// Only this generated disposable source is eligible for deletion.
 	$parent = realpath( dirname( $source ) );
@@ -92,7 +111,7 @@ try {
 foreach ( $checks as $name => $passed ) {
 	echo ( $passed ? 'PASS ' : 'FAIL ' ) . $name . PHP_EOL;
 }
-if ( count( $checks ) !== 25 || in_array( false, $checks, true ) ) {
+if ( count( $checks ) !== 26 || in_array( false, $checks, true ) ) {
 	fwrite( STDERR, 'FAILED_ICON_ASSET_ASSERTIONS: ' . wp_json_encode( array_keys(
 		array_filter( $checks, static function ( $passed ) {
 			return true !== $passed;
