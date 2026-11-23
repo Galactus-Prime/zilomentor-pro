@@ -1,6 +1,6 @@
 # Custom icon archive: same-origin HTML and malformed data review
 
-**21 November 2026.** ZiloMentor Pro 0.1.2 development only.
+**Updated 23 November 2026.** ZiloMentor Pro 0.1.2 development only.
 Production Itzy Bitzy Workshop still runs independent ZiloMentor 0.1.1.
 
 ## Problem: imported demo HTML becomes a public document
@@ -41,23 +41,74 @@ does not justify publishing untrusted scripts.
   deletes its own disposable files.
 - `tests/static_compatibility.py` now guards the source invariants.
 
-## Important security boundaries NOT yet established
+## 23 November 2026: strict CSS and legacy SVG font pre-publication checks
 
-The existing icon ZIP importer also accepts `.svg` and CSS.
-**The new HTML omission is not comprehensive SVG sanitisation**:
-Elementor's general SVG sanitizer is intended for image uploads and
-its default allowlist does not contain the legacy `font`/`glyph`
-SVG webfont elements. Applying it blindly could destroy valid SVG
-font exports. SVG may contain active script and must be handled with
-the same caution as HTML. Similarly, untrusted CSS warrants separate
-review. For now, limit custom icon ZIP imports to independently
-trusted, approved source packs and keep this as an explicit
-security-review follow-up before general release.
+The inherited importer also published CSS and legacy SVG font files
+under the live site's origin. Browser-accessible SVG can execute active
+content when loaded directly, and CSS can import remote resources.
+Elementor's normal image-SVG sanitizer does not preserve legacy
+`<font>`/`<glyph>` elements. We added a **separate, fail-closed
+validator** to built-in Fontastic/Fontello/IcoMoon handling.
 
-Also, protecting icon uploads from executable content is not the same
-as proving live cPanel Apache virtual-host inherited policy, and
-Nginx does not interpret `.htaccess`. The production upload web-server
-gate remains open until actual controlled physical tests are performed.
+- **Before moving any files**, `Icon_Set_Base::validate_public_icon_assets()`
+  scans a bounded set of CSS/SVG files (maximum 4,096 entries; each
+  CSS/SVG no more than 2 MiB) in the extracted temporary pack.
+  File and directory symlinks are rejected.
+- CSS is checked after stripping comments and normalizing ASCII CSS
+  escapes. `@import`, `@namespace`, image-set, dangerous binding
+  syntaxes, data/JavaScript URI schemes and network URL functions are
+  rejected. Every `url(...)` must resolve to an existing regular
+  local font file within the extracted pack, with a whitelisted
+  WOFF/WOFF2/TTF/OTF/EOT/SVG extension. Nonstandard CSS and remote
+  assets are rejected rather than silently published.
+- SVG webfont XML must have the standard SVG namespace, contain a
+  `<font>` element and use only a bounded inert legacy font vocabulary:
+  `svg`, `defs`, `font`, `font-face`, `glyph`, `missing-glyph`,
+  metadata and kerning. Allowed attributes are explicitly listed.
+  Script, foreignObject, active styles, event handlers, URL attributes,
+  DOCTYPE/entities and `xml-stylesheet` processing instructions
+  are rejected. `DOMDocument` parsing uses `LIBXML_NONET` and
+  restores prior libxml error settings.
+- Third-party icon import handlers that are **not** instances of the
+  built-in `Icon_Set_Base` are not assumed to implement this new
+  method, avoiding an extension compatibility fatal. Those
+  custom handler implementations require their own independent review.
+- Fontastic CSS parsing now captures quoted font family and class prefix
+  without greedy regular expressions and escapes the parsed class prefix
+  before matching glyph selectors.
+- `tests/runtime_icon_active_assets_security.php` exercises valid
+  CSS and inert SVG webfonts, multiple remote/traversal/obfuscated
+  CSS cases, active SVG elements and attributes, XML stylesheet PI,
+  and the actual import-manager pre-publication rejection path.
+  `tests/runtime_icon_pack_formats.php` constructs separate
+  structurally representative Fontello and IcoMoon packs and checks
+  retained CSS/WOFF and extracted glyph configuration.
+
+The first security-focused suite passed at source
+`5d16235e40b51b17d744f53fe82f3b6fa6f89f63`
+(23 November). The separate synthetic Fontello and IcoMoon integration
+passed at source `e25254ff8f4d30a143228565032df512404141a7`.
+A further comprehensive QA suite that includes the newest
+pre-publication importer assertion is run separately and must pass
+before its exact source SHA can be called verified.
+
+## Remaining limitations
+
+**This is a targeted defence, not independent proof of SVG/CSS safety.**
+Untrusted CSS is complex, so unusual encodings, file serving headers
+and content-sensitive browsers require professional assessment.
+The conservative validation can also reject real third-party icon ZIPs
+that contain unrelated SVG sprites, data URLs, remote asset references,
+complex CSS, or unusual SVG font extensions. Neither of the new format
+fixtures is a vendor-exported archive. Obtain actual approved Fontello,
+IcoMoon and Fontastic exports and verify visual glyph rendering and
+pack upgrade behaviour before marking this gate complete.
+
+A trusted Elementor Pro 4.4.1 vendor source comparison, independent
+security audit and actual cPanel Apache/Nginx production upload-dir
+execution restrictions remain separate release blockers. Do not
+promote 0.1.2 or accept arbitrary public ZIPs merely because these
+synthetic suites pass.
 
 Relevant guidance:
 - [Elementor: custom icon packs](https://elementor.com/help/custom-icons-pro/)
