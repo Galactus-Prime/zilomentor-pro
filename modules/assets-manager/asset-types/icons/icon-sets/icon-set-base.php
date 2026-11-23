@@ -278,6 +278,16 @@ abstract class Icon_Set_Base {
 				|| 'http://www.w3.org/2000/svg' !== $dom->documentElement->namespaceURI ) {
 				return false;
 			}
+			// SVG permits xml-stylesheet processing instructions outside the
+			// document element, which can fetch external CSS when opened
+			// directly. Checking only the root's descendants misses them.
+			foreach ( $dom->childNodes as $document_child ) {
+				if ( ! in_array( $document_child->nodeType, [
+					XML_ELEMENT_NODE, XML_COMMENT_NODE
+				], true ) ) {
+					return false;
+				}
+			}
 			$allowed_elements = [ 'svg', 'defs', 'font', 'font-face', 'glyph',
 				'missing-glyph', 'metadata', 'title', 'desc', 'hkern', 'vkern' ];
 			$allowed_attributes = [ 'xmlns', 'version', 'id', 'horiz-adv-x',
