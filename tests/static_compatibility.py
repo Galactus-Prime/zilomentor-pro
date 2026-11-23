@@ -485,6 +485,18 @@ check("icon-pack imports never publish demo HTML or count corrupt lists",
           < icon_import.index("->move_files( $this->current_post_id )")
       and "cached_icon_name" in fontastic
       and "cached_icon_prefix" in fontastic)
+icon_active_fixture = (ROOT / "tests/runtime_icon_active_assets_security.php").read_text()
+check("custom icon ZIP active CSS and SVG webfonts validated before public move",
+      "runtime_icon_active_assets_security.php" in qa_script
+      and "validate_public_icon_assets()" in icon_base
+      and "is_safe_svg_font_asset" in icon_base
+      and "is_safe_icon_stylesheet" in icon_base
+      and "LIBXML_NONET" in icon_base
+      and "FAILED_ICON_ASSET_ASSERTIONS" in icon_active_fixture
+      and "css_escaped_import" in icon_active_fixture
+      and "css_image_set_remote" in icon_active_fixture
+      and icon_import.index("->validate_public_icon_assets()")
+          < icon_import.index("->move_files( $this->current_post_id )"))
 check("theme location function still supplied",
       "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
       for p in (ROOT/"modules/theme-builder").rglob("*.php")))
