@@ -1,61 +1,70 @@
 # ZiloMentor Pro release gates and remaining blockers
 
-### Latest comprehensive manual QA (21 November 2026)
+### Latest comprehensive manual QA (23 November 2026)
 
-The **unreleased ZiloMentor Pro 0.1.2**, exact verified code SHA
-`2ad90a174eb7b2f4afe71436fad6fafb3b15b66d`,
-passed the **100/100 manual disposable WordPress integration checks**
-on 21 November 2026 (exit 0). The test stack used WordPress
-7.1.5, free Elementor 4.4.1, Fiore, WooCommerce 11.3,
-Nginx/PHP-FPM, real loopback Apache and Chromium browser checks.
-All PHP **8.4/8.5** syntax matrices, static checks, signed-manifest
-test simulations, rollback and package-hygiene checks passed.
+The **unreleased ZiloMentor Pro 0.1.2** exact tested code SHA
+`8590da23aa7b48622cd0b46aad5bf63829c85e74`
+completed the manually invoked **102/102 disposable WordPress
+integration checks** (exit 0), including new strict SVG/CSS custom
+icon pack validation and independent Fontello/IcoMoon format fixtures.
+The stack used WordPress 7.1.5, free Elementor 4.4.1,
+Fiore, WooCommerce 11.3, Nginx/PHP-FPM, a real disposable
+loopback Apache 2.4 server and Chromium.
 
-The final test added **Fontastic custom-icon public asset security**:
-a functioning synthetic icon pack retained its CSS/WOFF config
-while imported same-origin root/nested HTML demo pages were not
-published; malformed icon-list data was refused rather than
-triggering an inherited `count(false)` fatal; pack name and prefix
-caches now belong to each distinct pack instance.
-Full coverage also includes genuine Office/ODF/PDF/audio/video
-fixtures, eight anonymous **real HTTP multipart** uploads with
-valid PDF/DOCX, attach-only email interception/cleanup, invalid
-PHP/PDF/PNG-ZIP, empty-first/second executable bypass rejection
-and multi-file count, Form document visibility and ZIP extraction,
-Chromium Popup behaviour and synthetic offline WooCommerce guest checkout.
+**New security assertions** include valid local CSS/WOFF/legacy SVG
+font acceptance; denial of remote CSS imports, obfuscated
+CSS url() and @import functions, traversal, nonexistent and
+external font files, active SVG script/foreignObject/event/style
+attributes, external XML stylesheet processing instructions and
+unsafe XML declarations. A real importer-manager regression confirms
+a malicious SVG pack is rejected **before any public files are
+copied**. Fontastic class-prefix/family parsing no longer
+greedily captures subsequent quoted strings. Two separate self-authored
+Fontello and IcoMoon source structures retain fonts and CSS, build
+valid icon configuration and do not publish demo HTML.
 
-The **exact tested staging-only release ZIP** had **1,433 files**,
-**3,602,980 bytes** and SHA256
-`78c6edeb6ea1d94922824508a45590b20d736f160b4f6f0fbc12590f8bd6db98`.
-It was **not** signed, published, installed or approved for
-production. No GitHub Actions, paid subscriptions, customer files,
-live WordPress database mutation, payment or outbound real mail
-were used. Later documentation-only commits are NOT included in
-the above exact-SHA archive and would change a freshly rebuilt
-ZIP checksum; the owner must freeze/approve and sign the final
-release SHA separately. The former **99/99** run at
-`46ec6c2e446c151dcd374fbad24423edc65cfff5` is superseded.
+The suite also passed 13 independently authored real
+Office/ODF/PDF/audio/video/image validation fixtures,
+eight anonymous **real HTTP multipart** Form uploads,
+attach-only Email action with no-delivery interception/cleanup,
+private Form visibility tests, malformed ZIP defense,
+Chromium Popup behaviour and synthetic offline WooCommerce guest
+checkout. PHP **8.4 and 8.5** syntax matrices,
+static/security checks, offline signed-manifest simulations,
+rollback and package-hygiene checks passed.
 
-A separate **full real-editor/browser** suite passed at
-`46ec6c2e446c151dcd374fbad24423edc65cfff5` (exit 0),
-including saved Form/repeater, Heading/History Undo/Redo, Theme
-Header, Popup, Nav Menu/Posts and responsive Desktop/Tablet/Mobile
-editing with independent database checks. See
-`docs/EDITOR-ACCEPTANCE-2026-11-21.md`.
-The **16/16 no-network Ed25519 test simulations** passed at
-`82d1a99847d39e1907c8633039fd535e359cd1f5`,
-including throwaway-key rotation and revoked-anchor failure.
-No operational owner private key exists.
+The **exact tested staging-only ZIP** comprised **1,435 files**,
+**3,611,110 bytes**, SHA256
+`3c66237b3f83fb8484c734260f7bae6df144c5fa4f8a55fcf26092a78f72a708`.
+The archive was **not owner-signed, published, merged, installed or
+approved for production**. No GitHub Actions, subscriptions,
+real payments, outbound mail, customer files or live WP DB
+modifications were used. Later documentation-only commits are
+not included in this exact-SHA ZIP. A final approved ZIP must be
+rebuilt, reverified and signed from a frozen source SHA.
 
-**Still not certified:** authentic official Elementor Pro 4.4.1
-patch parity, independent PHP/JS/REST/asset security audit,
-SVG/CSS custom icon archive security, operational key trust and
-published signed release, real Stripe sandbox payment/refund,
-live cPanel upload-vhost enforcement, actual email delivery or
-WCAG/real-device visual acceptance. All corresponding release
-requirements remain open.
+A separate full **real editor/browser suite** passed (exit 0)
+on `46ec6c2e446c151dcd374fbad24423edc65cfff5`,
+including Heading editing, History Undo/Redo, Pro Form
+repeater fields and form name, Theme Header, Popup,
+Nav Menu/Posts and Desktop/Tablet/Mobile switching with
+independent database/frontend checks. Another 16/16
+no-network **ephemeral-key** Ed25519 simulation passed on
+`82d1a99847d39e1907c8633039fd535e359cd1f5`
+including synthetic key rotation and revocation.
+No operational signing key exists.
 
-**Audit date: 21 November 2026**  
+**Still open:** real independently vetted vendor-exported icon
+archives and security audit; lawfully accessible official
+Elementor Pro 4.4.1 patch/source parity; full PHP/JS/REST/CSS
+audit; owner-controlled offline signing and publication;
+legitimate Stripe sandbox payment/refund/webhook QA;
+production Apache/Nginx upload-vhost checks; SMTP
+deliverability; WCAG, real-device and broad editor
+visual acceptance. Targeted synthetic tests do not
+constitute these approvals.
+
+**Audit date: 23 November 2026**  
 **Production:** Itzy Bitzy Workshop runs ZiloMentor Pro 0.1.1, independently
 installed as `zilomentor-pro/elementor-pro.php`. It remains a limited
 owner-authorised beta.  
@@ -183,10 +192,22 @@ conditions do not allow a real provider sandbox checkout.
   pack metadata cache is isolated. Exact **100/100** full suite
   included `runtime_icon_public_html_safety.php`.
   See docs/ICON-PUBLIC-ASSET-REVIEW.md.
-- [ ] Audit/mitigate **SVG webfonts and CSS inside third-party icon
-  ZIPs** with legitimate Fontello, IcoMoon and Fontastic exports,
-  including scriptable SVG markup and external references. The
-  HTML omission and ZIP-bomb guards alone do not prove SVG/CSS safe.
+- [x] **Targeted, fail-closed custom icon CSS/SVG pre-publication
+  validation**: real local CSS font references and inert SVG webfont
+  XML accepted; remote CSS imports/URL schemes, CSS hex escapes/
+  comments, traversal, active SVG markup, external stylesheet
+  processing instructions and XXE doctype/entities rejected.
+  Actual `Custom_Icons` importer denies a malicious source before
+  public file creation. Self-authored Fontello and IcoMoon pack
+  structures still import and preserve CSS/fonts. Exact-SHA
+  **102/102** full run passed on 23 November. See
+  docs/ICON-PUBLIC-ASSET-REVIEW.md.
+- [ ] **Independent SVG/CSS audit and real third-party pack
+  compatibility**: test authenticated, lawfully obtained Fontello,
+  IcoMoon and Fontastic exported archives, real font glyph rendering,
+  SVG sprite differences, unusual CSS, MIME types and file headers.
+  Strict synthetic validation is not a comprehensive security proof
+  and may reject uncommon valid packages.
 - [x] Test representative image ZIP/PHAR polyglots and executable
   empty-first/second-file upload bypass fixtures in **disposable** WordPress.
   Included synthetic and independently generated polyglot checks passed.
