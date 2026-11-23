@@ -88,9 +88,16 @@ The first security-focused suite passed at source
 `5d16235e40b51b17d744f53fe82f3b6fa6f89f63`
 (23 November). The separate synthetic Fontello and IcoMoon integration
 passed at source `e25254ff8f4d30a143228565032df512404141a7`.
-A further comprehensive QA suite that includes the newest
-pre-publication importer assertion is run separately and must pass
-before its exact source SHA can be called verified.
+The completed **full** manual integration suite, including the
+actual importer rejection assertion and both format checks,
+passed **102/102** at exact tested source SHA
+`8590da23aa7b48622cd0b46aad5bf63829c85e74`
+(exit 0, 23 November). The 1,435-file unsigned staging-only ZIP
+SHA256 was
+`3c66237b3f83fb8484c734260f7bae6df144c5fa4f8a55fcf26092a78f72a708`.
+Both PHP 8.4/8.5 lints, browser Popup, genuine Form upload,
+Apache/Nginx and synthetic WooCommerce checks passed.
+Nothing was merged, signed or deployed.
 
 ## Remaining limitations
 
