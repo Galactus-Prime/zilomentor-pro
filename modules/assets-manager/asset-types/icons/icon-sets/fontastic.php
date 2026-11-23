@@ -34,7 +34,11 @@ class Fontastic extends Icon_Set_Base {
 	}
 
 	protected function extract_icon_list() {
-		$pattern = '/\.' . $this->get_prefix() . '(.*)\:before\s\{/';
+		$prefix = $this->get_prefix();
+		if ( ! is_string( $prefix ) || '' === $prefix ) {
+			return false;
+		}
+		$pattern = '/\.' . preg_quote( $prefix, '/' ) . '([a-zA-Z0-9_-]+):before\s*\{/';
 		preg_match_all( $pattern, $this->data, $icons_matches );
 		if ( empty( $icons_matches[1] ) ) {
 			return false; //  missing icons list
@@ -48,7 +52,7 @@ class Fontastic extends Icon_Set_Base {
 
 	protected function get_prefix() {
 		if ( null === $this->cached_icon_prefix ) {
-			$pattern = '/class\^="(.*)?"/';
+			$pattern = '/class\^="([^"]+)"/';
 			preg_match_all( $pattern, $this->data, $prefix );
 			if ( ! isset( $prefix[1][0] ) ) {
 				return false; //  missing css_prefix_text
@@ -67,7 +71,7 @@ class Fontastic extends Icon_Set_Base {
 				$this->data = Utils::_unstable_file_get_contents( $this->directory . $this->stylesheet_file );
 			}
 
-			$pattern = '/font-family: "(.*)"/';
+			$pattern = '/font-family:\s*"([^"]+)"/';
 			preg_match_all( $pattern, $this->data, $name );
 			if ( ! isset( $name[1][0] ) ) {
 				return false; //  missing name
