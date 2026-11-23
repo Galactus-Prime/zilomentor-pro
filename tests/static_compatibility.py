@@ -484,7 +484,10 @@ check("icon-pack imports never publish demo HTML or count corrupt lists",
       and icon_import.index("->validate_icon_contents()")
           < icon_import.index("->move_files( $this->current_post_id )")
       and "cached_icon_name" in fontastic
-      and "cached_icon_prefix" in fontastic)
+      and "cached_icon_prefix" in fontastic
+      and "preg_quote( $prefix, '/' )" in fontastic
+      and 'class\\^="([^"]+)"' in fontastic
+      and "font-family:\\s*" in fontastic)
 icon_active_fixture = (ROOT / "tests/runtime_icon_active_assets_security.php").read_text()
 check("custom icon ZIP active CSS and SVG webfonts validated before public move",
       "runtime_icon_active_assets_security.php" in qa_script
