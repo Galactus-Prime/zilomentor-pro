@@ -144,6 +144,162 @@ abstract class Icon_Set_Base {
 		return Utils::get_ensure_upload_dir( $path );
 	}
 
+	/**
+	 * Validate active assets before copying an icon ZIP into same-origin uploads.
+	 *
+	 * Fonts imported from Fontello, IcoMoon and Fontastic may contain SVG
+	 * webfonts and CSS. ZIP entry/path checks do not prevent browser XSS,
+	 * remote CSS imports or tracking URL references. Refuse active content
+	 * we cannot parse safely instead of publishing an unsafe icon pack.
+	 *
+	 * @return true|\WP_Error
+	 */
+	public function validate_public_icon_assets() {
+		$root = realpath( $this->directory );
+		if ( ! $root || ! is_dir( $root ) || is_link( $this->directory ) ) {
+			return new \WP_Error( 'invalid_icon_assets', esc_html__( 'Invalid icon asset directory.', 'elementor-pro' ) );
+		}
+
+		$iterator = new \RecursiveIteratorIterator(
+			new \RecursiveDirectoryIterator( $root, \FilesystemIterator::SKIP_DOTS )
+		);
+		$scanned = 0;
+		foreach ( $iterator as $asset ) {
+			if ( ++$scanned > 4096 || $asset->isLink() ) {
+				return new \WP_Error( 'invalid_icon_assets', esc_html__( 'Unsafe icon asset directory.', 'elementor-pro' ) );
+			}
+			if ( ! $asset->isFile() ) {
+				continue;
+			}
+			$extension = strtolower( pathinfo( $asset->getFilename(), PATHINFO_EXTENSION ) );
+			if ( ! in_array( $extension, [ 'css', 'svg' ], true ) ) {
+				continue;
+			}
+			$size = $asset->getSize();
+			if ( $size < 1 || $size > 2 * 1024 * 1024 ) {
+				return new \WP_Error( 'invalid_icon_assets', esc_html__( 'Icon stylesheet or SVG is invalid or oversized.', 'elementor-pro' ) );
+			}
+			$data = file_get_contents( $asset->getPathname() );
+			$valid = 'css' === $extension
+				? self::is_safe_icon_stylesheet( $data, $asset->getPathname(), $root )
+				: self::is_safe_svg_font_asset( $data );
+			if ( ! $valid ) {
+				return new \WP_Error( 'invalid_icon_assets', esc_html__( 'Icon pack contains unsafe CSS or SVG content.', 'elementor-pro' ) );
+			}
+		}
+		return true;
+	}
+
+	private static function is_safe_icon_stylesheet( $css, $filename, $root ) {
+		if ( ! is_string( $css ) || '' === trim( $css ) || false !== strpos( $css, "\0" )
+			|| preg_match( '~@(?:import|namespace)\b|expression\s*\(|(?:-moz-binding|behavior)\s*:|(?:javascript|vbscript|data)\s*:~i', $css ) ) {
+			return false;
+		}
+		// Resolve exactly the CSS url() tokens. Unsupported quoting and CSS
+		// escapes fail closed, so escaping cannot turn a remote URL into a
+		// path that merely looks relative to our simple parser.
+		$tokens = preg_match_all( '~url\s*\(~i', $css );
+		$parsed = preg_match_all(
+			'~url\s*\(\s*(?:"([^"]*)"|\'([^\']*)\'|([^)]*))\s*\)~i',
+			$css, $matches, PREG_SET_ORDER
+		);
+		if ( false === $tokens || false === $parsed || $tokens !== $parsed ) {
+			return false;
+		}
+		$root = trailingslashit( $root );
+		foreach ( $matches as $match ) {
+			$reference = trim( '' !== ( $match[1] ?? '' ) ? $match[1]
+				: ( '' !== ( $match[2] ?? '' ) ? $match[2] : ( $match[3] ?? '' ) ) );
+			if ( ! preg_match( '~^[A-Za-z0-9_./-]+(?:\?[A-Za-z0-9_=&%-]+)?(?:\#[A-Za-z0-9_-]+)?$~D', $reference )
+				|| false !== strpos( $reference, '\\' ) || str_starts_with( $reference, '/' ) ) {
+				return false;
+			}
+			$relative = preg_split( '/[?#]/', $reference, 2 )[0];
+			$resolved = realpath( dirname( $filename ) . '/' . $relative );
+			$extension = strtolower( pathinfo( $relative, PATHINFO_EXTENSION ) );
+			if ( ! $resolved || is_link( $resolved ) || ! is_file( $resolved )
+				|| ! str_starts_with( $resolved, $root )
+				|| ! in_array( $extension, [ 'woff2', 'woff', 'ttf', 'otf', 'eot', 'svg' ], true ) ) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * Legacy SVG webfonts cannot pass Elementor's normal icon-image sanitizer,
+	 * because their <font>/<glyph> elements are intentionally different.
+	 * Keep only the inert SVG *font* vocabulary; never allow scripts, foreign
+	 * objects, event handlers, URL attributes, external entities or styles.
+	 */
+	private static function is_safe_svg_font_asset( $svg ) {
+		if ( ! is_string( $svg ) || false !== stripos( $svg, '<!DOCTYPE' )
+			|| false !== stripos( $svg, '<!ENTITY' ) || false !== strpos( $svg, "\0" )
+			|| ! class_exists( '\DOMDocument' ) ) {
+			return false;
+		}
+		$old_errors = libxml_use_internal_errors( true );
+		try {
+			$dom = new \DOMDocument();
+			if ( ! $dom->loadXML( $svg, LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING )
+				|| $dom->doctype || ! $dom->documentElement
+				|| 'svg' !== $dom->documentElement->localName
+				|| 'http://www.w3.org/2000/svg' !== $dom->documentElement->namespaceURI ) {
+				return false;
+			}
+			$allowed_elements = [ 'svg', 'defs', 'font', 'font-face', 'glyph',
+				'missing-glyph', 'metadata', 'title', 'desc', 'hkern', 'vkern' ];
+			$allowed_attributes = [ 'xmlns', 'version', 'id', 'horiz-adv-x',
+				'vert-adv-y', 'vert-adv-x', 'glyph-name', 'unicode', 'd',
+				'font-family', 'font-weight', 'font-style', 'font-stretch',
+				'units-per-em', 'ascent', 'descent', 'x-height', 'cap-height',
+				'underline-position', 'underline-thickness', 'bbox',
+				'stemv', 'stemh', 'slope', 'accent-height', 'panose-1',
+				'font-variant', 'font-size', 'k', 'u1', 'u2', 'g1', 'g2' ];
+			$has_font = false;
+			$nodes = [ $dom->documentElement ];
+			while ( $nodes ) {
+				$node = array_pop( $nodes );
+				if ( XML_ELEMENT_NODE !== $node->nodeType
+					|| 'http://www.w3.org/2000/svg' !== $node->namespaceURI
+					|| ! in_array( $node->localName, $allowed_elements, true ) ) {
+					return false;
+				}
+				if ( 'font' === $node->localName ) {
+					$has_font = true;
+				}
+				foreach ( $node->attributes as $attribute ) {
+					if ( 'http://www.w3.org/2000/xmlns/' === $attribute->namespaceURI ) {
+						if ( ! in_array( $attribute->value, [
+							'http://www.w3.org/2000/svg', 'http://www.w3.org/1999/xlink'
+						], true ) ) {
+							return false;
+						}
+						continue;
+					}
+					if ( '' !== (string) $attribute->namespaceURI
+						|| ! in_array( $attribute->name, $allowed_attributes, true )
+						|| preg_match( '~(?:url\s*\(|javascript:|data:|vbscript:|<)~i', $attribute->value ) ) {
+						return false;
+					}
+				}
+				foreach ( $node->childNodes as $child ) {
+					if ( XML_ELEMENT_NODE === $child->nodeType ) {
+						$nodes[] = $child;
+					} elseif ( ! in_array( $child->nodeType, [
+						XML_TEXT_NODE, XML_COMMENT_NODE, XML_CDATA_SECTION_NODE
+					], true ) ) {
+						return false;
+					}
+				}
+			}
+			return $has_font;
+		} finally {
+			libxml_clear_errors();
+			libxml_use_internal_errors( $old_errors );
+		}
+	}
+
 	public function move_files( $post_id ) {
 		// @todo: save only needed files
 		$wp_filesystem = Custom_Icons::get_wp_filesystem();
