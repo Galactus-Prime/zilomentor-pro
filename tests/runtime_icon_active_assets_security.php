@@ -68,6 +68,8 @@ try {
 		'doctype_entity' => '<!DOCTYPE svg [<!ENTITY payload SYSTEM "file:///etc/passwd">]>' . $good_svg,
 		'graphics_nonfont' => '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0"/></svg>',
 		'non_svg_document' => '<html><script>alert(1)</script></html>',
+		'xml_stylesheet_network_reference' =>
+			'<?xml-stylesheet type="text/css" href="https://remote.invalid/evil.css"?>' . $good_svg,
 	];
 	foreach ( $svg_attacks as $name => $payload ) {
 		file_put_contents( $svgfile, $payload );
@@ -90,7 +92,7 @@ try {
 foreach ( $checks as $name => $passed ) {
 	echo ( $passed ? 'PASS ' : 'FAIL ' ) . $name . PHP_EOL;
 }
-if ( count( $checks ) !== 24 || in_array( false, $checks, true ) ) {
+if ( count( $checks ) !== 25 || in_array( false, $checks, true ) ) {
 	fwrite( STDERR, 'FAILED_ICON_ASSET_ASSERTIONS: ' . wp_json_encode( array_keys(
 		array_filter( $checks, static function ( $passed ) {
 			return true !== $passed;
