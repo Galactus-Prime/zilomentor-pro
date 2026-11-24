@@ -180,3 +180,39 @@ actual importer classes with minimal WordPress stubs, not a full WP
 import-manager/browser run. The recorded 102/102 integration suite
 remains evidence for its older exact SHA only. Genuine modern exports,
 full regression, independent review and release acceptance remain open.
+
+## 24 November 2026: genuine Fontello export acquisition and compatibility fix
+
+The official Fontello API (https://github.com/fontello/fontello#developers-api,
+multipart example https://gist.github.com/puzrin/5537065) generated a
+one-glyph, public Font Awesome test pack from the project's own publicly
+available config; no customer data, credentials, or private artwork were
+sent. The URL-encoded request initially returned HTTP 400; the documented
+multipart upload succeeded. The original 18-member archive was retained
+privately at owner-only QA permissions (not added to Git, not installed).
+SHA256: `436d8abd74629563cc7efe92d1dcdb1703ebd3c7d3effacfd6a51d0f8a60dbdf`.
+It includes the original LICENSE.txt, README.txt, config, main stylesheet,
+optional embedded/IE7 stylesheets, demo and genuine WOFF/WOFF2/TTF/EOT/SVG.
+
+The unmodified validator rejects this real default export. Its optional
+embedded CSS contains a base64 data URI and the SVG font contains the
+legacy W3C SVG 1.1 external DOCTYPE. The Fontello-specific normalization
+at `958e1a1abd94eba23f8a68ea0f9ebe23f0b0022b` removes only the named
+optional embedded/IE7 stylesheet variants and the exact known declaration
+from the private extracted copy before running the shared strict asset
+validator. No arbitrary DOCTYPE or external entities are accepted.
+The retained modern stylesheet, fonts and license are unchanged by this
+normalization (the pre-existing margin adjustment still applies on normal
+preparation). The generic Fontastic/IcoMoon validator is unchanged.
+
+Actual archive baseline rejection, patched acceptance, remote CSS refusal,
+active SVG refusal and unknown DOCTYPE refusal passed **5/5** on PHP 8.4
+using the real Fontello class and minimal WordPress stubs. The patched
+source lint passed. A self-authored equivalent fixture exercising actual
+disposable WordPress publication and omission of the optional files was
+added at `a839855278e6625cb0ee9bd1a802886d1eed0ad9` and linted on PHP 8.4/8.5.
+That new WordPress fixture has not yet passed a full integration run.
+Genuine archive import-manager, browser glyph rendering and update/removal
+tests remain open, as do modern IcoMoon and genuine Fontastic export QA,
+the independent security review and production release gates.
+No GitHub Actions, paid services, publication or live deployment.
