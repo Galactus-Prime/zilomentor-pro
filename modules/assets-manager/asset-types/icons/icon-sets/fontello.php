@@ -89,6 +89,60 @@ class Fontello extends Icon_Set_Base {
 		return '' === trim( $name ) ? self::DEFAULT_NAME : $name;
 	}
 
+	/**
+	 * Fontello includes alternative embedded/IE7 demo stylesheets and a
+	 * legacy external SVG 1.1 DOCTYPE in otherwise usable webfont packs.
+	 * Neither is required for the enqueued modern stylesheet. Discard the
+	 * alternative CSS and strip only the exact known external declaration
+	 * in the private extracted copy; all retained assets still pass the
+	 * shared strict validator before anything is published.
+	 */
+	public function validate_public_icon_assets() {
+		$error = new \WP_Error( 'invalid_icon_assets', esc_html__( 'Unable to prepare Fontello assets safely.', 'elementor-pro' ) );
+		$name_validation = $this->validate_name();
+		if ( is_wp_error( $name_validation ) ) {
+			return $name_validation;
+		}
+		$root = realpath( $this->directory );
+		if ( ! $root || is_link( rtrim( $this->directory, '/\\' ) ) ) {
+			return $error;
+		}
+		foreach ( [ 'css', 'font' ] as $folder ) {
+			$path = $root . '/' . $folder;
+			if ( is_link( $path ) || ! is_dir( $path ) || realpath( $path ) !== $path ) {
+				return $error;
+			}
+		}
+		$name = $this->get_name();
+		foreach ( [ '-embedded.css', '-ie7.css', '-ie7-codes.css' ] as $suffix ) {
+			$file = $root . '/css/' . $name . $suffix;
+			if ( is_link( $file ) || ( file_exists( $file ) && ( ! is_file( $file ) || ! unlink( $file ) ) ) ) {
+				return $error;
+			}
+		}
+		$svg = $root . '/font/' . $name . '.svg';
+		if ( is_link( $svg ) ) {
+			return $error;
+		}
+		if ( is_file( $svg ) ) {
+			$size = filesize( $svg );
+			if ( false === $size || $size < 1 || $size > 2 * 1024 * 1024 ) {
+				return $error;
+			}
+			$data = file_get_contents( $svg );
+			if ( ! is_string( $data ) ) {
+				return $error;
+			}
+			$declaration = '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">';
+			$pattern = '~\A(\s*(?:<\?xml[^?]*\?>\s*)?)' . preg_quote( $declaration, '~' ) . '(?=\s*<svg\b)~';
+			$normalized = preg_replace( $pattern, '$1', $data, 1 );
+			if ( ! is_string( $normalized ) || ( $normalized !== $data && strlen( $normalized ) !== file_put_contents( $svg, $normalized ) ) ) {
+				return $error;
+			}
+		}
+		return parent::validate_public_icon_assets();
+	}
+
 	protected function get_stylesheet() {
 		$name = $this->get_name();
 		if ( ! $name ) {
