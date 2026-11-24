@@ -154,3 +154,29 @@ and use license-compatible regression fixtures.
 Documentation-only review: no new archives, generator sessions or runtime
 tests were created. Real-export and independent audit gates remain open.
 The 102/102 result still refers only to its recorded source SHA.
+
+## 24 November 2026: legacy metadata-shape regression fixes
+
+Fontello and IcoMoon accepted malformed list shapes or attempted to read
+missing object properties; malformed IcoMoon classSelector could raise a
+PHP TypeError. Nonstring pack names were silently treated as default names.
+Fontello preparation could also try to read/write a missing stylesheet.
+The targeted changes validate JSON list/entry/name types, cap list size,
+require the expected stylesheet, avoid the missing-file rewrite, and
+handle nonstring display selectors without a TypeError. Empty string
+names still fall back to the documented legacy default names.
+
+Baseline: 2/16 passed, 14 failed (including warnings converted to
+exceptions and a TypeError), on PHP 8.4 with minimal WordPress stubs.
+Patched exact importer code at `33ab19eac2e7f60d17b81be18eb2a53545dc7a2e`:
+**16/16 passed on each of PHP 8.4 and PHP 8.5**, including both valid legacy
+format cases; all three relevant PHP files linted on both versions.
+The repeatable, private-temporary-directory test is tracked at
+`tests/test_icon_metadata_shapes.py` (commit
+`3fefe78fc5dfea1bc733379d4670292b3098db1b`). Run with
+`python3 tests/test_icon_metadata_shapes.py /path/to/php`.
+No GitHub Actions or production database changes. These tests exercise
+actual importer classes with minimal WordPress stubs, not a full WP
+import-manager/browser run. The recorded 102/102 integration suite
+remains evidence for its older exact SHA only. Genuine modern exports,
+full regression, independent review and release acceptance remain open.
