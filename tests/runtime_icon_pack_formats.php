@@ -36,6 +36,19 @@ try {
 		'@font-face {font-family:"' . $fontello_name . '";'
 		. 'src:url("../font/' . $fontello_name . '.woff?code=30") format("woff");}' . "\n"
 		. '.icon-star:before {content:"\e801";}' );
+	// Real Fontello exports contain alternative CSS and a legacy external
+	// SVG declaration. Exercise the importer using a self-authored analogue.
+	file_put_contents( $fontello . 'css/' . $fontello_name . '-embedded.css',
+		'@font-face{src:url(data:font/woff;base64,AA==)}' );
+	file_put_contents( $fontello . 'css/' . $fontello_name . '-ie7.css',
+		'.icon-star{*zoom:expression(1)}' );
+	file_put_contents( $fontello . 'font/' . $fontello_name . '.svg',
+		'<?xml version="1.0" standalone="no"?>' . "\n"
+		. '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">' . "\n"
+		. '<svg xmlns="http://www.w3.org/2000/svg"><defs><font id="safe-font" horiz-adv-x="1000">'
+		. '<font-face font-family="safe-font" units-per-em="1000"/><glyph glyph-name="star" unicode="&#xe801;" d="M0 0L10 10Z"/>'
+		. '</font></defs></svg>' );
+
 	$fontello_class = '\ElementorPro\Modules\AssetsManager\AssetTypes\Icons\IconSets\Fontello';
 	$handler = new $fontello_class( $fontello );
 	$checks['fontello_export_has_expected_directories'] = $handler->is_icon_set();
@@ -54,7 +67,11 @@ try {
 		&& in_array( 'star', $config['icons'], true )
 		&& file_exists( $destination . '/font/' . $fontello_name . '.woff' )
 		&& file_exists( $destination . '/css/' . $fontello_name . '.css' )
-		&& ! file_exists( $destination . '/demo.html' );
+		&& ! file_exists( $destination . '/demo.html' )
+		&& ! file_exists( $destination . '/css/' . $fontello_name . '-embedded.css' )
+		&& ! file_exists( $destination . '/css/' . $fontello_name . '-ie7.css' )
+		&& file_exists( $destination . '/font/' . $fontello_name . '.svg' )
+		&& false === strpos( file_get_contents( $destination . '/font/' . $fontello_name . '.svg' ), '<!DOCTYPE' );
 
 	$icomoon_name = $slug . '-icomoon';
 	file_put_contents( $icomoon . 'selection.json', wp_json_encode( [
