@@ -121,3 +121,36 @@ Relevant guidance:
 - [Elementor: custom icon packs](https://elementor.com/help/custom-icons-pro/)
 - [Elementor SVG security warning](https://elementor.com/help/enable-svg-support-in-elementor/)
 - [WordPress Apache configuration guidance](https://developer.wordpress.org/advanced-administration/server/web-server/httpd/)
+
+## 24 November 2026: official generator format research
+
+The official [IcoMoon documentation](https://icomoon.io/docs) describes
+project metadata with an `.icomoon.json` suffix and separate folders per
+export format. Its [legacy FAQ](https://icomoon.io/old-faq) instead describes
+`selection.json`. The current built-in Icomoon handler requires a root
+`selection.json` and legacy metadata/preferences, so modern exports are a
+concrete compatibility risk, not yet a reproduced runtime failure. Inspect
+the actual modern schema and font/CSS layout before introducing a separate
+adapter; do not simply rename JSON or weaken archive checks.
+
+[Fontello's official developers API](https://github.com/fontello/fontello#developers-api)
+documents a temporary configuration session and generated ZIP download.
+Use only a self-authored non-sensitive configuration with properly licensed
+public glyphs, preserving license, provenance, generator date and SHA256.
+Its [changelog](https://github.com/fontello/fontello/blob/master/CHANGELOG.md)
+also describes embedded base64 fonts, which the current conservative CSS
+validator rejects. Verify actual default and optional outputs before
+considering a narrowly validated local-font conversion.
+[Fontastic's export guide](https://fontastic.me/howto) describes downloadable
+CSS, fonts and reference HTML; obtain authentic exports from the service.
+
+For each genuine archive, preserve bytes/hash/license and inventory; inspect
+without executing demo files; import through disposable WordPress; verify
+icon names, font files, stylesheet URLs and exclusion of demo HTML; render
+known glyphs in editor and frontend Chromium with no unexpected external
+requests; exercise repeated import and removal. Retain hostile-asset tests
+and use license-compatible regression fixtures.
+
+Documentation-only review: no new archives, generator sessions or runtime
+tests were created. Real-export and independent audit gates remain open.
+The 102/102 result still refers only to its recorded source SHA.
