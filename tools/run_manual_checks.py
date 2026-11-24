@@ -144,6 +144,8 @@ def main():
         ]
         execute(cmd)
         print(f"PASS {label} PHP syntax matrix.")
+        execute([sys.executable, "tests/test_icon_metadata_shapes.py", "--docker-image", image])
+        print(f"PASS {label} isolated icon metadata regressions.")
     if args.source_wordpress is not None:
         qa_cmd = [
             sys.executable, "tools/qa_isolated_site.py", "--source-wordpress",
