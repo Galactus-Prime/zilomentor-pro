@@ -1,5 +1,22 @@
 # ZiloMentor Pro release gates and remaining blockers
 
+### Additional exact-source manual release QA (24 November 2026)
+
+On exact source SHA `49d92f89fb4eeff871fef88248c6ea1facd799a6`, the
+complete non-WordPress manual release suite passed (exit 0) on existing
+QA infrastructure in a detached temporary Git worktree. PHP 8.4 and 8.5
+each linted 952 PHP files and passed 16/16 isolated legacy icon metadata
+regressions, now required by the manual runner's offline Docker matrix.
+Static checks, 9 installer/rollback, 3 migration, 1 archive hygiene,
+4 manifest, 16 signed feed/key rotation and 2 reduced-motion tests passed.
+The unsigned staging-only archive contained 1,435 files, 3,614,888 bytes,
+SHA256 `20682fbe08ec5f7ed12991a93d5b47e3845b7fd4ffdc46bfab8b77f8ca6e0b68`.
+Temporary checkout/archive removed after verification; no release was
+published. No production WordPress or full browser integration tests were
+run on this SHA. The 102/102 WordPress result below remains evidence for
+its earlier exact SHA only. All operational signing, payment, external
+review and genuine export gates remain open. No GitHub Actions used.
+
 ### Latest comprehensive manual QA (23 November 2026)
 
 The **unreleased ZiloMentor Pro 0.1.2** exact tested code SHA
