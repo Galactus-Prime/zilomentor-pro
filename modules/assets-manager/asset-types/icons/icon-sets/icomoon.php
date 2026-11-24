@@ -38,11 +38,14 @@ class Icomoon extends Icon_Set_Base {
 
 	protected function extract_icon_list() {
 		$config = $this->get_json();
-		if ( ! isset( $config->icons ) ) {
+		if ( ! isset( $config->icons ) || ! is_array( $config->icons ) || count( $config->icons ) > 8192 || ! is_file( $this->directory . $this->stylesheet_file ) ) {
 			return false; //  missing icons list
 		}
 		$icons = [];
 		foreach ( $config->icons as $icon ) {
+			if ( ! is_object( $icon ) || ! isset( $icon->properties->name ) || ! is_string( $icon->properties->name ) ) {
+				return false;
+			}
 			$icons[] = $icon->properties->name;
 		}
 		return $icons;
@@ -58,7 +61,7 @@ class Icomoon extends Icon_Set_Base {
 
 	protected function get_display_prefix() {
 		$config = $this->get_json();
-		if ( ! isset( $config->preferences->fontPref->classSelector ) ) {
+		if ( ! isset( $config->preferences->fontPref->classSelector ) || ! is_string( $config->preferences->fontPref->classSelector ) ) {
 			return false; //  missing css_prefix_text
 		}
 		return str_replace( '.', '', $config->preferences->fontPref->classSelector );
@@ -66,10 +69,10 @@ class Icomoon extends Icon_Set_Base {
 
 	public function get_name() {
 		$config = $this->get_json();
-		if ( ! isset( $config->metadata->name ) ) {
+		if ( ! isset( $config->metadata->name ) || ! is_string( $config->metadata->name ) ) {
 			return false; //  missing name
 		}
-		$name = is_string( $config->metadata->name ) ? $config->metadata->name : '';
+		$name = $config->metadata->name;
 		// A default icomoon.io export has an empty name and names its font files "icomoon".
 		return '' === trim( $name ) ? self::DEFAULT_NAME : $name;
 	}
