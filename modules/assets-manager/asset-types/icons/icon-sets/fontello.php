@@ -34,7 +34,13 @@ class Fontello extends Icon_Set_Base {
 
 	private function remove_fontello_styling() {
 		$filename = $this->directory . 'css/' . $this->get_name() . '.css';
+		if ( ! is_file( $filename ) || is_link( $filename ) || ! is_readable( $filename ) ) {
+			return;
+		}
 		$stylesheet = Utils::_unstable_file_get_contents( $filename );
+		if ( ! is_string( $stylesheet ) || '' === trim( $stylesheet ) ) {
+			return;
+		}
 		$stylesheet = str_replace( [ 'margin-left: .2em;', 'margin-right: .2em;' ], [ '', '' ], $stylesheet );
 		file_put_contents( $filename, $stylesheet );
 	}
@@ -45,11 +51,18 @@ class Fontello extends Icon_Set_Base {
 
 	protected function extract_icon_list() {
 		$config = $this->get_json();
-		if ( ! isset( $config->glyphs ) ) {
+		if ( ! isset( $config->glyphs ) || ! is_array( $config->glyphs ) || count( $config->glyphs ) > 8192 ) {
 			return false; //  missing icons list
+		}
+		$name = $this->get_name();
+		if ( false === $name || ! is_file( $this->directory . 'css/' . $name . '.css' ) ) {
+			return false;
 		}
 		$icons = [];
 		foreach ( $config->glyphs as $icon ) {
+			if ( ! is_object( $icon ) || ! isset( $icon->css ) || ! is_string( $icon->css ) ) {
+				return false;
+			}
 			$icons[] = $icon->css;
 		}
 		return $icons;
@@ -66,11 +79,11 @@ class Fontello extends Icon_Set_Base {
 	public function get_name() {
 		$config = $this->get_json();
 
-		if ( ! isset( $config->name ) ) {
+		if ( ! isset( $config->name ) || ! is_string( $config->name ) ) {
 			return false; //  missing name
 		}
 
-		$name = is_string( $config->name ) ? $config->name : '';
+		$name = $config->name;
 
 		// A default fontello.com export has an empty name and names its css and font files "fontello".
 		return '' === trim( $name ) ? self::DEFAULT_NAME : $name;
