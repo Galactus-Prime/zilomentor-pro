@@ -216,3 +216,17 @@ Genuine archive import-manager, browser glyph rendering and update/removal
 tests remain open, as do modern IcoMoon and genuine Fontastic export QA,
 the independent security review and production release gates.
 No GitHub Actions, paid services, publication or live deployment.
+
+## 25 November 2026: Fontello normalization runtime verification
+
+The exact source SHA `830c47edb7619335c0a2f79d016891aeb5f7e62a`
+passed **28/28** disposable WordPress runtime observations (exit 0,
+144.88 seconds), including the extended self-authored Fontello
+publication regression and previous malicious SVG/CSS, ZIP, Form,
+REST and Stripe security tests. Disposable site/database/network
+cleaned. This is runtime-only, not full frontend/editor QA.
+The pinned genuine archive import/delete test was added separately
+at `b9276e52a70a9fcfccb914ea9a3b84f082b4f7e9` and the opt-in harness
+at `ce3d94832bc5580832fd6afccd6360c264829fb9`. Its run is not yet
+certified. Genuine modern IcoMoon and Fontastic, actual browser glyph
+rendering, external audit, full acceptance and signing remain open.
