@@ -342,41 +342,52 @@ abstract class Icon_Set_Base {
 	}
 
 	public function move_files( $post_id ) {
-		// @todo: save only needed files
 		$wp_filesystem = Custom_Icons::get_wp_filesystem();
 		$to = $this->get_ensure_upload_dir( $this->dir_name ) . '/';
 
-		foreach ( $wp_filesystem->dirlist( $this->directory, false, true ) as $file ) {
-			// Some third-party icon packs include demo HTML. Fontastic
-			// needs its reference HTML only *during parsing*; once the
-			// icon config has been prepared, publishing that HTML in
-			// same-origin uploads is unnecessary and can introduce XSS
-			// through an untrusted demo page.
-			if ( preg_match( '/\\.html?$/i', $file['name'] ) ) {
-				continue;
-			}
-			$full_path = $this->directory . $file['name'];
-			if ( $wp_filesystem->is_dir( $full_path ) ) {
-				$wp_filesystem->mkdir( $to . $file['name'] );
-
-				foreach ( $file['files'] as $filename => $sub_file ) {
-					if ( preg_match( '/\\.html?$/i', $filename ) ) {
-						continue;
-					}
-					$new_path = $to . $file['name'] . DIRECTORY_SEPARATOR . $filename;
-					$wp_filesystem->move( $full_path . DIRECTORY_SEPARATOR . $filename, $new_path );
-					$this->insert_attachment( $this->get_url() . '/' . $file['name'] . '/' . $filename, $new_path, $post_id );
-				}
-			} else {
-				$new_path = $to . $file['name'];
-				$wp_filesystem->move( $full_path, $new_path );
-				$this->insert_attachment( $this->get_url() . '/' . $file['name'], $new_path, $post_id );
-			}
-		}
+		// Never move an entire directory wholesale: deeper descendants
+		// could contain demo HTML or unexpected executable assets.
+		$this->move_public_files( $wp_filesystem, $this->directory, $to, '', $post_id );
 
 		$this->cleanup_temp_files( $wp_filesystem );
 		update_post_meta( $post_id, '_elementor_icon_set_path', $to );
 		$this->directory = $to;
+	}
+
+	private function move_public_files( $wp_filesystem, $source, $destination, $relative, $post_id ) {
+		$entries = $wp_filesystem->dirlist( $source, false, false );
+		if ( ! is_array( $entries ) ) {
+			return;
+		}
+		foreach ( $entries as $file ) {
+			$name = $file['name'];
+			// ZIP extraction normally enforces these rules. Repeat them
+			// at publication, including direct importer integrations.
+			if ( ! is_string( $name ) || '' === $name || '.' === $name || '..' === $name
+				|| preg_match( '~[/\\\\\x00-\x1f\x7f]~', $name )
+				|| preg_match( '~\.(?:php[0-9]*|phtml?|pht|phar|cgi|pl|py|rb|jsp|aspx?|shtml|html?)(?:\.|$)~i', $name ) ) {
+				continue;
+			}
+			$from = $source . $name;
+			$target = $destination . $name;
+			$asset_path = $relative . $name;
+			if ( is_link( $from ) || is_link( $target ) ) {
+				continue;
+			}
+			if ( $wp_filesystem->is_dir( $from ) ) {
+				if ( $wp_filesystem->is_dir( $target ) || $wp_filesystem->mkdir( $target ) ) {
+					$this->move_public_files( $wp_filesystem, $from . '/', $target . '/', $asset_path . '/', $post_id );
+				}
+				continue;
+			}
+			$extension = strtolower( pathinfo( $name, PATHINFO_EXTENSION ) );
+			if ( ! in_array( $extension, [ 'css', 'json', 'txt', 'woff', 'woff2', 'ttf', 'otf', 'eot', 'svg' ], true ) ) {
+				continue;
+			}
+			if ( $wp_filesystem->move( $from, $target ) ) {
+				$this->insert_attachment( $this->get_url() . '/' . $asset_path, $target, $post_id );
+			}
+		}
 	}
 
 	private function insert_attachment( $file_url, $filename, $post_id = 0 ) {
