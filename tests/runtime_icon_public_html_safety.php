@@ -32,6 +32,11 @@ try {
 	file_put_contents( trailingslashit( $source ) . 'fonts/preview.html',
 		'<html><body><script>window.__zmp_nested_demo=1;</script></body></html>' );
 	file_put_contents( trailingslashit( $source ) . 'fonts/dummy.woff', 'synthetic-only-font-data' );
+	wp_mkdir_p( trailingslashit( $source ) . 'fonts/nested/deep' );
+	file_put_contents( trailingslashit( $source ) . 'fonts/nested/deep/preview.html', '<script>nested demo</script>' );
+	file_put_contents( trailingslashit( $source ) . 'fonts/nested/deep/keep.woff2', 'synthetic-only-font-data' );
+	file_put_contents( trailingslashit( $source ) . 'fonts/nested/deep/unsafe.php.css', 'not executable test data' );
+	file_put_contents( trailingslashit( $source ) . 'fonts/nested/deep/extra.bin', 'not a supported public asset' );
 
 	$handler = new $class( trailingslashit( $source ) );
 	$checks['icon_pack_reference_html_present_for_temporary_parsing'] =
@@ -55,6 +60,13 @@ try {
 		! file_exists( trailingslashit( $destination ) . 'fonts/preview.html' );
 	$checks['icon_pack_non_html_font_asset_still_published'] =
 		file_exists( trailingslashit( $destination ) . 'fonts/dummy.woff' );
+
+	$checks['deep_demo_html_and_unsupported_assets_never_published'] =
+		! file_exists( trailingslashit( $destination ) . 'fonts/nested/deep/preview.html' )
+		&& ! file_exists( trailingslashit( $destination ) . 'fonts/nested/deep/unsafe.php.css' )
+		&& ! file_exists( trailingslashit( $destination ) . 'fonts/nested/deep/extra.bin' );
+	$checks['deep_supported_font_asset_still_published'] =
+		file_exists( trailingslashit( $destination ) . 'fonts/nested/deep/keep.woff2' );
 
 	// A corrupt export must be refused without an importer PHP fatal,
 	// an attachment record, or publication into the uploads directory.
@@ -94,6 +106,6 @@ try {
 foreach ( $checks as $name => $passed ) {
 	echo ( $passed ? 'PASS ' : 'FAIL ' ) . $name . PHP_EOL;
 }
-if ( count( $checks ) !== 9 || in_array( false, $checks, true ) ) {
+if ( count( $checks ) !== 11 || in_array( false, $checks, true ) ) {
 	exit( 4 );
 }
