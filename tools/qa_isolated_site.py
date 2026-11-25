@@ -44,6 +44,8 @@ def require(condition, message):
 def main():
     argp = argparse.ArgumentParser(description=__doc__)
     argp.add_argument("--source-wordpress", required=True, type=Path)
+    argp.add_argument("--genuine-fontello-zip", type=Path, default=None,
+                      help="Opt-in privately retained pinned Fontello generator export; no download or production files.")
     argp.add_argument("--real-file-fixtures-dir", type=Path, default=None,
                       help="Optional self-authored Office/PDF/ODF/media fixtures under an isolated /tmp directory.")
     argp.add_argument(
@@ -198,6 +200,21 @@ def main():
         themes_path = site / "wp-content" / "themes"
         plugins_path.mkdir(parents=True)
         themes_path.mkdir(parents=True)
+        if args.genuine_fontello_zip is not None:
+            import hashlib
+            supplied = args.genuine_fontello_zip
+            fixture = supplied.resolve(strict=True)
+            if (supplied.is_symlink() or not fixture.is_file()
+                    or fixture.name != "fontello-export.zip"
+                    or fixture.parent.parent not in (Path("/tmp"), Path("/var/tmp").resolve())
+                    or not fixture.parent.name.startswith("zmp-genuine-fontello-")
+                    or fixture.stat().st_size > 2 * 1024 * 1024
+                    or hashlib.sha256(fixture.read_bytes()).hexdigest()
+                    != "436d8abd74629563cc7efe92d1dcdb1703ebd3c7d3effacfd6a51d0f8a60dbdf"):
+                raise RuntimeError("Genuine Fontello fixture must match the pinned private generator export")
+            staging = site / "wp-content" / "zmp-qa-genuine-fontello"
+            staging.mkdir()
+            shutil.copyfile(fixture, staging / "fontello-export.zip")
         if args.real_file_fixtures_dir is not None:
             # Never stage files from production uploads or customer directories.
             fixture_root = args.real_file_fixtures_dir.resolve(strict=True)
@@ -648,6 +665,15 @@ add_action( 'init', function () {
                                              "runtime_posts_visibility.php",
                                              "runtime_rest_sensitive_controllers.php") else [])}),
                     "Runtime check failed: " + (p.stdout + p.stderr)[-500:])
+
+        if args.genuine_fontello_zip is not None:
+            p = wp("eval-file",
+                   f"wp-content/plugins/{plugin_folder}/tests/runtime_genuine_fontello_export.php",
+                   environment={"ZMP_ISOLATED_QA": "yes"})
+            require(record("genuine Fontello archive extraction import and deletion",
+                           p.returncode == 0 and p.stdout.count("PASS ") == 7,
+                           {"exit": p.returncode, "checks": p.stdout.strip().splitlines()[:7]}),
+                    "Genuine Fontello archive test failed: " + (p.stdout + p.stderr)[-1600:])
 
         if args.real_file_fixtures_dir is not None:
             p = wp("eval-file",
