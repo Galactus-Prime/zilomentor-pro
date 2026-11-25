@@ -1084,6 +1084,34 @@ add_action( 'init', function () {
                    {"status": trigger_status, "render": trigger_data,
                     "error": trigger_err})
 
+        if args.genuine_fontello_zip is not None and args.frontend_playwright_image is not None:
+            seeded = wp("eval-file",
+                        f"wp-content/plugins/{plugin_folder}/tests/runtime_genuine_fontello_export.php",
+                        environment={"ZMP_ISOLATED_QA": "yes", "ZMP_QA_ICON_BROWSER_SEED": "yes"})
+            seed_line = next((l.split("=", 1)[1] for l in seeded.stdout.splitlines()
+                              if l.startswith("ZMP_ICON_BROWSER_SEED=")), "{}")
+            icon_page = json.loads(seed_line).get("page")
+            require(seeded.returncode == 0 and isinstance(icon_page, int) and icon_page > 0,
+                    "Failed to seed genuine browser icon: " + (seeded.stdout + seeded.stderr)[-1000:])
+            script = plugins_path / plugin_folder / "tests/browser_genuine_fontello.js"
+            require(script.is_file(), "Missing genuine browser icon test")
+            icon_browser = docker([
+                "run", "--rm", "--network", network, "--memory=1200m", "--cpus=2",
+                "--shm-size=128m", "-e", "NODE_PATH=/usr/lib/node_modules",
+                "-e", "ZMP_QA_ICON_PAGE=" + str(icon_page),
+                "-v", str(script) + ":/qa/icon.js:ro",
+                "--entrypoint", "timeout", args.frontend_playwright_image,
+                "--signal=TERM", "--kill-after=5s", "65s", "node", "/qa/icon.js",
+            ], timeout=85)
+            icon_line = next((l.split("=", 1)[1] for l in icon_browser.stdout.splitlines()
+                              if l.startswith("ZMP_ICON_BROWSER_JSON=")), "{}")
+            icon_checks = json.loads(icon_line)
+            record("Genuine Fontello Elementor Icon widget desktop and mobile Chromium",
+                   icon_browser.returncode == 0 and all(icon_checks.get(k) is True
+                       for k in ("desktop", "mobile", "localFontLoaded"))
+                   and icon_checks.get("pageErrors") == 0 and icon_checks.get("failedFontRequests") == 0,
+                   {"exit": icon_browser.returncode, "checks": icon_checks})
+
         if args.frontend_playwright_image is not None:
             # Real browser Popup test: open/close via the product's own JS API,
             # with no public host ports or external network access.
