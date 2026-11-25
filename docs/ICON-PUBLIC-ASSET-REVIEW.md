@@ -230,3 +230,22 @@ at `b9276e52a70a9fcfccb914ea9a3b84f082b4f7e9` and the opt-in harness
 at `ce3d94832bc5580832fd6afccd6360c264829fb9`. Its run is not yet
 certified. Genuine modern IcoMoon and Fontastic, actual browser glyph
 rendering, external audit, full acceptance and signing remain open.
+
+### 25 November 2026: genuine archive acceptance and recursive publication
+
+Exact revision `ce3d94832bc5580832fd6afccd6360c264829fb9` passed
+**29/29** disposable WordPress runtime observations (122.1 seconds,
+exit 0), including all seven genuine Fontello archive assertions:
+ZIP extraction, importer acceptance, CSS/WOFF2 publication, sanitized
+SVG, license preservation, attachment creation, and scoped deletion.
+The environment was cleaned. Browser glyph rendering remains open.
+
+Further review reproduced deep nested-directory publication of demo HTML,
+double-extension executable names and unsupported binary assets in a
+minimal filesystem stub (baseline 1/4 assertions passed on PHP 8.4 and
+8.5). Recursive file-by-file publication at `4570c3fc91b4b9489939244f2cf409f273a49edc`
+passed 4/4 on each PHP version and retained legitimate nested WOFF2.
+The disposable WordPress regression was extended at
+`4eee6637e70d5b848e860285f7c1b8d5b93f4510`; its runtime validation
+is not yet certified. ZIP extraction and CSS/SVG checks remain in place.
+No production modifications, independent audit, or release approval.
