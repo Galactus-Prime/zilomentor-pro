@@ -1,5 +1,42 @@
 # ZiloMentor Pro release gates and remaining blockers
 
+### Full 104/104 integration and modern IcoMoon work (25 November 2026)
+
+Exact revision `d47b9852a610952eb933e8079ac310197281f306` passed
+104/104 full disposable WordPress integration observations (301.07
+seconds, exit 0), including genuine Fontello import/delete and actual
+Elementor Icon widget desktop/mobile Chromium rendering. Local WOFF2
+loaded, zero page errors and zero failed font requests. All previous
+forms, WooCommerce, security and Apache/Nginx checks passed; cleanup
+confirmed. This is pre-modern-IcoMoon source evidence.
+
+A genuine modern beta IcoMoon download was produced using a self-authored
+star SVG in a fresh public generator browser session, without login,
+subscription or hosting. Original ZIP SHA256
+`39474db6e4549190e9a62774fc05dd3ceff016c1c399088f372ccce67cfb12fa`
+retained privately. The actual output contains root *.icomoon.json,
+glyphs[].extras, font/style.css, font/fonts and a separate svg folder.
+Its WOFF2 reference points to a missing file, with WOFF/TTF/OTF present.
+The adapter at `ce4d24cbcc25bcd567b56913f89ba152b683383a` accepts this
+format, validates project/glyph names and integer Unicode scalar values,
+checks basic font magic signatures and one font stem, generates a
+local-only glyph stylesheet, scopes publication to the font subtree,
+retains conventional license text, and retains legacy importer support.
+It does not execute or publish the original SVG/demo exports or project
+JSON. Basic signatures are not comprehensive binary font validation.
+On both PHP 8.4/8.5, the old handler was shown not to recognise the real
+archive; the new handler passed genuine acceptance and rejection of
+invalid codepoint, malformed glyph name, and invalid font magic (8/8
+targeted assertions with minimal WP stubs). PHP syntax also passed.
+Actual importer/publication/deletion regression and pinned archive
+staging added at `48affddbd39b91ced046bc56e223ad6ea68e590f`; runtime
+verification and browser rendering of the modern pack remain open.
+The modern beta adapter deliberately accepts a conservative named
+single-font subset, not all modern export variants. Independent audit,
+Fontastic genuine exports, accessibility, payment, signing and
+production acceptance remain open. No GitHub Actions or paid services.
+
+
 
 
 ### Recursive asset publication verified (25 November 2026)
