@@ -1,5 +1,20 @@
 # ZiloMentor Pro release gates and remaining blockers
 
+### Comprehensive integration rerun (24 November 2026, retrieved 25 November)
+
+Exact source `55875d6f5d6075a9a5ecd3b9cb13cb0cb748aa85` passed **102/102**
+disposable WordPress integration observations (exit 0, 313.7 seconds).
+WordPress 7.1.5, free Elementor 4.4.1, WooCommerce 11.3, Fiore,
+Nginx/PHP-FPM, real disposable Apache and Chromium frontend checks.
+All 26 genuine-format integrity/acceptance assertions passed, eight
+HTTP multipart scenarios passed, and Chromium Popup checks had zero
+page errors and zero failed local requests. Synthetic guest BACS order
+persisted on hold with no payment transaction. Disposable database,
+site and network cleaned. No real payment or email was sent.
+This exact revision includes the legacy JSON metadata fixes, but predates
+the genuine Fontello export normalization at `958e1a1`. The subsequent
+runtime regression and full acceptance remain separate gates.
+
 ### Additional exact-source manual release QA (24 November 2026)
 
 On exact source SHA `49d92f89fb4eeff871fef88248c6ea1facd799a6`, the
