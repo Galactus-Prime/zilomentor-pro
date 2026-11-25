@@ -34,6 +34,8 @@ def main():
         "--source-wordpress", type=Path, default=None,
         help="Also run isolated HTTP/form/WooCommerce regression using only source files copied from this WordPress path.",
     )
+    parser.add_argument("--genuine-fontello-zip", type=Path, default=None,
+                        help="Optional pinned genuine Fontello export for isolated import and browser QA.")
     parser.add_argument("--real-file-fixtures-dir", type=Path, default=None,
                         help="Optional /tmp self-authored real Office/PDF/ODF/media fixture directory.")
     parser.add_argument("--verify-apache-uploads", action="store_true",
@@ -96,6 +98,8 @@ def main():
         help="Opt-in real Elementor editor Desktop Tablet Mobile breakpoint switching on a disposable page.",
     )
     args = parser.parse_args()
+    if args.genuine_fontello_zip is not None and args.source_wordpress is None:
+        parser.error("--genuine-fontello-zip requires --source-wordpress.")
     if args.source_wordpress is not None and args.skip_php:
         parser.error("Full isolated QA requires PHP Docker tests; remove --skip-php.")
     if (args.browser_image or args.editor_playwright_image
@@ -156,6 +160,8 @@ def main():
         ]
         if args.verify_apache_uploads:
             qa_cmd.append("--verify-apache-uploads")
+        if args.genuine_fontello_zip is not None:
+            qa_cmd.extend(["--genuine-fontello-zip", str(args.genuine_fontello_zip)])
         if args.real_file_fixtures_dir is not None:
             qa_cmd.extend(["--real-file-fixtures-dir", str(args.real_file_fixtures_dir)])
         if args.browser_image:
