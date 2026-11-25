@@ -79,6 +79,41 @@ try {
 		&& ! file_exists( $path . 'css/zmp-qa-public-ie7-codes.css' );
 	$checks['real_import_creates_attachment_records'] =
 		count( get_attached_media( '', $post_id ) ) > 0;
+	if ( 'yes' === getenv( 'ZMP_QA_ICON_BROWSER_SEED' ) ) {
+		if ( count( $checks ) !== 6 || in_array( false, $checks, true ) ) {
+			throw new \RuntimeException( 'Cannot seed failed genuine importer' );
+		}
+		update_post_meta( $post_id, Custom_Icons::META_KEY, wp_slash( wp_json_encode( $config ) ) );
+		$published = wp_update_post( [ 'ID' => $post_id, 'post_status' => 'publish' ], true );
+		if ( is_wp_error( $published ) || ! $published ) {
+			throw new \RuntimeException( 'Cannot publish disposable icon set' );
+		}
+		Custom_Icons::clear_icon_list_option();
+		$page = wp_insert_post( [
+			'post_type' => 'page', 'post_status' => 'publish',
+			'post_title' => 'ZMP Genuine Fontello Browser Fixture',
+		], true );
+		if ( is_wp_error( $page ) || ! $page ) {
+			throw new \RuntimeException( 'Cannot seed disposable icon widget page' );
+		}
+		$elements = [ [
+			'id' => '8a0b1c00', 'elType' => 'container', 'settings' => [],
+			'elements' => [ [
+				'id' => '8a0b1c01', 'elType' => 'widget', 'widgetType' => 'icon',
+				'settings' => [ 'selected_icon' => [ 'value' => 'zmp-qa-edit', 'library' => $config['name'] ] ],
+				'elements' => [],
+			] ],
+		] ];
+		update_post_meta( $page, '_elementor_data', wp_slash( wp_json_encode( $elements ) ) );
+		update_post_meta( $page, '_elementor_edit_mode', 'builder' );
+		update_post_meta( $page, '_elementor_version', ELEMENTOR_VERSION );
+		// The outer isolated-site runner destroys the entire synthetic database
+		// and uploads tree after browser verification. Normal runtime mode
+		// still exercises explicit deletion below.
+		echo 'ZMP_ICON_BROWSER_SEED=' . wp_json_encode( [ 'page' => (int) $page ] ) . PHP_EOL;
+		$post_id = 0;
+		return;
+	}
 	$manager->handle_delete_icon_set( $post_id );
 	$checks['actual_delete_removes_pack_and_attachments_not_shared_root'] =
 		! file_exists( $path ) && is_dir( $uploads ) && ! get_attached_media( '', $post_id );
