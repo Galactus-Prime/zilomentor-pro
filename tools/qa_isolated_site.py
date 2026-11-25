@@ -201,7 +201,6 @@ def main():
         plugins_path.mkdir(parents=True)
         themes_path.mkdir(parents=True)
         if args.genuine_fontello_zip is not None:
-            import hashlib
             supplied = args.genuine_fontello_zip
             fixture = supplied.resolve(strict=True)
             if (supplied.is_symlink() or not fixture.is_file()
