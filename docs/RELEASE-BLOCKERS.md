@@ -1,6 +1,22 @@
 # ZiloMentor Pro release gates and remaining blockers
 
 
+
+### Recursive asset publication verified (25 November 2026)
+
+Exact source `4eee6637e70d5b848e860285f7c1b8d5b93f4510` passed 29/29
+runtime observations (exit 0, 132.66 seconds), including the expanded
+nested publication regression and all seven genuine Fontello extraction,
+import and deletion assertions. Disposable WordPress/database/network
+cleaned. The next opt-in browser test seeds an actual Elementor Icon
+widget using the pinned genuine pack and checks desktop/mobile glyph
+and WOFF2 loading; integration at `d47b9852a610952eb933e8079ac310197281f306`
+and manual runner option at `c1f2ff21fbfc16a64430556ea5c1eabc02a013e9`.
+PHP fixture syntax and Python runner syntax/argument checks passed.
+The new browser test is not yet certified. Full frontend integration,
+modern IcoMoon/Fontastic, independent security audit, genuine payments,
+operational signing and production acceptance remain separate gates.
+
 ### 25 November 2026: genuine archive acceptance and recursive publication
 
 Exact revision `ce3d94832bc5580832fd6afccd6360c264829fb9` passed
