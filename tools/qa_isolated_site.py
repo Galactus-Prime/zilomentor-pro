@@ -44,6 +44,8 @@ def require(condition, message):
 def main():
     argp = argparse.ArgumentParser(description=__doc__)
     argp.add_argument("--source-wordpress", required=True, type=Path)
+    argp.add_argument("--genuine-icomoon-zip", type=Path, default=None,
+                      help="Opt-in pinned private modern IcoMoon generator export.")
     argp.add_argument("--genuine-fontello-zip", type=Path, default=None,
                       help="Opt-in privately retained pinned Fontello generator export; no download or production files.")
     argp.add_argument("--real-file-fixtures-dir", type=Path, default=None,
@@ -200,6 +202,20 @@ def main():
         themes_path = site / "wp-content" / "themes"
         plugins_path.mkdir(parents=True)
         themes_path.mkdir(parents=True)
+        if args.genuine_icomoon_zip is not None:
+            supplied = args.genuine_icomoon_zip
+            fixture = supplied.resolve(strict=True)
+            if (supplied.is_symlink() or not fixture.is_file()
+                    or fixture.name != "icomoon-export.zip"
+                    or fixture.parent.parent not in (Path("/tmp"), Path("/var/tmp").resolve())
+                    or not fixture.parent.name.startswith("zmp-genuine-icomoon-")
+                    or fixture.stat().st_size > 2 * 1024 * 1024
+                    or hashlib.sha256(fixture.read_bytes()).hexdigest()
+                    != "39474db6e4549190e9a62774fc05dd3ceff016c1c399088f372ccce67cfb12fa"):
+                raise RuntimeError("Genuine IcoMoon fixture must match the pinned private generator export")
+            staging = site / "wp-content" / "zmp-qa-genuine-icomoon"
+            staging.mkdir()
+            shutil.copyfile(fixture, staging / "icomoon-export.zip")
         if args.genuine_fontello_zip is not None:
             supplied = args.genuine_fontello_zip
             fixture = supplied.resolve(strict=True)
@@ -664,6 +680,15 @@ add_action( 'init', function () {
                                              "runtime_posts_visibility.php",
                                              "runtime_rest_sensitive_controllers.php") else [])}),
                     "Runtime check failed: " + (p.stdout + p.stderr)[-500:])
+
+        if args.genuine_icomoon_zip is not None:
+            p = wp("eval-file",
+                   f"wp-content/plugins/{plugin_folder}/tests/runtime_genuine_icomoon_export.php",
+                   environment={"ZMP_ISOLATED_QA": "yes"})
+            require(record("genuine modern IcoMoon archive extraction import and deletion",
+                           p.returncode == 0 and p.stdout.count("PASS ") == 6,
+                           {"exit": p.returncode, "checks": p.stdout.strip().splitlines()[:6]}),
+                    "Genuine modern IcoMoon archive test failed: " + (p.stdout + p.stderr)[-1600:])
 
         if args.genuine_fontello_zip is not None:
             p = wp("eval-file",
