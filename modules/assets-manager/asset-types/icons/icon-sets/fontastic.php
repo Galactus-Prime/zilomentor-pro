@@ -10,6 +10,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Fontastic extends Icon_Set_Base {
 
 	protected $data = '';
+	protected $cached_icon_prefix = null;
+	protected $cached_icon_name = null;
 	protected $data_file = 'icons-reference.html';
 	protected $stylesheet_file = 'styles.css';
 	protected $allowed_zipped_files = [ 'icons-reference.html', 'styles.css', 'fonts/' ];
@@ -32,7 +34,11 @@ class Fontastic extends Icon_Set_Base {
 	}
 
 	protected function extract_icon_list() {
-		$pattern = '/\.' . $this->get_prefix() . '(.*)\:before\s\{/';
+		$prefix = $this->get_prefix();
+		if ( ! is_string( $prefix ) || '' === $prefix ) {
+			return false;
+		}
+		$pattern = '/\.' . preg_quote( $prefix, '/' ) . '([a-zA-Z0-9_-]+):before\s*\{/';
 		preg_match_all( $pattern, $this->data, $icons_matches );
 		if ( empty( $icons_matches[1] ) ) {
 			return false; //  missing icons list
@@ -45,36 +51,34 @@ class Fontastic extends Icon_Set_Base {
 	}
 
 	protected function get_prefix() {
-		static $set_prefix = null;
-		if ( null === $set_prefix ) {
-			$pattern = '/class\^="(.*)?"/';
+		if ( null === $this->cached_icon_prefix ) {
+			$pattern = '/class\^="([^"]+)"/';
 			preg_match_all( $pattern, $this->data, $prefix );
 			if ( ! isset( $prefix[1][0] ) ) {
 				return false; //  missing css_prefix_text
 			}
-			$set_prefix = $prefix[1][0];
+			$this->cached_icon_prefix = $prefix[1][0];
 		}
-		return $set_prefix;
+		return $this->cached_icon_prefix;
 	}
 
 	const DEFAULT_NAME = 'fontastic';
 
 	public function get_name() {
-		static $set_name = null;
-		if ( null === $set_name ) {
+		if ( null === $this->cached_icon_name ) {
 			// The name is validated before prepare() loads the stylesheet.
 			if ( '' === $this->data ) {
 				$this->data = Utils::_unstable_file_get_contents( $this->directory . $this->stylesheet_file );
 			}
 
-			$pattern = '/font-family: "(.*)"/';
+			$pattern = '/font-family:\s*"([^"]+)"/';
 			preg_match_all( $pattern, $this->data, $name );
 			if ( ! isset( $name[1][0] ) ) {
 				return false; //  missing name
 			}
-			$set_name = '' === trim( $name[1][0] ) ? self::DEFAULT_NAME : $name[1][0];
+			$this->cached_icon_name = '' === trim( $name[1][0] ) ? self::DEFAULT_NAME : $name[1][0];
 		}
-		return $set_name;
+		return $this->cached_icon_name;
 	}
 
 	protected function get_stylesheet( $unique_name = '' ) {

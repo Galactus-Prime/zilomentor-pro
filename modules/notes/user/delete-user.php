@@ -53,12 +53,12 @@ class Delete_User {
 
 		?>
 		<h4>
-			<?php echo esc_html__( 'PRO Elements Notes', 'elementor-pro' ); ?>
+			<?php echo esc_html__( 'ZiloMentor Pro Notes', 'elementor-pro' ); ?>
 		</h4>
 		<p>
 			<?php
 			echo esc_html__(
-				'Please note that this user has notes/replies in PRO Elements Notes feature.',
+				'Please note that this user has notes/replies in ZiloMentor Pro Notes feature.',
 				'elementor-pro'
 			);
 			?>

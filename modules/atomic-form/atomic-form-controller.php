@@ -5,6 +5,7 @@ use Elementor\Element_Base;
 use Elementor\Modules\AtomicWidgets\DynamicTags\Dynamic_Prop_Type;
 use Elementor\Modules\AtomicWidgets\Elements\Base\Atomic_Widget_Base;
 use Elementor\Utils as ElementorUtils;
+use ElementorPro\Core\Utils;
 use ElementorPro\Modules\AtomicForm\Actions\Action_Runner;
 use ElementorPro\Modules\AtomicForm\Actions\Action_Type;
 use ElementorPro\Modules\AtomicForm\File_Upload\File_Upload_Handler;
@@ -275,6 +276,13 @@ class Atomic_Form_Controller {
 	}
 
 	private function find_form_element( int $post_id, string $form_id ) {
+		if ( ! Utils::is_form_submission_document_accessible( $post_id ) ) {
+			return new \WP_Error(
+				'form_not_found',
+				__( 'Form element not found', 'elementor-pro' )
+			);
+		}
+
 		$document = Plugin::elementor()->documents->get( $post_id );
 
 		if ( ! $document ) {

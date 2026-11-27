@@ -250,13 +250,23 @@ class Module extends Module_Base {
 	 * @return false|float $tax_rates_options placed as the control options
 	 */
 	public function currency_adaptation( $currency, $product_price ) {
-		$zero_decimal = [ 'BIF', 'CLP', 'DJF', 'GNF', 'JPY', 'KMF', 'KRW', 'MGA', 'PYG', 'RWF', 'UGX', 'VND', 'VUV', 'XAF', 'XOF', 'XPF' ];
-		if ( in_array( $currency, $zero_decimal ) ) {
-			// There is no need to multiply $product_price by 100
-			return floor( $product_price );
-		} else {
-			return floor( $product_price * 100 );
+		if ( ! is_numeric( $product_price ) || ! is_scalar( $product_price )
+			|| ! is_finite( (float) $product_price ) || (float) $product_price < 0 ) {
+			return 0;
 		}
+		$zero_decimal = [ 'BIF', 'CLP', 'DJF', 'GNF', 'JPY', 'KMF', 'KRW', 'MGA', 'PYG', 'RWF', 'UGX', 'VND', 'VUV', 'XAF', 'XOF', 'XPF' ];
+		$is_zero_decimal = in_array( strtoupper( (string) $currency ), $zero_decimal, true );
+		$amount = (float) $product_price * ( $is_zero_decimal ? 1 : 100 );
+		if ( ! is_finite( $amount ) || $amount > PHP_INT_MAX ) {
+			return 0;
+		}
+		// floor(19.99 * 100) can charge 1998 instead of 1999 because of
+		// binary floating-point representation. Round to the nearest minor
+		// unit for two-decimal currencies; retain whole-unit truncation for
+		// the historical zero-decimal currency behavior.
+		return $is_zero_decimal
+			? (int) floor( $amount )
+			: (int) round( $amount, 0, PHP_ROUND_HALF_UP );
 	}
 
 	/**
@@ -286,45 +296,124 @@ class Module extends Module_Base {
 	 *
 	 * @since 3.7.0
 	 */
+	/**
+	 * Untrusted callers may suggest the current page only within the site's
+	 * permitted redirect hosts. Never let an anonymous Stripe request inject
+	 * an external phishing return URL into a Checkout Session.
+	 */
+	public static function validate_checkout_return_url( $requested, $fallback = '' ) {
+		$fallback = is_string( $fallback ) && '' !== $fallback ? $fallback : home_url( '/' );
+		$fallback = wp_validate_redirect( $fallback, home_url( '/' ) );
+		if ( ! is_string( $requested ) || '' === trim( $requested ) ) {
+			return $fallback;
+		}
+		return wp_validate_redirect( $requested, $fallback );
+	}
+
+	/**
+	 * Payment-session settings must be derived from a published, real Stripe
+	 * widget, not an arbitrary caller-selected draft document or element ID.
+	 * Template embeds remain supported if their own document is published.
+	 */
+	public static function is_public_stripe_document( $post_id ) {
+		$post_id = absint( $post_id );
+		if ( ! $post_id || 'publish' !== get_post_status( $post_id ) ) {
+			return false;
+		}
+		return ! post_password_required( $post_id );
+	}
+
+	/** Reject invalid or oversized payment session settings before Stripe I/O. */
+	public static function is_valid_stripe_session( $args ) {
+		return is_array( $args )
+			&& isset( $args['currency'], $args['quantity'], $args['unit_amount'] )
+			&& is_string( $args['currency'] )
+			&& 1 === preg_match( '/^[A-Z]{3}$/D', $args['currency'] )
+			&& is_int( $args['quantity'] )
+			&& $args['quantity'] >= 1 && $args['quantity'] <= 99
+			&& is_int( $args['unit_amount'] )
+			&& $args['unit_amount'] >= 1 && $args['unit_amount'] <= 99999999
+			&& ( ! isset( $args['shipping_amount'] )
+				|| ( is_int( $args['shipping_amount'] )
+					&& $args['shipping_amount'] >= 0
+					&& $args['shipping_amount'] <= 99999999 ) )
+			&& $args['unit_amount'] * $args['quantity'] +
+				( $args['shipping_amount'] ?? 0 ) <= 99999999;
+	}
+
 	public function submit_stripe_form() {
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing
-		$data = Utils::_unstable_get_super_global_value( $_POST, 'data' );
-		if ( ! isset( $data['nonce'] ) || ! wp_verify_nonce( $data['nonce'], 'stripe_form_submit' ) ) {
+		// Read only the nonce, page URL and IDs from the request. All price,
+		// currency, tax, quantity and secret-key values come from saved widgets.
+		$data = Utils::_unstable_get_super_global_value( $_POST, 'data' ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		if ( ! is_array( $data ) || empty( $data['nonce'] )
+			|| ! is_scalar( $data['nonce'] )
+			|| ! wp_verify_nonce( (string) $data['nonce'], 'stripe_form_submit' ) ) {
 			$this->error_handler( 403, esc_html__( 'Something went wrong, please refresh the page.', 'elementor-pro' ) );
-			die();
+			return;
 		}
+
+		$post_id = isset( $data['postId'] ) && is_scalar( $data['postId'] ) ? absint( $data['postId'] ) : 0;
+		$widget_id = isset( $data['widgetId'] ) && is_string( $data['widgetId'] ) ? $data['widgetId'] : '';
+		if ( ! self::is_public_stripe_document( $post_id ) ||
+			! preg_match( '/^[a-zA-Z0-9_-]{6,64}$/D', $widget_id ) ) {
+			$this->error_handler( 400, esc_html__( 'Invalid payment form.', 'elementor-pro' ) );
+			return;
+		}
+
+		$document = Plugin::elementor()->documents->get( $post_id );
+		if ( ! $document ) {
+			$this->error_handler( 400, esc_html__( 'Invalid payment form.', 'elementor-pro' ) );
+			return;
+		}
+
+		$widget = \ElementorPro\Modules\Forms\Module::find_element_recursive( $document->get_elements_data(), $widget_id );
+		if ( ! is_array( $widget ) || 'stripe-button' !== ( $widget['widgetType'] ?? '' ) ) {
+			$this->error_handler( 400, esc_html__( 'Invalid payment form.', 'elementor-pro' ) );
+			return;
+		}
+
+		Plugin::elementor()->db->switch_to_post( $post_id );
+		$widget_instance = Plugin::elementor()->elements_manager->create_element_instance( $widget );
+		if ( ! $widget_instance instanceof \Elementor\Widget_Base ) {
+			$this->error_handler( 400, esc_html__( 'Invalid payment form.', 'elementor-pro' ) );
+			return;
+		}
+
+		$widget_settings = $widget_instance->get_settings_for_display();
+		$settings = is_array( $widget['settings'] ?? null ) ? $widget['settings'] : [];
+		$fallback = get_permalink( $post_id ) ?: home_url( '/' );
 		$args = [];
-		$widget_id = $data['widgetId'] ?? null;
-		$args['page_url'] = $data['pageUrl'] ?? null;
-
-		Plugin::elementor()->db->switch_to_post( $data['postId'] );
-		$document = Plugin::elementor()->documents->get( $data['postId'] );
-
-		// Retrieve data from widget document
-		if ( $document ) {
-			$widget = \ElementorPro\Modules\Forms\Module::find_element_recursive( $document->get_elements_data(), $widget_id );
-			$widget_instance = Plugin::elementor()->elements_manager->create_element_instance( $widget );
-			$widget_settings = $widget_instance->get_settings_for_display();
-
-			$args['product_name'] = $widget_settings['product_name'] ? $widget_settings['product_name'] : 'Product';
-			$product_price = $widget_settings['stripe_product_price'] ? $widget_settings['stripe_product_price'] : null;
-			$args['currency'] = $widget['settings']['stripe_currency'] ? $widget['settings']['stripe_currency'] : 'USD';
-			$args['quantity'] = $widget['settings']['stripe_quantity'] ? $widget['settings']['stripe_quantity'] : 1;
-			$args['success_url'] = ( empty( $widget_settings['redirect_after_success']['url'] ) ? $args['page_url'] : $widget_settings['redirect_after_success']['url'] );
-			$args['shipping_amount'] = $widget_settings['shipping_amount'] ? $widget_settings['shipping_amount'] * 100 : '';
-			$this->stripe_test_mode = $widget['settings']['sandbox_mode'] ? $widget['settings']['sandbox_mode'] : 'no';
-			$args['test_mode'] = $this->stripe_test_mode;
-			$args['tax_rates'] = 'yes' === $args['test_mode'] ? $widget['settings']['stripe_test_env_tax_rates_list'] : $widget['settings']['stripe_live_env_tax_rates_list'];
+		$args['page_url'] = self::validate_checkout_return_url( $data['pageUrl'] ?? null, $fallback );
+		$args['product_name'] = ! empty( $widget_settings['product_name'] ) ? $widget_settings['product_name'] : 'Product';
+		$product_price = $widget_settings['stripe_product_price'] ?? null;
+		$args['currency'] = isset( $settings['stripe_currency'] ) && is_string( $settings['stripe_currency'] )
+			? strtoupper( $settings['stripe_currency'] ) : 'USD';
+		$args['quantity'] = isset( $settings['stripe_quantity'] ) ? absint( $settings['stripe_quantity'] ) : 1;
+		$redirect = $widget_settings['redirect_after_success']['url'] ?? '';
+		$args['success_url'] = self::validate_checkout_return_url( $redirect, $args['page_url'] );
+		$args['shipping_amount'] = 0;
+		if ( ! empty( $widget_settings['shipping_amount'] ) && is_numeric( $widget_settings['shipping_amount'] ) ) {
+			$args['shipping_amount'] = max( 0, $this->currency_adaptation( $args['currency'], $widget_settings['shipping_amount'] ) );
 		}
-
+		$this->stripe_test_mode = 'yes' === ( $settings['sandbox_mode'] ?? 'no' ) ? 'yes' : 'no';
+		$args['test_mode'] = $this->stripe_test_mode;
+		$args['tax_rates'] = 'yes' === $args['test_mode']
+			? ( $settings['stripe_test_env_tax_rates_list'] ?? '' )
+			: ( $settings['stripe_live_env_tax_rates_list'] ?? '' );
 		$args['unit_amount'] = $this->currency_adaptation( $args['currency'], $product_price );
 
-		$this->set_secret_key_by_environment_state( $args['test_mode'] );
+		if ( ! self::is_valid_stripe_session( $args ) ) {
+			$this->error_handler( 400, esc_html__( 'Invalid payment amount or currency.', 'elementor-pro' ) );
+			return;
+		}
 
+		$this->set_secret_key_by_environment_state( $args['test_mode'] );
 		if ( ! empty( $this->secret_key ) ) {
 			$headers = [ 'Authorization' => 'Bearer ' . $this->secret_key ];
-			$body = $this->build_body_for_post_request( $args );
-			$this->execute_post_request_to_stripe_api( $headers, $body );
+			$this->execute_post_request_to_stripe_api(
+				$headers,
+				$this->build_body_for_post_request( $args )
+			);
 		} else {
 			$this->error_handler( 401, esc_html__( 'You have not entered a valid secret key for this environment, Please add a valid secret key', 'elementor-pro' ) );
 		}
@@ -358,15 +447,16 @@ class Module extends Module_Base {
 			$body['shipping_options'][0]['shipping_rate_data']['display_name'] = esc_html__( 'shipping fee', 'elementor-pro' );
 		}
 
-		if ( isset( $args['tax_rates'] ) ) {
-			$tax_rate = json_decode( $args['tax_rates'] );
-			$tax_id = [ $tax_rate[0] ];
-			$tax_behavior = $tax_rate[1];
-
-			if ( ! empty( $tax_behavior ) && ! empty( $tax_id ) ) {
-				$body['line_items'][0]['price_data']['tax_behavior'] = $tax_behavior;
-				$body['line_items'][0]['tax_rates'] = $tax_id;
-			}
+		// A missing, empty or malformed tax selection should not produce PHP
+		// warnings or create partially corrupt Stripe checkout parameters.
+		$raw_tax = $args['tax_rates'] ?? '';
+		$tax_rate = is_string( $raw_tax ) ? json_decode( $raw_tax, true ) : null;
+		if ( is_array( $tax_rate ) && count( $tax_rate ) === 2
+			&& isset( $tax_rate[0], $tax_rate[1] )
+			&& is_string( $tax_rate[0] ) && preg_match( '/^txr_[a-zA-Z0-9]+$/D', $tax_rate[0] )
+			&& in_array( $tax_rate[1], [ 'inclusive', 'exclusive' ], true ) ) {
+			$body['line_items'][0]['price_data']['tax_behavior'] = $tax_rate[1];
+			$body['line_items'][0]['tax_rates'] = [ $tax_rate[0] ];
 		}
 
 		return $body;

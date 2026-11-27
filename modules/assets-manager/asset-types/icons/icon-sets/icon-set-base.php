@@ -144,31 +144,250 @@ abstract class Icon_Set_Base {
 		return Utils::get_ensure_upload_dir( $path );
 	}
 
+	/**
+	 * Validate active assets before copying an icon ZIP into same-origin uploads.
+	 *
+	 * Fonts imported from Fontello, IcoMoon and Fontastic may contain SVG
+	 * webfonts and CSS. ZIP entry/path checks do not prevent browser XSS,
+	 * remote CSS imports or tracking URL references. Refuse active content
+	 * we cannot parse safely instead of publishing an unsafe icon pack.
+	 *
+	 * @return true|\WP_Error
+	 */
+	public function validate_public_icon_assets() {
+		$root = realpath( $this->directory );
+		if ( ! $root || ! is_dir( $root ) || is_link( $this->directory ) ) {
+			return new \WP_Error( 'invalid_icon_assets', esc_html__( 'Invalid icon asset directory.', 'elementor-pro' ) );
+		}
+
+		$iterator = new \RecursiveIteratorIterator(
+			new \RecursiveDirectoryIterator( $root, \FilesystemIterator::SKIP_DOTS )
+		);
+		$scanned = 0;
+		foreach ( $iterator as $asset ) {
+			if ( ++$scanned > 4096 || $asset->isLink() ) {
+				return new \WP_Error( 'invalid_icon_assets', esc_html__( 'Unsafe icon asset directory.', 'elementor-pro' ) );
+			}
+			if ( ! $asset->isFile() ) {
+				continue;
+			}
+			$extension = strtolower( pathinfo( $asset->getFilename(), PATHINFO_EXTENSION ) );
+			if ( ! in_array( $extension, [ 'css', 'svg' ], true ) ) {
+				continue;
+			}
+			$size = $asset->getSize();
+			if ( $size < 1 || $size > 2 * 1024 * 1024 ) {
+				return new \WP_Error( 'invalid_icon_assets', esc_html__( 'Icon stylesheet or SVG is invalid or oversized.', 'elementor-pro' ) );
+			}
+			$data = file_get_contents( $asset->getPathname() );
+			$valid = 'css' === $extension
+				? self::is_safe_icon_stylesheet( $data, $asset->getPathname(), $root )
+				: self::is_safe_svg_font_asset( $data );
+			if ( ! $valid ) {
+				return new \WP_Error( 'invalid_icon_assets', esc_html__( 'Icon pack contains unsafe CSS or SVG content.', 'elementor-pro' ) );
+			}
+		}
+		return true;
+	}
+
+	private static function is_safe_icon_stylesheet( $css, $filename, $root ) {
+		if ( ! is_string( $css ) || '' === trim( $css ) || false !== strpos( $css, "\0" )
+			|| false !== strpos( $css, '<' ) || false !== strpos( $css, '>' ) ) {
+			return false;
+		}
+		// CSS identifiers can encode any ASCII character as a hex escape
+		// (e.g. @im\70ort / u\72l) or split keywords with comments.
+		// Normalise those before detecting imports and network functions.
+		// Glyph codepoint escapes such as "\e800" are > ASCII and stay
+		// untouched; real icon font stylesheets continue to work.
+		$normalized = preg_replace( '~/\*.*?\*/~s', '', $css );
+		if ( null === $normalized || preg_match( '~\\\\[\r\n\f]~', $normalized ) ) {
+			return false;
+		}
+		$normalized = preg_replace_callback(
+			'~\\\\([0-9a-f]{1,6})(?:[ \t\r\n\f])?|\\\\([^0-9a-f\r\n\f])~i',
+			static function ( $match ) {
+				if ( ! empty( $match[1] ) ) {
+					$codepoint = hexdec( $match[1] );
+					return $codepoint >= 32 && $codepoint <= 126
+						? chr( $codepoint ) : $match[0];
+				}
+				return $match[2];
+			},
+			$normalized
+		);
+		if ( null === $normalized
+			|| preg_match(
+				'~@(?:import|namespace)\b|expression\s*\(|'
+				. '(?:-moz-binding|behavior)\s*:|(?:javascript|vbscript|data)\s*:|'
+				. '(?:-webkit-)?image-set\s*\(|url-prefix\s*\(~i',
+				$normalized
+			) ) {
+			return false;
+		}
+		// Resolve exactly the CSS url() tokens after escape/comment
+		// normalisation. Everything must refer to a regular font file
+		// inside this extracted package. Remote, absent, traversing
+		// or unsupported image/document references are refused.
+		$tokens = preg_match_all( '~url\s*\(~i', $normalized );
+		$parsed = preg_match_all(
+			'~url\s*\(\s*(?:"([^"]*)"|\'([^\']*)\'|([^)]*))\s*\)~i',
+			$normalized, $matches, PREG_SET_ORDER
+		);
+		if ( false === $tokens || false === $parsed || $tokens !== $parsed ) {
+			return false;
+		}
+		$root = trailingslashit( $root );
+		foreach ( $matches as $match ) {
+			$reference = trim( '' !== ( $match[1] ?? '' ) ? $match[1]
+				: ( '' !== ( $match[2] ?? '' ) ? $match[2] : ( $match[3] ?? '' ) ) );
+			if ( ! preg_match( '~^[A-Za-z0-9_./-]+(?:\?[A-Za-z0-9_=&%-]+)?(?:\#[A-Za-z0-9_-]+)?$~D', $reference )
+				|| false !== strpos( $reference, '\\' ) || str_starts_with( $reference, '/' ) ) {
+				return false;
+			}
+			$relative = preg_split( '/[?#]/', $reference, 2 )[0];
+			$resolved = realpath( dirname( $filename ) . '/' . $relative );
+			$extension = strtolower( pathinfo( $relative, PATHINFO_EXTENSION ) );
+			if ( ! $resolved || is_link( $resolved ) || ! is_file( $resolved )
+				|| ! str_starts_with( $resolved, $root )
+				|| ! in_array( $extension, [ 'woff2', 'woff', 'ttf', 'otf', 'eot', 'svg' ], true ) ) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * Legacy SVG webfonts cannot pass Elementor's normal icon-image sanitizer,
+	 * because their <font>/<glyph> elements are intentionally different.
+	 * Keep only the inert SVG *font* vocabulary; never allow scripts, foreign
+	 * objects, event handlers, URL attributes, external entities or styles.
+	 */
+	private static function is_safe_svg_font_asset( $svg ) {
+		if ( ! is_string( $svg ) || false !== stripos( $svg, '<!DOCTYPE' )
+			|| false !== stripos( $svg, '<!ENTITY' ) || false !== strpos( $svg, "\0" )
+			|| ! class_exists( '\DOMDocument' ) ) {
+			return false;
+		}
+		$old_errors = libxml_use_internal_errors( true );
+		try {
+			$dom = new \DOMDocument();
+			if ( ! $dom->loadXML( $svg, LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING )
+				|| $dom->doctype || ! $dom->documentElement
+				|| 'svg' !== $dom->documentElement->localName
+				|| 'http://www.w3.org/2000/svg' !== $dom->documentElement->namespaceURI ) {
+				return false;
+			}
+			// SVG permits xml-stylesheet processing instructions outside the
+			// document element, which can fetch external CSS when opened
+			// directly. Checking only the root's descendants misses them.
+			foreach ( $dom->childNodes as $document_child ) {
+				if ( ! in_array( $document_child->nodeType, [
+					XML_ELEMENT_NODE, XML_COMMENT_NODE
+				], true ) ) {
+					return false;
+				}
+			}
+			$allowed_elements = [ 'svg', 'defs', 'font', 'font-face', 'glyph',
+				'missing-glyph', 'metadata', 'title', 'desc', 'hkern', 'vkern' ];
+			$allowed_attributes = [ 'xmlns', 'version', 'id', 'horiz-adv-x',
+				'vert-adv-y', 'vert-adv-x', 'glyph-name', 'unicode', 'd',
+				'font-family', 'font-weight', 'font-style', 'font-stretch',
+				'units-per-em', 'ascent', 'descent', 'x-height', 'cap-height',
+				'underline-position', 'underline-thickness', 'bbox',
+				'stemv', 'stemh', 'slope', 'accent-height', 'panose-1',
+				'font-variant', 'font-size', 'k', 'u1', 'u2', 'g1', 'g2' ];
+			$has_font = false;
+			$nodes = [ $dom->documentElement ];
+			while ( $nodes ) {
+				$node = array_pop( $nodes );
+				if ( XML_ELEMENT_NODE !== $node->nodeType
+					|| 'http://www.w3.org/2000/svg' !== $node->namespaceURI
+					|| ! in_array( $node->localName, $allowed_elements, true ) ) {
+					return false;
+				}
+				if ( 'font' === $node->localName ) {
+					$has_font = true;
+				}
+				foreach ( $node->attributes as $attribute ) {
+					if ( 'http://www.w3.org/2000/xmlns/' === $attribute->namespaceURI ) {
+						if ( ! in_array( $attribute->value, [
+							'http://www.w3.org/2000/svg', 'http://www.w3.org/1999/xlink'
+						], true ) ) {
+							return false;
+						}
+						continue;
+					}
+					if ( '' !== (string) $attribute->namespaceURI
+						|| ! in_array( $attribute->name, $allowed_attributes, true )
+						|| preg_match( '~(?:url\s*\(|javascript:|data:|vbscript:|<)~i', $attribute->value ) ) {
+						return false;
+					}
+				}
+				foreach ( $node->childNodes as $child ) {
+					if ( XML_ELEMENT_NODE === $child->nodeType ) {
+						$nodes[] = $child;
+					} elseif ( ! in_array( $child->nodeType, [
+						XML_TEXT_NODE, XML_COMMENT_NODE, XML_CDATA_SECTION_NODE
+					], true ) ) {
+						return false;
+					}
+				}
+			}
+			return $has_font;
+		} finally {
+			libxml_clear_errors();
+			libxml_use_internal_errors( $old_errors );
+		}
+	}
+
 	public function move_files( $post_id ) {
-		// @todo: save only needed files
 		$wp_filesystem = Custom_Icons::get_wp_filesystem();
 		$to = $this->get_ensure_upload_dir( $this->dir_name ) . '/';
 
-		foreach ( $wp_filesystem->dirlist( $this->directory, false, true ) as $file ) {
-			$full_path = $this->directory . $file['name'];
-			if ( $wp_filesystem->is_dir( $full_path ) ) {
-				$wp_filesystem->mkdir( $to . $file['name'] );
-
-				foreach ( $file['files'] as $filename => $sub_file ) {
-					$new_path = $to . $file['name'] . DIRECTORY_SEPARATOR . $filename;
-					$wp_filesystem->move( $full_path . DIRECTORY_SEPARATOR . $filename, $new_path );
-					$this->insert_attachment( $this->get_url() . '/' . $file['name'] . '/' . $filename, $new_path, $post_id );
-				}
-			} else {
-				$new_path = $to . $file['name'];
-				$wp_filesystem->move( $full_path, $new_path );
-				$this->insert_attachment( $this->get_url() . '/' . $file['name'], $new_path, $post_id );
-			}
-		}
+		// Never move an entire directory wholesale: deeper descendants
+		// could contain demo HTML or unexpected executable assets.
+		$this->move_public_files( $wp_filesystem, $this->directory, $to, '', $post_id );
 
 		$this->cleanup_temp_files( $wp_filesystem );
 		update_post_meta( $post_id, '_elementor_icon_set_path', $to );
 		$this->directory = $to;
+	}
+
+	private function move_public_files( $wp_filesystem, $source, $destination, $relative, $post_id ) {
+		$entries = $wp_filesystem->dirlist( $source, false, false );
+		if ( ! is_array( $entries ) ) {
+			return;
+		}
+		foreach ( $entries as $file ) {
+			$name = $file['name'];
+			// ZIP extraction normally enforces these rules. Repeat them
+			// at publication, including direct importer integrations.
+			if ( ! is_string( $name ) || '' === $name || '.' === $name || '..' === $name
+				|| preg_match( '~[/\\\\\x00-\x1f\x7f]~', $name )
+				|| preg_match( '~\.(?:php[0-9]*|phtml?|pht|phar|cgi|pl|py|rb|jsp|aspx?|shtml|html?)(?:\.|$)~i', $name ) ) {
+				continue;
+			}
+			$from = $source . $name;
+			$target = $destination . $name;
+			$asset_path = $relative . $name;
+			if ( is_link( $from ) || is_link( $target ) ) {
+				continue;
+			}
+			if ( $wp_filesystem->is_dir( $from ) ) {
+				if ( $wp_filesystem->is_dir( $target ) || $wp_filesystem->mkdir( $target ) ) {
+					$this->move_public_files( $wp_filesystem, $from . '/', $target . '/', $asset_path . '/', $post_id );
+				}
+				continue;
+			}
+			$extension = strtolower( pathinfo( $name, PATHINFO_EXTENSION ) );
+			if ( ! in_array( $extension, [ 'css', 'json', 'txt', 'woff', 'woff2', 'ttf', 'otf', 'eot', 'svg' ], true ) ) {
+				continue;
+			}
+			if ( $wp_filesystem->move( $from, $target ) ) {
+				$this->insert_attachment( $this->get_url() . '/' . $asset_path, $target, $post_id );
+			}
+		}
 	}
 
 	private function insert_attachment( $file_url, $filename, $post_id = 0 ) {
@@ -190,8 +409,11 @@ abstract class Icon_Set_Base {
 	public function validate_name() {
 		$name = $this->get_name();
 
-		if ( ! is_string( $name ) ) {
-			return true;
+		if ( ! is_string( $name ) || '' === trim( $name ) ) {
+			return new \WP_Error(
+				'invalid_pack_name',
+				esc_html__( 'Icon set has no valid name. Check the icon pack export.', 'elementor-pro' )
+			);
 		}
 
 		if ( preg_match( '#[/\\\\\0]|\.\.#', $name ) ) {
@@ -247,6 +469,33 @@ abstract class Icon_Set_Base {
 		return false;
 	}
 
+	/**
+	 * Refuse corrupted icon exports before moving files into public uploads.
+	 * A source pack containing the required filenames is not necessarily a
+	 * valid icon pack: malformed CSS or JSON can produce false/null icon lists.
+	 */
+	public function validate_icon_contents() {
+		$icons = $this->extract_icon_list();
+		$prefix = $this->get_prefix();
+		if ( ! is_array( $icons ) || empty( $icons )
+			|| count( $icons ) > 8192
+			|| ! is_string( $prefix ) || '' === trim( $prefix ) ) {
+			return new \WP_Error(
+				'invalid_icon_contents',
+				esc_html__( 'Invalid icon pack stylesheet or icon list.', 'elementor-pro' )
+			);
+		}
+		foreach ( $icons as $name ) {
+			if ( ! is_string( $name ) || '' === trim( $name ) || strlen( $name ) > 255 ) {
+				return new \WP_Error(
+					'invalid_icon_contents',
+					esc_html__( 'The icon pack contains an invalid icon name.', 'elementor-pro' )
+				);
+			}
+		}
+		return true;
+	}
+
 	public function build_config() {
 		$icon_set_config = [
 			'name' => $this->dir_name,
@@ -261,6 +510,12 @@ abstract class Icon_Set_Base {
 		];
 
 		$icons = $this->extract_icon_list();
+		if ( ! is_array( $icons ) ) {
+			return new \WP_Error(
+				'invalid_icon_contents',
+				esc_html__( 'The icon pack could not be read.', 'elementor-pro' )
+			);
+		}
 		$icon_set_config['count'] = count( $icons );
 		$icon_set_config['icons'] = $icons;
 

@@ -1,0 +1,11 @@
+# Disposable WordPress/Elementor QA only. Never install in production.
+# Build manually on the owner's existing server, without GitHub Actions:
+# docker build -f tools/docker/Dockerfile.qa-php84-zip -t zmp-php84-zip-qa:local .
+FROM zc0140-php84-fpm-redis63-mysqli:local
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libzip-dev \
+    && docker-php-ext-install -j2 zip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Preserve the base image's existing PHP-FPM, mysqli, sodium and extensions.

@@ -1,0 +1,514 @@
+"""Non-runtime checks for the ZiloMentor Pro prototype; no WordPress bootstrap."""
+from pathlib import Path
+import re
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+MAIN = ROOT / "elementor-pro.php"
+PLUGIN = ROOT / "plugin.php"
+errors = []
+def check(label, predicate):
+    print(("PASS" if predicate else "FAIL") + " " + label)
+    if not predicate:
+        errors.append(label)
+
+check("forked plugin entrypoint", MAIN.is_file() and not (ROOT / "pro-elements.php").exists())
+main = MAIN.read_text()
+plugin = PLUGIN.read_text()
+check("honest independent plugin branding", "Plugin Name: ZiloMentor Pro" in main)
+check("safe exact plugin basename at install path", "define( 'ELEMENTOR_PRO_PLUGIN_BASE', plugin_basename( ELEMENTOR_PRO__FILE__ ) );" in main)
+check("Elementor Pro API version retained", "define( 'ELEMENTOR_PRO_VERSION', '4.4.0' )" in main)
+check("independent fork release version", "define( 'ZILOMENTOR_VERSION', '0.1.2' )" in main)
+check("ElementorPro PHP namespace preserved", "namespace ElementorPro;" in plugin)
+check("original Elementor Pro bootstrap symbol available", "function elementor_pro_load_plugin()" in main)
+check("ZiloMentor Pro user-facing interface labels",
+      "ZiloMentor Pro Data Updater" in (ROOT/"core/upgrade/manager.php").read_text()
+      and "ZiloMentor Pro Canvas" in
+      (ROOT/"modules/theme-builder/documents/theme-page-document.php").read_text()
+      and "ZiloMentor Pro Notes" in
+      (ROOT/"modules/notes/user/preferences.php").read_text())
+check("deferred bootstrap after free Elementor initialization",
+      "add_action( 'plugins_loaded', 'pro_elements_plugin_load_plugin', 10 )" in main
+      and "if ( did_action( 'plugins_loaded' ) ) {" in main)
+check("upstream updater removed from load path", "new Updater( $config )" not in plugin)
+check("custom Update URI set", "Update URI: https://github.com/Galactus-Prime/zilomentor-pro" in main)
+check("original GPL notice retained", "Elementor Ltd." in (ROOT / "license.txt").read_text())
+check("PRO Elements GPL notice retained", "PRO Elements team" in (ROOT / "license.txt").read_text())
+check("no fake Elementor agency license", "elementor_pro_license_key" not in main
+      and "10.10.2030" not in main and "pre_http_request" not in main)
+# Observed in the real Vamtam Fiore theme/integration PHP source on 2026-11-17.
+fiore_parent_class_files = (
+    "plugin.php",
+    "modules/theme-builder/module.php",
+    "modules/theme-builder/widgets/archive-posts.php",
+    "modules/assets-manager/asset-types/icons/custom-icons.php",
+    "modules/assets-manager/asset-types/icons-manager.php",
+    "modules/assets-manager/asset-types/fonts-manager.php",
+    "modules/dynamic-tags/module.php",
+    "modules/dynamic-tags/tags/base/data-tag.php",
+    "modules/dynamic-tags/tags/base/tag.php",
+    "modules/dynamic-tags/tags/author-profile-picture.php",
+    "modules/popup/module.php",
+    "modules/query-control/module.php",
+    "modules/forms/widgets/form.php",
+    "modules/forms/widgets/login.php",
+    "modules/nav-menu/widgets/nav-menu.php",
+    "modules/posts/widgets/posts.php",
+    "modules/posts/skins/skin-classic.php",
+    "modules/theme-builder/skins/posts-archive-skin-classic.php",
+    "modules/carousel/widgets/testimonial-carousel.php",
+    "modules/woocommerce/widgets/product-images.php",
+)
+missing = [x for x in fiore_parent_class_files if not (ROOT/x).exists()]
+check("Fiore parent PHP class source files: 20/20", not missing)
+if missing:
+    print("Missing:", ", ".join(missing))
+qa_script = (ROOT / "tools/qa_isolated_site.py").read_text()
+qa_fixture = (ROOT / "tests/fixtures/seed_synthetic.php").read_text()
+check("isolated QA does not copy live configuration or customer data",
+      'core_root_files = (' in qa_script
+      and 'source / "wp-content/plugins"' in qa_script
+      and 'wp-config.php' not in qa_fixture
+      and "ZMP_ISOLATED_QA" in qa_fixture
+      and '"--internal"' in qa_script)
+check("ACF Pro dynamic field widget has isolated regression coverage",
+      "advanced-custom-fields-pro" in qa_script
+      and "zmp_qa_acf_tag" in qa_script
+      and "ACF dynamic value renders inside Elementor heading" in qa_script
+      and "field_zmp_qa_text" in qa_fixture
+      and (ROOT / "modules/dynamic-tags/acf/tags/acf-text.php").is_file())
+check("optional browser QA is isolated and does not require hosted CI",
+      "--browser-image" in qa_script
+      and "--browser-image" in (ROOT/"tools/run_manual_checks.py").read_text()
+      and '"--network", network' in qa_script
+      and '"--no-sandbox"' in qa_script
+      and '"--dump-dom"' in qa_script
+      and not (ROOT/".github/workflows/release.yaml").exists())
+check("isolated editor login requires disposable token and protects guest cookies",
+      "ZMP_QA_EDITOR_TOKEN" in qa_script
+      and "editor-cookies.txt" in qa_script
+      and "hash_equals( $token, $received )" in qa_script
+      and "Free Elementor editor baseline without ZiloMentor" in qa_script
+      and (ROOT / "tests/browser_editor_smoke.js").is_file())
+check("editor Playwright prevents outbound browser requests",
+      "context.route" in (ROOT / "tests/browser_editor_smoke.js").read_text()
+      and 'url.hostname === "web"' in
+      (ROOT / "tests/browser_editor_smoke.js").read_text()
+      and "--editor-playwright-image" in
+      (ROOT / "tools/run_manual_checks.py").read_text())
+check("private Nginx PHP-FPM QA has no public host port mapping",
+      'choices=("php", "nginx-fpm")' in qa_script
+      and '"--network-alias", "web"' in qa_script
+      and '"--network-alias", "php"' in qa_script
+      and '"--entrypoint", "php-fpm"' in qa_script
+      and '"--entrypoint", "nginx"' in qa_script
+      and "--web-server" in (ROOT / "tools/run_manual_checks.py").read_text())
+check("editor readiness baseline requires populated controls",
+      "panelPopulatedWaitPassed" in (ROOT / "tests/browser_editor_smoke.js").read_text()
+      and "Free Elementor editor baseline sufficiently populated" in qa_script
+      and "ZiloMentor editor panel matches baseline content" in qa_script)
+check("synthetic Heading edit/save cannot run against production or unspecified QA",
+      "--verify-editor-save" in qa_script
+      and "ZMP_QA_SAVE_TEST=yes" in qa_script
+      and "ZiloMentor QA Saved Heading" in qa_script
+      and "Synthetic Heading title persisted to WordPress database" in qa_script
+      and "--verify-editor-save" in
+          (ROOT / "tools/run_manual_checks.py").read_text())
+check("cart rendering test isolates designated Cart page from shortcode control",
+      "zmp_qa_content_trace" in qa_script
+      and "Ordinary page with WooCommerce cart shortcode displays item" in qa_script
+      and "cart_control" in qa_fixture)
+check("WooCommerce Coming Soon is disabled only for synthetic storefront QA",
+      '"woocommerce_coming_soon", "no"' in qa_script
+      and '"WooCommerce Coming Soon ON intercepts designated Cart"' in qa_script
+      and '"WooCommerce Coming Soon OFF restores designated Cart"' in qa_script
+      and '"Disposable WooCommerce storefront explicitly live"' in qa_script)
+check("checkout QA uses a separate guest jar and only offline synthetic payment",
+      "checkout-cookies.txt" in qa_script
+      and '"payment_method": "bacs"' in qa_script
+      and '"?wc-ajax=checkout"' in qa_script
+      and "offline guest order persisted" in qa_script
+      and "transaction_blank" in qa_script
+      and "checkout_product" in qa_fixture
+      and "set_virtual( true )" in qa_fixture)
+check("Theme Builder/Popup fixtures require disposable WordPress",
+      (ROOT / "tests/fixtures/seed_theme_popup.php").is_file()
+      and "ZMP_ISOLATED_QA" in
+      (ROOT / "tests/fixtures/seed_theme_popup.php").read_text()
+      and "include" in
+      (ROOT / "tests/fixtures/seed_theme_popup.php").read_text()
+      and "save_conditions" in
+      (ROOT / "tests/fixtures/seed_theme_popup.php").read_text()
+      and "Theme Builder and Popup condition/render" in qa_script)
+check("frontend Popup QA blocks external requests and verifies automatic trigger",
+      (ROOT / "tests/browser_theme_popup.js").is_file()
+      and 'context.route("**/*"' in
+      (ROOT / "tests/browser_theme_popup.js").read_text()
+      and "popupAutoOpenedMobile" in
+      (ROOT / "tests/browser_theme_popup.js").read_text()
+      and "popupAutoOpened" in qa_script
+      and "--frontend-playwright-image" in
+      (ROOT / "tools/run_manual_checks.py").read_text())
+check("scroll and exit-intent popups are isolated in browser QA",
+      all(key in (ROOT / "tests/fixtures/seed_theme_popup.php").read_text()
+          for key in ("scrolling_offset", "exit_intent", "scroll_target", "exit_target"))
+      and all(key in (ROOT / "tests/browser_theme_popup.js").read_text()
+              for key in ("scrollPopupAbsentBeforeScroll", "scrollPopupOpenedByScroll",
+                          "exitPopupAbsentBeforeIntent", "exitPopupOpenedByIntent"))
+      and "Popup page-specific condition:" in qa_script)
+check("staging ZIP excludes transient cPanel CLI cache",
+      '.ea-php-cli' in (ROOT / "tools/build_zip.py").read_text()
+      and '.ea-php-cli' in qa_script)
+check("Pro Form editor UI save requires isolated opt-in and independent verification",
+      (ROOT / "tests/browser_editor_form_save.js").is_file()
+      and "ZMP_QA_FORM_SAVE" in (ROOT / "tests/browser_editor_form_save.js").read_text()
+      and "actualSaveButtonClicked" in (ROOT / "tests/browser_editor_form_save.js").read_text()
+      and "--verify-editor-form-save" in qa_script
+      and "--verify-editor-form-save" in
+          (ROOT / "tools/run_manual_checks.py").read_text()
+      and "Synthetic Pro Form editor value persisted in WordPress database" in qa_script
+      and "Saved Pro Form name rendered on isolated frontend" in qa_script)
+check("Theme Builder editing restricted to disposable Header and Popup templates",
+      (ROOT / "tests/browser_theme_editor_save.js").is_file()
+      and "ZMP_QA_THEME_SAVE" in (ROOT / "tests/browser_theme_editor_save.js").read_text()
+      and "'ZMP Synthetic Header' === $title" in qa_script
+      and "'ZMP Synthetic Popup' === $title" in qa_script
+      and "Edited Header renders only on its intended synthetic page" in qa_script
+      and "--verify-theme-builder-save" in qa_script
+      and "--verify-theme-builder-save" in
+          (ROOT / "tools/run_manual_checks.py").read_text())
+check("responsive editing uses actual Elementor device controls",
+      (ROOT / "tests/browser_editor_responsive.js").is_file()
+      and all(x in (ROOT / "tests/browser_editor_responsive.js").read_text()
+              for x in ("switch-device-to-desktop", "switch-device-to-tablet",
+                        "switch-device-to-mobile", "ZMP_QA_RESPONSIVE"))
+      and "Real Elementor editor responsive Desktop Tablet Mobile switching" in qa_script
+      and "--verify-editor-responsive" in
+          (ROOT / "tools/run_manual_checks.py").read_text())
+check("read-only live canary cannot submit form or purchase",
+      (ROOT / "tests/browser_live_canary.js").is_file()
+      and 'readOnly:true' in (ROOT / "tests/browser_live_canary.js").read_text()
+      and "page.goto" in (ROOT / "tests/browser_live_canary.js").read_text()
+      and not any(x in (ROOT / "tests/browser_live_canary.js").read_text()
+                  for x in ("page.click(", "page.fill(", "page.locator(", "page.request.post(")))
+check("manual SHA256-checked installation supports safe prior/official rollback",
+      (ROOT / "tools/manual_live_swap.py").is_file()
+      and (ROOT / "tests/test_manual_live_swap.py").is_file()
+      and "hashlib.sha256" in (ROOT / "tools/manual_live_swap.py").read_text()
+      and "--rollback-to-official" in (ROOT / "tools/manual_live_swap.py").read_text()
+      and "DATABASE_NOT_RESTORED=YES" in (ROOT / "tools/manual_live_swap.py").read_text()
+      and "tests/test_manual_live_swap.py" in
+          (ROOT / "tools/run_manual_checks.py").read_text())
+check("atomic attributes security escapes output and excludes event handlers",
+      (ROOT / "tests/runtime_atomic_attributes_security.php").is_file()
+      and "runtime_atomic_attributes_security.php" in qa_script
+      and "ZMP_ISOLATED_QA" in
+          (ROOT / "tests/runtime_atomic_attributes_security.php").read_text()
+      and all(token in
+          (ROOT / "modules/attributes/props-resolver/transformers/settings/pro-attributes-transformer.php").read_text()
+          for token in ("esc_attr( $raw )", "esc_url( $raw )",
+                        "wp_kses_uri_attributes()", "srcdoc", "style")))
+check("release archive uses tracked source only, excludes runtime logs",
+      '"git", "ls-files", "-z"' in (ROOT / "tools/build_zip.py").read_text()
+      and "unsafe_names" in (ROOT / "tools/build_zip.py").read_text()
+      and "unsafe_suffixes" in (ROOT / "tools/build_zip.py").read_text()
+      and (ROOT / "tests/test_build_zip.py").is_file()
+      and "tests/test_build_zip.py" in
+          (ROOT / "tools/run_manual_checks.py").read_text())
+check("0.1.2 requires authentic Ed25519 release manifest and private trust root",
+      (ROOT / "tools/release_signature.php").is_file()
+      and (ROOT / "tools/create_release_manifest.py").is_file()
+      and "sodium_crypto_sign_verify_detached" in
+          (ROOT / "tools/release_signature.php").read_text()
+      and "verify_signed_release(" in
+          (ROOT / "tools/manual_live_swap.py").read_text()
+      and 'version_parts(target_version) >= (0, 1, 2)' in
+          (ROOT / "tools/manual_live_swap.py").read_text()
+      and "test_offline_ed25519_manifest_and_tamper_rejection" in
+          (ROOT / "tests/test_manual_live_swap.py").read_text())
+check("legacy custom attribute XSS hardening and synthetic frontend coverage",
+      "esc_url_raw( $value )" in
+          (ROOT / "modules/custom-attributes/module.php").read_text()
+      and "onmouseover" in
+          (ROOT / "tests/fixtures/seed_synthetic.php").read_text()
+      and "Legacy custom HTML attributes reject executable injection" in qa_script)
+check("Posts widget null-post pagination protection",
+      "if ( ! $post instanceof \\WP_Post )" in
+          (ROOT / "modules/posts/widgets/posts-base.php").read_text()
+      and (ROOT / "tests/runtime_posts_null.php").is_file()
+      and "runtime_posts_null.php" in qa_script)
+check("signed manifest generator has offline schema/integrity tests",
+      (ROOT / "tests/test_create_release_manifest.py").is_file()
+      and "tests/test_create_release_manifest.py" in
+          (ROOT / "tools/run_manual_checks.py").read_text()
+      and "expires_at" in
+          (ROOT / "tools/create_release_manifest.py").read_text())
+check("external MU guard rejects accidental official plugin overwrite",
+      (ROOT / "tools/zmp-release-guard.php").is_file()
+      and (ROOT / "tests/runtime_release_guard.php").is_file()
+      and "runtime_release_guard.php" in qa_script
+      and all(h in (ROOT / "tools/zmp-release-guard.php").read_text()
+              for h in ("upgrader_pre_download", "upgrader_pre_install",
+                        "upgrader_source_selection", "auto_update_plugin"))
+      and "get_file_data" in (ROOT / "tools/zmp-release-guard.php").read_text())
+check("independent ZiloMentor folder gets full isolated editor and storefront QA",
+      '--plugin-folder' in qa_script
+      and 'zilomentor-pro' in qa_script
+      and (ROOT / "tools/migrate_independent_identity.py").is_file()
+      and (ROOT / "tests/test_migrate_independent_identity.py").is_file()
+      and "tests/test_migrate_independent_identity.py" in
+          (ROOT / "tools/run_manual_checks.py").read_text())
+check("migration validates exact files, recent SQL backup and guarded rollback",
+      all(t in (ROOT / "tools/migrate_independent_identity.py").read_text()
+              for t in ("verify_archive(", "FRESH_PRIVATE_DATABASE_BACKUP_VERIFIED",
+                        "database-backup", "require_identity(", "IDENTITY_ROLLBACK=YES"))
+      and "zilomentor-pro/elementor-pro.php" in
+          (ROOT / "tools/zmp-release-guard.php").read_text())
+check("independent Fiore layout must retain original plugin initialization order",
+      (ROOT / "tools/zmp-early-bootstrap.php").is_file()
+      and (ROOT / "tests/runtime_bootstrap_order.php").is_file()
+      and "ZMP_EARLY_COMPAT_BOOTSTRAP" in
+          (ROOT / "tools/zmp-early-bootstrap.php").read_text()
+      and "runtime_bootstrap_order.php" in qa_script
+      and "zmp-early-bootstrap.php" in qa_script
+      and "zmp-early-bootstrap.php" in
+          (ROOT / "tools/migrate_independent_identity.py").read_text())
+check("anonymous classic/Atomic Forms reject private document IDs and dynamic contexts",
+      "is_form_submission_document_accessible(" in (ROOT / "core/utils.php").read_text()
+      and (ROOT / "modules/forms/classes/ajax-handler.php").read_text().count(
+          "Utils::is_form_submission_document_accessible(") >= 3
+      and "Utils::is_form_submission_document_accessible(" in
+          (ROOT / "modules/atomic-form/atomic-form-controller.php").read_text()
+      and "runtime_form_document_visibility.php" in qa_script
+      and (ROOT / "tests/runtime_form_document_visibility.php").is_file())
+check("anonymous Form uploads validate actual contents in both widget generations",
+      "is_form_upload_content_safe(" in (ROOT / "core/utils.php").read_text()
+      and "get_allowed_mime_types()" in (ROOT / "core/utils.php").read_text()
+      and "finfo_file(" in (ROOT / "core/utils.php").read_text()
+      and "word/document.xml" in (ROOT / "core/utils.php").read_text()
+      and "is_form_upload_content_safe(" in
+          (ROOT / "modules/forms/fields/upload.php").read_text()
+      and "is_form_upload_content_safe(" in
+          (ROOT / "modules/atomic-form/file-upload/file-storage.php").read_text()
+      and "runtime_form_upload_security.php" in qa_script)
+check("atomic form cleanup cannot delete outside its upload directory",
+      "dirname( $resolved ) === $root" in
+          (ROOT / "modules/atomic-form/file-upload/file-storage.php").read_text()
+      and "atomic_cleanup_refuses_external_paths" in
+          (ROOT / "tests/runtime_form_upload_security.php").read_text())
+check("privileged Elementor Pro REST endpoint permission callbacks are probed",
+      (ROOT / "tests/runtime_rest_auth_security.php").is_file()
+      and "runtime_rest_auth_security.php" in qa_script
+      and "subscriber" in
+          (ROOT / "tests/runtime_rest_auth_security.php").read_text()
+      and "contributor" in
+          (ROOT / "tests/runtime_rest_auth_security.php").read_text()
+      and "custom-icon-svg" in
+          (ROOT / "tests/runtime_rest_auth_security.php").read_text())
+check("anonymous Stripe Checkout requires published saved widget and local redirect",
+      "is_public_stripe_document(" in
+          (ROOT / "modules/payments/module.php").read_text()
+      and "validate_checkout_return_url(" in
+          (ROOT / "modules/payments/module.php").read_text()
+      and "is_valid_stripe_session(" in
+          (ROOT / "modules/payments/module.php").read_text()
+      and "runtime_stripe_security.php" in qa_script
+      and "tests/runtime_stripe_security.php" not in
+          (ROOT / "tools/build_zip.py").read_text())
+check("public Posts preview denies private documents and arbitrary widgets",
+      "post_password_required" in (ROOT / "modules/posts/data/controller.php").read_text()
+      and "current_user_can( 'edit_post', $post_id )" in
+          (ROOT / "modules/posts/data/controller.php").read_text()
+      and "'posts', 'portfolio'" in
+          (ROOT / "modules/posts/data/controller.php").read_text()
+      and "runtime_posts_visibility.php" in qa_script)
+check("classic Form attachment URLs are cryptographically random",
+      "bin2hex( random_bytes( 16 ) )" in
+          (ROOT / "modules/forms/fields/upload.php").read_text()
+      and "uniqid()" not in
+          (ROOT / "modules/forms/fields/upload.php").read_text().split("$filename =")[-1])
+check("disposable Nginx blocks executable uploads before PHP-FPM",
+      "Nginx synthetic upload execution denied" in qa_script
+      and "location ~* ^/wp-content/uploads/" in qa_script
+      and "phtml|pht|phtm|phar" in qa_script)
+check("private Nginx Form QA verifies attachment/no-sniff/no-store",
+      'Nginx synthetic Form uploads require attachment and nosniff headers' in qa_script
+      and 'add_header Content-Disposition "attachment" always' in qa_script
+      and 'add_header X-Content-Type-Options "nosniff" always' in qa_script
+      and "zmp-qa-header-fixture.txt" in
+          (ROOT / "tests/runtime_form_upload_security.php").read_text())
+check("sensitive submissions and global template REST roles tested",
+      "runtime_rest_sensitive_controllers.php" in qa_script
+      and "notes" in
+          (ROOT / "tests/runtime_rest_sensitive_controllers.php").read_text()
+      and "subscriber" in
+          (ROOT / "tests/runtime_rest_sensitive_controllers.php").read_text())
+check("Popup edit Publish has real browser and persistent scoped render QA",
+      "--verify-popup-editor-save" in qa_script
+      and "--verify-popup-editor-save" in
+          (ROOT / "tools/run_manual_checks.py").read_text()
+      and "ZMP_QA_TEMPLATE_KIND=popup" in qa_script
+      and "Edited Popup renders only on its intended synthetic page" in qa_script
+      and "ZMP_QA_TEMPLATE_KIND" in
+          (ROOT / "tests/browser_theme_editor_save.js").read_text())
+check("signed GitHub Release feed staging is offline-key verified and never installs",
+      (ROOT / "tools/stage_signed_github_release.py").is_file()
+      and "verify_signature(" in
+          (ROOT / "tools/stage_signed_github_release.py").read_text()
+      and "inspect_zip(" in
+          (ROOT / "tools/stage_signed_github_release.py").read_text()
+      and "automatic_update_enabled" in
+          (ROOT / "tools/stage_signed_github_release.py").read_text()
+      and (ROOT / "tests/test_stage_signed_github_release.py").is_file()
+      and "tests/test_stage_signed_github_release.py" in
+          (ROOT / "tools/run_manual_checks.py").read_text())
+check("upload compatibility suite covers Office OpenDocument media and text formats",
+      all(ext in (ROOT / "tests/runtime_form_upload_security.php").read_text()
+          for ext in ("spreadsheet.xlsx", "presentation.pptx", "text.odt",
+                      "sheet.ods", "slides.odp", "silence.wav",
+                      "inventory.csv", "note.rtf"))
+      and "runtime_form_upload_security.php" in qa_script)
+check("manual isolated QA supports fast runtime-only security testing",
+      'choices=("all", "editor", "runtime")' in qa_script
+      and 'args.focus == "runtime"' in qa_script
+      and 'choices=("all", "editor", "runtime")' in
+          (ROOT / "tools/run_manual_checks.py").read_text())
+check("real Form field repeater edit is published, persisted and rendered",
+      "--verify-editor-form-fields" in qa_script
+      and "ZMP_QA_FORM_FIELDS=" in qa_script
+      and "Saved Form repeater field label appears on synthetic frontend" in qa_script
+      and "field_label_saved" in qa_script
+      and "repeaterLabelChanged" in
+          (ROOT / "tests/browser_editor_form_save.js").read_text()
+      and "--verify-editor-form-fields" in
+          (ROOT / "tools/run_manual_checks.py").read_text())
+check("synthetic Posts and WordPress Menu widget render regression",
+      (ROOT / "tests/fixtures/seed_posts_nav.php").is_file()
+      and "seed_posts_nav.php" in qa_script
+      and "Pro WordPress Navigation Menu renders synthetic WP link" in qa_script
+      and "Pro Posts widget renders synthetic published post" in qa_script)
+check("real Nav Menu editing and Posts widget selection tested",
+      "--verify-posts-nav-editor" in qa_script
+      and "Nav Menu label persisted without losing Posts widget" in qa_script
+      and (ROOT / "tests/browser_posts_nav_editor.js").is_file()
+      and "ZMP_POSTS_NAV_EDITOR_JSON" in
+          (ROOT / "tests/browser_posts_nav_editor.js").read_text()
+      and "--verify-posts-nav-editor" in
+          (ROOT / "tools/run_manual_checks.py").read_text())
+check("Elementor History undo redo and save verified in real editor",
+      "--verify-editor-history" in qa_script
+      and "Real Elementor History Undo and Redo before Publish" in qa_script
+      and "Redone Heading title persisted in WordPress after History Publish" in qa_script
+      and (ROOT / "tests/browser_editor_history.js").is_file()
+      and 'document/history/undo' in
+          (ROOT / "tests/browser_editor_history.js").read_text()
+      and 'document/history/redo' in
+          (ROOT / "tests/browser_editor_history.js").read_text()
+      and "--verify-editor-history" in
+          (ROOT / "tools/run_manual_checks.py").read_text())
+icon_source = (ROOT / "modules/assets-manager/asset-types/icons/custom-icons.php").read_text()
+icon_fixture = (ROOT / "tests/runtime_icon_zip_security.php").read_text()
+check("custom icon ZIP archive refuses dangerous paths and resource exhaustion",
+      "getExternalAttributesIndex" in icon_source
+      and "max_expanded_bytes" in icon_source
+      and "icon.php.css" in icon_fixture
+      and "runtime_icon_zip_security.php" in qa_script
+      and "unlink( $filename )" not in icon_source)
+check("imported icon set deletion is scoped in all three code paths",
+      "function is_safe_icon_set_directory" in icon_source
+      and "self::is_safe_icon_set_directory( $icon_set_dir )" in icon_source
+      and all("Custom_Icons::is_safe_icon_set_directory" in
+              (ROOT / name).read_text() for name in (
+                  "modules/assets-manager/asset-types/icons/import-export/revert-runner.php",
+                  "modules/assets-manager/asset-types/icons/import-export-customization/revert-runner.php"))
+      and "delete_guard_rejects_icon_storage_root" in icon_fixture)
+check("disposable ZIP-enabled QA PHP image is reproducible without Actions",
+      'default="zmp-php84-zip-qa:local"' in qa_script
+      and (ROOT / "tools/docker/Dockerfile.qa-php84-zip").is_file()
+      and "docker-php-ext-install -j2 zip" in
+          (ROOT / "tools/docker/Dockerfile.qa-php84-zip").read_text())
+check("Posts Full Content skips absent global WP_Post",
+      r"! $post instanceof \WP_Post" in
+          (ROOT / "modules/posts/skins/skin-content-base.php").read_text()
+      and "missing_post_full_content_empty" in
+          (ROOT / "tests/runtime_posts_null.php").read_text())
+check("malformed multi-upload arrays cannot trigger filename type errors",
+      "sanitize_upload_filename_values" in (ROOT / "core/utils.php").read_text()
+      and "malformed_upload_names_cannot_trigger_type_error" in icon_fixture
+      and "sanitize_multi_upload_preserves_file_indices" in icon_fixture)
+form_email = (ROOT / "modules/forms/actions/email.php").read_text()
+form_mail_fixture = (ROOT / "tests/runtime_form_mail_attachment_safety.php").read_text()
+check("classic Form mail attachments restricted to protected upload directory",
+      "is_safe_form_attachment_path" in (ROOT / "core/utils.php").read_text()
+      and form_email.count("Utils::is_safe_form_attachment_path(") >= 2
+      and "email_action_refuses_external_and_malformed_paths" in form_mail_fixture
+      and "runtime_form_mail_attachment_safety.php" in qa_script)
+check("real Apache Form upload policy QA only uses disposable loopback",
+      (ROOT / "tools/qa_apache_form_policy.py").is_file()
+      and "127.0.0.1" in (ROOT / "tools/qa_apache_form_policy.py").read_text()
+      and "zmp-isolated-qa-" in (ROOT / "tools/qa_apache_form_policy.py").read_text()
+      and "verify-apache-uploads" in qa_script
+      and "verify-apache-uploads" in
+          (ROOT / "tools/run_manual_checks.py").read_text())
+check("independently generated real document and media fixtures are integration-testable",
+      (ROOT / "tools/generate_real_upload_fixtures.py").is_file()
+      and (ROOT / "tools/docker/Dockerfile.qa-real-files").is_file()
+      and (ROOT / "tools/requirements-qa-real-files.txt").is_file()
+      and "real-file-fixtures-dir" in qa_script
+      and "real-file-fixtures-dir" in (ROOT / "tools/run_manual_checks.py").read_text()
+      and "runtime_real_file_uploads.php" in qa_script
+      and "'image-zip-polyglot.png' => false" in
+          (ROOT / "tests/runtime_real_file_uploads.php").read_text()
+      and "hash_file( 'sha256'" in
+          (ROOT / "tests/runtime_real_file_uploads.php").read_text())
+multipart_src = (ROOT / "tools/qa_isolated_site.py").read_text()
+multipart_seed = (ROOT / "tests/fixtures/seed_synthetic.php").read_text()
+check("real HTTP multipart QA exercises safe linked and attached uploads plus attacks",
+      "anonymous genuine HTTP PDF multipart Form saves safe random-name link" in multipart_src
+      and "anonymous HTTP DOCX attach-only email action is safely intercepted and cleaned" in multipart_src
+      and "empty first slot followed by PHP" in multipart_src
+      and "too many genuine files" in multipart_src
+      and "anonymous HTTP multipart preserves two genuine file uploads" in multipart_src
+      and "zmp_qa_intercepted_mail" in multipart_src
+      and "'upload_form_link'" in multipart_seed
+      and "'upload_form_attach'" in multipart_seed
+      and "example.invalid" in multipart_seed)
+icon_base = (ROOT / "modules/assets-manager/asset-types/icons/icon-sets/icon-set-base.php").read_text()
+icon_import = (ROOT / "modules/assets-manager/asset-types/icons/custom-icons.php").read_text()
+fontastic = (ROOT / "modules/assets-manager/asset-types/icons/icon-sets/fontastic.php").read_text()
+check("icon-pack imports never publish demo HTML or count corrupt lists",
+      "runtime_icon_public_html_safety.php" in qa_script
+      and icon_base.count("preg_match( '/\\\\.html?$/i'") >= 2
+      and "validate_icon_contents()" in icon_base
+      and "if ( ! is_array( $icons ) )" in icon_base
+      and icon_import.index("->validate_icon_contents()")
+          < icon_import.index("->move_files( $this->current_post_id )")
+      and "cached_icon_name" in fontastic
+      and "cached_icon_prefix" in fontastic
+      and "preg_quote( $prefix, '/' )" in fontastic
+      and 'class\\^="([^"]+)"' in fontastic
+      and "font-family:\\s*" in fontastic)
+icon_active_fixture = (ROOT / "tests/runtime_icon_active_assets_security.php").read_text()
+check("custom icon ZIP active CSS and SVG webfonts validated before public move",
+      "runtime_icon_active_assets_security.php" in qa_script
+      and "validate_public_icon_assets()" in icon_base
+      and "is_safe_svg_font_asset" in icon_base
+      and "is_safe_icon_stylesheet" in icon_base
+      and "LIBXML_NONET" in icon_base
+      and "FAILED_ICON_ASSET_ASSERTIONS" in icon_active_fixture
+      and "css_escaped_import" in icon_active_fixture
+      and "css_image_set_remote" in icon_active_fixture
+      and icon_import.index("->validate_public_icon_assets()")
+          < icon_import.index("->move_files( $this->current_post_id )"))
+check("Fontello and IcoMoon structurally representative icon packs stay compatible",
+      "runtime_icon_pack_formats.php" in qa_script
+      and (ROOT / "tests/runtime_icon_pack_formats.php").is_file()
+      and "fontello_validates_css_data_and_local_font" in
+          (ROOT / "tests/runtime_icon_pack_formats.php").read_text()
+      and "icomoon_validates_css_data_and_local_font" in
+          (ROOT / "tests/runtime_icon_pack_formats.php").read_text())
+check("theme location function still supplied",
+      "elementor_theme_do_location" in "\n".join(p.read_text(errors="replace")
+      for p in (ROOT/"modules/theme-builder").rglob("*.php")))
+print("RESULT:", "PASS" if not errors else "FAIL", "-", len(errors), "failed")
+sys.exit(0 if not errors else 1)

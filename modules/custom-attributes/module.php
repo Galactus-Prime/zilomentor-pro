@@ -136,9 +136,31 @@ class Module extends Module_Base {
 			$black_list = $this->get_black_list_attributes();
 
 			foreach ( $attributes as $attribute => $value ) {
-				if ( ! in_array( $attribute, $black_list, true ) ) {
-					$element->add_render_attribute( '_wrapper', $attribute, $value );
+				if ( ! is_string( $attribute ) || ! is_string( $value ) ) {
+					continue;
 				}
+
+				$name = strtolower( trim( $attribute ) );
+				// A malformed attribute name must not create another HTML
+				// attribute. Do not allow event handlers, srcdoc or inline style.
+				if ( ! preg_match( '/^[a-z][a-z0-9_:-]*$/D', $name )
+					|| 0 === strpos( $name, 'on' )
+					|| in_array( $name, [ 'srcdoc', 'style' ], true )
+					|| in_array( $name, $black_list, true ) ) {
+					continue;
+				}
+
+				// Do not rely on HTML quote escaping to neutralise javascript:
+				// or other dangerous URL schemes. Elementor's final attribute
+				// renderer will escape HTML metacharacters at output time.
+				if ( in_array( $name, wp_kses_uri_attributes(), true ) ) {
+					$value = esc_url_raw( $value );
+					if ( '' === $value ) {
+						continue;
+					}
+				}
+
+				$element->add_render_attribute( '_wrapper', $name, $value );
 			}
 		}
 	}

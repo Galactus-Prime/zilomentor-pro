@@ -46,8 +46,8 @@ abstract class Theme_Page_Document extends Theme_Document {
 				'type' => Controls_Manager::SELECT,
 				'options' => [
 					'' => esc_html__( 'Default', 'elementor-pro' ),
-					PageTemplatesModule::TEMPLATE_CANVAS => esc_html__( 'PRO Elements Canvas', 'elementor-pro' ),
-					PageTemplatesModule::TEMPLATE_HEADER_FOOTER => esc_html__( 'PRO Elements Full Width', 'elementor-pro' ),
+					PageTemplatesModule::TEMPLATE_CANVAS => esc_html__( 'ZiloMentor Pro Canvas', 'elementor-pro' ),
+					PageTemplatesModule::TEMPLATE_HEADER_FOOTER => esc_html__( 'ZiloMentor Pro Full Width', 'elementor-pro' ),
 				],
 			]
 		);

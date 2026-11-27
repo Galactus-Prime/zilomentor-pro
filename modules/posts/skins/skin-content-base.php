@@ -223,6 +223,12 @@ trait Skin_Content_Base {
 
 		$post = get_post();
 
+		// REST previews and stale queries can have no global post at all.
+		// Never dereference it or render unrelated content in that case.
+		if ( ! $post instanceof \WP_Post ) {
+			return;
+		}
+
 		if ( post_password_required( $post->ID ) ) {
 			// PHPCS - `get_the_password_form`. is safe.
 			echo get_the_password_form( $post->ID ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped

@@ -13,7 +13,6 @@ use ElementorPro\Core\Integrations\Integrations_Manager;
 use ElementorPro\Core\Modules_Manager;
 use ElementorPro\Core\Notifications\Notifications_Manager;
 use ElementorPro\Core\Preview\Preview;
-use ElementorPro\Core\Updater\Updater;
 use ElementorPro\Core\Upgrade\Manager as UpgradeManager;
 use ElementorPro\License\API;
 use Exception;
@@ -477,24 +476,8 @@ class Plugin {
 		Maintenance::init();
 		}
 
-		if ( is_admin() || wp_doing_cron() ) {
-			require_once __DIR__ . '/updater/updater.php';
-			$config = array(
-				'slug'               => 'pro-elements.php',
-				'plugin_basename'    => ELEMENTOR_PRO_PLUGIN_BASE,
-				'proper_folder_name' => 'pro-elements',
-				'api_url'            => 'https://api.github.com/repos/proelements/proelements',
-				'raw_url'            => 'https://raw.githubusercontent.com/proelements/proelements/master',
-				'github_url'         => 'https://github.com/proelements/proelements',
-				'zip_url'            => 'https://github.com/proelements/proelements/archive/v{release_version}.zip',
-				'sslverify'          => true,
-				'requires'           => '5.0',
-				'tested'             => '5.4.2',
-				'readme'             => 'README.md',
-				'access_token'       => '',
-			);
-			new Updater( $config );
-		}
+		// ZiloMentor Pro: upstream PRO Elements self-updater intentionally disabled.
+		// An independently maintained updater will be implemented after staging tests.
 	}
 
 	private function get_assets_suffix() {
@@ -508,7 +491,7 @@ class Plugin {
 	}
 
 	final public static function get_title() {
-		return esc_html__( 'Pro Elements', 'elementor-pro' );
+		return esc_html__( 'ZiloMentor Pro', 'elementor-pro' );
 	}
 }
 

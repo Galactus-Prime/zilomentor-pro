@@ -15,20 +15,48 @@ class Pro_Attributes_Transformer extends Transformer_Base {
 			return null;
 		}
 
-		$result = implode( ' ', array_map( function ( $item ) {
+		$attributes = [];
+
+		foreach ( $value as $item ) {
 			if ( ! $this->is_valid_attribute_item( $item ) ) {
-				return '';
+				continue;
 			}
 
-			return $item['key'] . '="' . $item['value'] . '"';
-		}, $value ) );
+			$key = strtolower( trim( $item['key'] ) );
+			$raw = $item['value'];
 
-		return $result;
+			// A dynamic attribute name must never introduce new HTML syntax.
+			// Event handlers, srcdoc and inline style are deliberately excluded:
+			// they require separate, context-specific security validation.
+			if ( ! preg_match( '/^[a-z][a-z0-9_:-]*$/D', $key )
+				|| 0 === strpos( $key, 'on' )
+				|| in_array( $key, [ 'srcdoc', 'style' ], true ) ) {
+				continue;
+			}
+
+			// WordPress maintains the canonical list of attributes that carry
+			// URLs. Reject dangerous schemes rather than escaping only quotes.
+			if ( in_array( $key, wp_kses_uri_attributes(), true ) ) {
+				$raw = esc_url( $raw );
+				if ( '' === $raw ) {
+					continue;
+				}
+			} elseif ( preg_match( '/^\\s*(?:javascript|vbscript|data)\\s*:/i', $raw ) ) {
+				continue;
+			}
+
+			$attributes[] = $key . '="' . esc_attr( $raw ) . '"';
+		}
+
+		return implode( ' ', $attributes );
 	}
 
 	private function is_valid_attribute_item( $item ): bool {
-		return isset( $item['key'], $item['value'] )
-			&& '' !== $item['key']
+		return is_array( $item )
+			&& isset( $item['key'], $item['value'] )
+			&& is_string( $item['key'] )
+			&& is_string( $item['value'] )
+			&& '' !== trim( $item['key'] )
 			&& '' !== $item['value'];
 	}
 }

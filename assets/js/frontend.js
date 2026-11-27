@@ -639,6 +639,9 @@
 			}
 		}
 		toggle() {
+			// Reduced-motion initialization deliberately skips initEffects().
+			// A later resize or third-party event must not activate unset effects.
+			if (!this.effects) return;
 			const currentDeviceMode = elementorFrontend.getCurrentDeviceMode();
 			const elementSettings = this.getElementSettings();
 			["motion_fx", "background_motion_fx"].forEach((name) => {
@@ -664,6 +667,7 @@
 			this.toggle();
 		}
 		onElementChange(propertyName) {
+			if (!this.effects) return;
 			if (/motion_fx_((scrolling)|(mouse)|(devices))$/.test(propertyName)) {
 				if ("motion_fx_motion_fx_scrolling" === propertyName) this.addCSSTransformEvents();
 				this.toggle();
