@@ -1,5 +1,32 @@
 # ZiloMentor Pro release gates and remaining blockers
 
+### 27 November 2026: modern IcoMoon browser QA and durable evidence
+
+The earlier modern IcoMoon runtime job notification expired before its
+result could be retrieved. Do not infer a pass or fail. The two privately
+retained original generator archives were rehashed and matched the
+recorded SHA256 values. The exact `da2d9a1ae953e34a8ed2a53d69ca4e60c5976a30`
+runtime suite was relaunched, capturing a durable private host log
+`/var/tmp/zmp-ico-runtime-evidence-tu2s0hwh/run.log` with source and
+process exit code. At the last inspection the run was incomplete.
+
+Modern IcoMoon browser seeding, shared genuine-glyph assertions and
+full harness integration landed at `4bb21a67630f012efeb7b741e6ff3a25cd91b757`.
+The standard manual runner now accepts the optional pinned modern export
+at `e3d950ef12eb614e77347af1a8ed20233eb35784`. PHP 8.4 and 8.5 fixture
+lint, JavaScript syntax (in cached Chromium container), Python syntax,
+CLI help and missing-source argument rejection passed. The modern
+browser mode checks the expected glyph, family, actual local WOFF
+network response, desktop/mobile visibility and errors. No runtime
+pass is claimed for these new browser changes yet.
+
+Fontastic's public guide remains available (https://fontastic.me/howto),
+but its generator application at https://app.fontastic.me/ timed out
+during the public fetch. No login, registration, fee, or untrusted
+third-party archive was used. Genuine Fontastic acceptance remains open.
+Production and signing remain untouched.
+
+
 ### Full 104/104 integration and modern IcoMoon work (25 November 2026)
 
 Exact revision `d47b9852a610952eb933e8079ac310197281f306` passed
