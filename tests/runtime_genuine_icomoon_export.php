@@ -58,6 +58,38 @@ try {
 		&& ! file_exists( $path . 'untitled-project.icomoon.json' ) && ! file_exists( $path . 'WOFF2_ERROR.txt' )
 		&& ! file_exists( $extracted );
 	$checks['modern_attachment_records_created'] = count( get_attached_media( '', $post_id ) ) > 0;
+	if ( 'yes' === getenv( 'ZMP_QA_ICON_BROWSER_SEED' ) ) {
+		if ( 5 !== count( $checks ) || in_array( false, $checks, true ) ) {
+			throw new \RuntimeException( 'Cannot seed failed modern importer' );
+		}
+		update_post_meta( $post_id, Custom_Icons::META_KEY, wp_slash( wp_json_encode( $config ) ) );
+		$published = wp_update_post( [ 'ID' => $post_id, 'post_status' => 'publish' ], true );
+		if ( is_wp_error( $published ) || ! $published ) {
+			throw new \RuntimeException( 'Cannot publish disposable modern icon set' );
+		}
+		Custom_Icons::clear_icon_list_option();
+		$page = wp_insert_post( [
+			'post_type' => 'page', 'post_status' => 'publish',
+			'post_title' => 'ZMP Genuine Modern IcoMoon Browser Fixture',
+		], true );
+		if ( is_wp_error( $page ) || ! $page ) {
+			throw new \RuntimeException( 'Cannot seed disposable modern icon widget' );
+		}
+		$elements = [ [
+			'id' => '8a0b1c00', 'elType' => 'container', 'settings' => [],
+			'elements' => [ [
+				'id' => '8a0b1c01', 'elType' => 'widget', 'widgetType' => 'icon',
+				'settings' => [ 'selected_icon' => [ 'value' => $config['prefix'] . 'zmp-star', 'library' => $config['name'] ] ],
+				'elements' => [],
+			] ],
+		] ];
+		update_post_meta( $page, '_elementor_data', wp_slash( wp_json_encode( $elements ) ) );
+		update_post_meta( $page, '_elementor_edit_mode', 'builder' );
+		update_post_meta( $page, '_elementor_version', ELEMENTOR_VERSION );
+		echo 'ZMP_ICON_BROWSER_SEED=' . wp_json_encode( [ 'page' => (int) $page ] ) . PHP_EOL;
+		$post_id = 0; // Disposable runner destroys the entire site after browser checks.
+		return;
+	}
 	$manager->handle_delete_icon_set( $post_id );
 	$checks['modern_scoped_delete'] = ! file_exists( $path ) && is_dir( $uploads ) && ! get_attached_media( '', $post_id );
 } finally {
