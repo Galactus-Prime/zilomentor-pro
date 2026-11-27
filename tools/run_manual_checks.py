@@ -34,6 +34,8 @@ def main():
         "--source-wordpress", type=Path, default=None,
         help="Also run isolated HTTP/form/WooCommerce regression using only source files copied from this WordPress path.",
     )
+    parser.add_argument("--genuine-icomoon-zip", type=Path, default=None,
+                        help="Optional pinned genuine modern IcoMoon export for isolated import and browser QA.")
     parser.add_argument("--genuine-fontello-zip", type=Path, default=None,
                         help="Optional pinned genuine Fontello export for isolated import and browser QA.")
     parser.add_argument("--real-file-fixtures-dir", type=Path, default=None,
@@ -98,6 +100,8 @@ def main():
         help="Opt-in real Elementor editor Desktop Tablet Mobile breakpoint switching on a disposable page.",
     )
     args = parser.parse_args()
+    if args.genuine_icomoon_zip is not None and args.source_wordpress is None:
+        parser.error("--genuine-icomoon-zip requires --source-wordpress.")
     if args.genuine_fontello_zip is not None and args.source_wordpress is None:
         parser.error("--genuine-fontello-zip requires --source-wordpress.")
     if args.source_wordpress is not None and args.skip_php:
@@ -160,6 +164,8 @@ def main():
         ]
         if args.verify_apache_uploads:
             qa_cmd.append("--verify-apache-uploads")
+        if args.genuine_icomoon_zip is not None:
+            qa_cmd.extend(["--genuine-icomoon-zip", str(args.genuine_icomoon_zip)])
         if args.genuine_fontello_zip is not None:
             qa_cmd.extend(["--genuine-fontello-zip", str(args.genuine_fontello_zip)])
         if args.real_file_fixtures_dir is not None:
