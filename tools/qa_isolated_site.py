@@ -1109,9 +1109,14 @@ add_action( 'init', function () {
                    {"status": trigger_status, "render": trigger_data,
                     "error": trigger_err})
 
-        if args.genuine_fontello_zip is not None and args.frontend_playwright_image is not None:
+        for icon_mode, icon_fixture, icon_test_label in (
+            ("fontello", args.genuine_fontello_zip, "Genuine Fontello"),
+            ("icomoon", args.genuine_icomoon_zip, "Genuine modern IcoMoon"),
+        ):
+            if icon_fixture is None or args.frontend_playwright_image is None:
+                continue
             seeded = wp("eval-file",
-                        f"wp-content/plugins/{plugin_folder}/tests/runtime_genuine_fontello_export.php",
+                        f"wp-content/plugins/{plugin_folder}/tests/runtime_genuine_{icon_mode}_export.php",
                         environment={"ZMP_ISOLATED_QA": "yes", "ZMP_QA_ICON_BROWSER_SEED": "yes"})
             seed_line = next((l.split("=", 1)[1] for l in seeded.stdout.splitlines()
                               if l.startswith("ZMP_ICON_BROWSER_SEED=")), "{}")
@@ -1124,6 +1129,7 @@ add_action( 'init', function () {
                 "run", "--rm", "--network", network, "--memory=1200m", "--cpus=2",
                 "--shm-size=128m", "-e", "NODE_PATH=/usr/lib/node_modules",
                 "-e", "ZMP_QA_ICON_PAGE=" + str(icon_page),
+                "-e", "ZMP_QA_ICON_FORMAT=" + icon_mode,
                 "-v", str(script) + ":/qa/icon.js:ro",
                 "--entrypoint", "timeout", args.frontend_playwright_image,
                 "--signal=TERM", "--kill-after=5s", "65s", "node", "/qa/icon.js",
@@ -1131,7 +1137,7 @@ add_action( 'init', function () {
             icon_line = next((l.split("=", 1)[1] for l in icon_browser.stdout.splitlines()
                               if l.startswith("ZMP_ICON_BROWSER_JSON=")), "{}")
             icon_checks = json.loads(icon_line)
-            record("Genuine Fontello Elementor Icon widget desktop and mobile Chromium",
+            record(icon_test_label + " Elementor Icon widget desktop and mobile Chromium",
                    icon_browser.returncode == 0 and all(icon_checks.get(k) is True
                        for k in ("desktop", "mobile", "localFontLoaded"))
                    and icon_checks.get("pageErrors") == 0 and icon_checks.get("failedFontRequests") == 0,
